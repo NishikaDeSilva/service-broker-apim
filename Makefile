@@ -1,55 +1,64 @@
-# If the USE_SUDO_FOR_DOCKER env var is set, prefix docker commands with 'sudo'
-ifdef USE_SUDO_FOR_DOCKER
-	SUDO_CMD = sudo
-endif
+# ------------------------------------------------------------------------
+#
+# Copyright 2019 WSO2, Inc. (http://wso2.com)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+#
+# ------------------------------------------------------------------------
 
-IMAGE ?= quay.io/osb-starter-pack/servicebroker
-TAG ?= $(shell git describe --tags --always)
-PULL ?= IfNotPresent
+all: deps tests build
 
-build: ## Builds the starter pack
-	go build -i github.com/pmorie/osb-starter-pack/cmd/servicebroker
+build: ## Builds the service broker
+	go build -i github.com/wso2/service-broker-apim/cmd/servicebroker
 
-test: ## Runs the tests
-	go test -v $(shell go list ./... | grep -v /vendor/ | grep -v /test/)
+tests: ## Runs the tests
+	go test -v ./pkg/...
 
-linux: ## Builds a Linux executable
+integration-test-start:
+	./test/run-tests.sh
+
+integration-test-stop:
+	docker-compose -f ./test/integration-test-setup.yaml down
+
+debug-setup-up:
+	docker-compose -f ./test/debug-setup.yaml up -d
+
+debug-setup-down:
+	docker-compose -f ./test/debug-setup.yaml down
+
+build-linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-	go build -o servicebroker-linux --ldflags="-s" github.com/pmorie/osb-starter-pack/cmd/servicebroker
+	go build -o ./target/linux/servicebroker github.com/wso2/service-broker-apim/cmd/servicebroker
 
-darwin: ## Builds a Linux executable
+build-darwin: ## Builds a Darwin executable
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
-	go build -o servicebroker-linux --ldflags="-s" github.com/pmorie/osb-starter-pack/cmd/servicebroker
-
-image: linux ## Builds a Linux based image
-	cp servicebroker-linux image/servicebroker
-	$(SUDO_CMD) docker build image/ -t "$(IMAGE):$(TAG)"
+	go build -o ./target/darwin/servicebroker github.com/wso2/service-broker-apim/cmd/servicebroker
 
 clean: ## Cleans up build artifacts
 	rm -f servicebroker
-	rm -f servicebroker-linux
-	rm -f image/servicebroker
+	rm -fr target
 
-push: image ## Pushes the image to dockerhub, REQUIRES SPECIAL PERMISSION
-	$(SUDO_CMD) docker push "$(IMAGE):$(TAG)"
+deps:
+	dep ensure
 
-deploy-helm: image ## Deploys image with helm
-	helm upgrade --install broker-skeleton --namespace broker-skeleton \
-	charts/servicebroker \
-	--set image="$(IMAGE):$(TAG)",imagePullPolicy="$(PULL)"
+setup-lint: ## Install golint
+	go get -u golang.org/x/lint/golint
 
-deploy-openshift: image ## Deploys image to openshift
-	oc project osb-starter-pack || oc new-project osb-starter-pack
-	openshift/deploy.sh $(IMAGE):$(TAG)
+lint: ## Run golint on the code
+	golint  ./pkg/* ./cmd/*
 
-create-ns: ## Cleans up the namespaces
-	kubectl create ns test-ns
-
-provision: create-ns ## Provisions a service instance
-	kubectl apply -f manifests/service-instance.yaml
-
-bind: ## Creates a binding
-	kubectl apply -f manifests/service-binding.yaml
+format: ## Run gofmt on the code
+	gofmt -w ./pkg/* ./cmd/*
 
 help: ## Shows the help
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
@@ -60,4 +69,3 @@ help: ## Shows the help
         awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ''
 
-.PHONY: build test linux image clean push deploy-helm deploy-openshift create-ns provision bind help
