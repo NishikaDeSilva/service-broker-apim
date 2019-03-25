@@ -1,0 +1,3 @@
+logConf:
+  logFile: "ssss"
+  logLevel: "info"
