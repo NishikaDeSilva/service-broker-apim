@@ -2,7 +2,7 @@ build: ## Builds the service broker
 	go build -i github.com/wso2/service-broker-apim/cmd/servicebroker
 
 test: ## Runs the tests
-	go test -v ./pkg/utils
+	go test -v ./pkg/utils/*
 
 linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
@@ -16,6 +16,12 @@ clean: ## Cleans up build artifacts
 	rm -f servicebroker
 	rm -f servicebroker-linux
 	rm -f servicebroker-darwin
+
+setup: ## Install golint
+	go get -u golang.org/x/lint/golint
+
+lint: ## Run golint on the code
+	golint internal/* pkg/* cmd/*
 
 help: ## Shows the help
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'

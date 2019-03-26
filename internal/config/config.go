@@ -9,37 +9,38 @@ import (
 	"strings"
 )
 
-// Struct to hold Auth configuration
+// AuthConf holds the username and the password for basic auth
 type AuthConf struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 }
 
+// TLSConf holds configuration needed for HTTPS
 type TLSConf struct {
 	Enabled bool `yaml:"enabled"`
 	Key string `yaml:"key"`
 	Cert string `yaml:"cert"`
 }
-// Logging configuration
+// LogConf holds the configuration related to logging
 type LogConf struct {
 	LogFile  string `yaml:"logFile"`
 	LogLevel string `yaml:"logLevel"`
 }
 
-// Struct to hold configuration for HTTP
-type HttpConf struct {
+// HTTPConf holds configuration needed for HTTP server
+type HTTPConf struct {
 	Auth AuthConf `yaml:"auth"`
 	TLS TLSConf `yaml:"tls"`
 	Host string `yaml:"host"`
 	Port string `yaml:"port"`
 }
-// Main configuration structure
+// BrokerConfig main struct which holds references to sub configurations
 type BrokerConfig struct {
-	Log LogConf `yaml:log"`
-	Http HttpConf `yaml:"http"`
+	Log  LogConf  `yaml:log"`
+	HTTP HTTPConf `yaml:"http"`
 }
 
-// Load configuration into BrokerConfig object
+// LoadConfig load configuration into BrokerConfig object
 // Returns a pointer to the created BrokerConfig object
 func LoadConfig() (*BrokerConfig, error) {
 	viper.SetConfigType(constants.ConfigFileType)
@@ -59,13 +60,12 @@ func LoadConfig() (*BrokerConfig, error) {
 	return brokerConfig, nil
 }
 
-// Load the configuration file
+// loadConfFile load the configuration file
 // Must set the "BROKER_APIM_CONF_FILE" env to the configuration file
 func loadConfFile() error {
 	confFile, exists := os.LookupEnv(constants.ConfFileEnv)
 	if exists {
 		fmt.Println(fmt.Sprintf(constants.InfoMsgSettingUp, confFile))
-
 		viper.SetConfigFile(confFile)
 		if err := viper.ReadInConfig(); err != nil {
 			return errors.New(fmt.Sprintf(constants.ErrMsgUnableToReadConf, err))
@@ -75,7 +75,7 @@ func loadConfFile() error {
 	return errors.New(fmt.Sprintf(constants.ErrMsgNoConfFile, constants.ConfFileEnv))
 }
 
-// Returns a BrokerConfig object with default values
+// defaultConf returns a BrokerConfig object with default values
 func defaultConf() *BrokerConfig {
 	return &BrokerConfig{
 		Log: LogConf{

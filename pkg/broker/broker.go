@@ -6,7 +6,7 @@ import (
 	"github.com/pivotal-cf/brokerapi"
 )
 
-// This struct holds the concrete implementation of the interface brokerapi.ServiceBroker
+// APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
 type APIMServiceBroker struct {
 }
 

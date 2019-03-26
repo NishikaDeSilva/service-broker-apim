@@ -1,9 +1,9 @@
-// This package holds the Utils functions
+// Package utils holds a common set of Util functions
 package utils
 
 import "os"
 
-//If the Key is present in the environment the value (which may be empty) is returned.
+// GetEnv returns the value (which may be empty) If the Key is present in the environment
 // Otherwise the default value is returned
 func GetEnv(key, defaultVal string) string {
 	val, exists := os.LookupEnv(key)

@@ -1,8 +1,10 @@
 package constants
 
-// Configurations related constants
+// ConfFileEnv is used as a key to get the configuration file location
 const ConfFileEnv = "BROKER_APIM_CONF_FILE"
+// ConfigFileType constant is used to specify the Configuration file type(YAML)
 const ConfigFileType = "yaml"
+// EnvPrefix is the prefix for configuration parameters ex: BROKER_APIM_LOGCONF_LOGFILE
 const EnvPrefix = "BROKER_APIM"
 
 // Error messages
@@ -19,11 +21,12 @@ const ErrMSGUnableToStartServer = "Unable to start the server on Host: %s port: 
 const InfoMSGShutdownBroker = "Starting APIM Service Broker shutdown"
 const InfoMSGServerStart = "Starting APIM broker on host: %s port: %s"
 
-// Debug messages
+// DebugMSGHttpsEnabled when HTTPS is enabled
 const DebugMSGHttpsEnabled = "HTTPS is enabled"
 
-// Logging
+// LoggerName is used to specify the source of the logger
 const LoggerName = "wso2-apim-broker"
+// FilePerm is the permission for the server log file
 const FilePerm = 0644
 
 // Test messages

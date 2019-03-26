@@ -37,8 +37,8 @@ func main() {
 	}()
 
 	brokerCreds := brokerapi.BrokerCredentials{
-		Username: brokerConfig.Http.Auth.Username,
-		Password: brokerConfig.Http.Auth.Password,
+		Username: brokerConfig.HTTP.Auth.Username,
+		Password: brokerConfig.HTTP.Auth.Password,
 	}
 	apimServiceBroker := &broker.APIMServiceBroker{
 
@@ -46,22 +46,22 @@ func main() {
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 	http.Handle("/", brokerAPI)
 
-	logger.Info(fmt.Sprintf(constants.InfoMSGServerStart, brokerConfig.Http.Host, brokerConfig.Http.Port))
-	if !brokerConfig.Http.TLS.Enabled {
-		if err := http.ListenAndServe(brokerConfig.Http.Host+":"+brokerConfig.Http.Port, nil); err != nil {
+	logger.Info(fmt.Sprintf(constants.InfoMSGServerStart, brokerConfig.HTTP.Host, brokerConfig.HTTP.Port))
+	if !brokerConfig.HTTP.TLS.Enabled {
+		if err := http.ListenAndServe(brokerConfig.HTTP.Host+":"+brokerConfig.HTTP.Port, nil); err != nil {
 			utils.HandleErrorWithLoggerAndExit(logger,
-				fmt.Sprintf(constants.ErrMSGUnableToStartServer, brokerConfig.Http.Host,
-					brokerConfig.Http.Port), err)
+				fmt.Sprintf(constants.ErrMSGUnableToStartServer, brokerConfig.HTTP.Host,
+					brokerConfig.HTTP.Port), err)
 		}
 	} else {
 		logger.Debug(constants.DebugMSGHttpsEnabled)
-		if err := http.ListenAndServeTLS(brokerConfig.Http.Host+":"+brokerConfig.Http.Port,
-			brokerConfig.Http.TLS.Cert, brokerConfig.Http.TLS.Key, nil); err != nil {
+		if err := http.ListenAndServeTLS(brokerConfig.HTTP.Host+":"+brokerConfig.HTTP.Port,
+			brokerConfig.HTTP.TLS.Cert, brokerConfig.HTTP.TLS.Key, nil); err != nil {
 			utils.HandleErrorWithLoggerAndExit(logger, fmt.Sprintf(constants.ErrMSGUnableToStartServerTLS,
-				brokerConfig.Http.Host,
-				brokerConfig.Http.Port,
-				brokerConfig.Http.TLS.Key,
-				brokerConfig.Http.TLS.Cert),
+				brokerConfig.HTTP.Host,
+				brokerConfig.HTTP.Port,
+				brokerConfig.HTTP.TLS.Key,
+				brokerConfig.HTTP.TLS.Cert),
 				err)
 		}
 	}
