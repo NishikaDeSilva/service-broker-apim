@@ -9,12 +9,34 @@ import (
 	"strings"
 )
 
-type Log struct {
+// Struct to hold Auth configuration
+type AuthConf struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
+type TLSConf struct {
+	Enabled bool `yaml:"enabled"`
+	Key string `yaml:"key"`
+	Cert string `yaml:"cert"`
+}
+// Logging configuration
+type LogConf struct {
 	LogFile  string `yaml:"logFile"`
 	LogLevel string `yaml:"logLevel"`
 }
+
+// Struct to hold configuration for HTTP
+type HttpConf struct {
+	Auth AuthConf `yaml:"auth"`
+	TLS TLSConf `yaml:"tls"`
+	Host string `yaml:"host"`
+	Port string `yaml:"port"`
+}
+// Main configuration structure
 type BrokerConfig struct {
-	LogConf Log `yaml:logConf"`
+	Log LogConf `yaml:log"`
+	Http HttpConf `yaml:"http"`
 }
 
 // Load configuration into BrokerConfig object
@@ -42,20 +64,23 @@ func LoadConfig() (*BrokerConfig, error) {
 func loadConfFile() error {
 	confFile, exists := os.LookupEnv(constants.ConfFileEnv)
 	if exists {
-		fmt.Printf(constants.ErrMsgSettingUp, confFile)
+		fmt.Println(fmt.Sprintf(constants.InfoMsgSettingUp, confFile))
+
 		viper.SetConfigFile(confFile)
 		if err := viper.ReadInConfig(); err != nil {
 			return errors.New(fmt.Sprintf(constants.ErrMsgUnableToReadConf, err))
 		}
+		return nil
 	}
-	return nil
+	return errors.New(fmt.Sprintf(constants.ErrMsgNoConfFile, constants.ConfFileEnv))
 }
 
 // Returns a BrokerConfig object with default values
 func defaultConf() *BrokerConfig {
 	return &BrokerConfig{
-		LogConf: Log{
+		Log: LogConf{
 			LogFile: "server.log",
+			LogLevel: "info",
 		},
 	}
 }

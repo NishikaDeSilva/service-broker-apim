@@ -1,16 +1,16 @@
 build: ## Builds the service broker
-	go build -i github.com/wso2/service-broker-apim/cmd/main
+	go build -i github.com/wso2/service-broker-apim/cmd/servicebroker
 
 test: ## Runs the tests
-	go test -v $(shell go list ./... | grep -v /vendor/ | grep -v /test/)
+	go test -v ./pkg/utils
 
 linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-	go build -o servicebroker-linux --ldflags="-s" github.com/wso2/service-broker-apim/cmd/main
+	go build -o servicebroker-linux github.com/wso2/service-broker-apim/cmd/servicebroker
 
-darwin: ## Builds a Linux executable
+darwin: ## Builds a Darwin executable
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
-	go build -o servicebroker-darwin --ldflags="-s" github.com/wso2/service-broker-apim/cmd/main
+	go build -o servicebroker-darwin github.com/wso2/service-broker-apim/cmd/servicebroker
 
 clean: ## Cleans up build artifacts
 	rm -f servicebroker
