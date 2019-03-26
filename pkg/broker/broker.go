@@ -27,12 +27,12 @@ func (apimServiceBroker *APIMServiceBroker) Deprovision(ctx context.Context, ins
 
 func (apimServiceBroker *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
-		return  brokerapi.Binding{}, nil
+	return brokerapi.Binding{}, nil
 }
 
 func (apimServiceBroker *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.UnbindDetails, asyncAllowed bool) (brokerapi.UnbindSpec, error) {
-		return brokerapi.UnbindSpec{}, nil
+	return brokerapi.UnbindSpec{}, nil
 }
 
 // LastOperation ...
@@ -62,4 +62,3 @@ func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Con
 	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
-

@@ -17,7 +17,7 @@ func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf(constants.ErrMsgInvalidLogLevel, logLevel))
 	}
-	f, err := os.OpenFile(logFile, os.O_WRONLY | os.O_CREATE | os.O_APPEND, constants.FilePerm )
+	f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, constants.FilePerm)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf(constants.ErrMsgUnableToOpenLogFile, logFile))
 	}

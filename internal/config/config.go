@@ -17,10 +17,11 @@ type AuthConf struct {
 
 // TLSConf holds configuration needed for HTTPS
 type TLSConf struct {
-	Enabled bool `yaml:"enabled"`
-	Key string `yaml:"key"`
-	Cert string `yaml:"cert"`
+	Enabled bool   `yaml:"enabled"`
+	Key     string `yaml:"key"`
+	Cert    string `yaml:"cert"`
 }
+
 // LogConf holds the configuration related to logging
 type LogConf struct {
 	LogFile  string `yaml:"logFile"`
@@ -30,10 +31,11 @@ type LogConf struct {
 // HTTPConf holds configuration needed for HTTP server
 type HTTPConf struct {
 	Auth AuthConf `yaml:"auth"`
-	TLS TLSConf `yaml:"tls"`
-	Host string `yaml:"host"`
-	Port string `yaml:"port"`
+	TLS  TLSConf  `yaml:"tls"`
+	Host string   `yaml:"host"`
+	Port string   `yaml:"port"`
 }
+
 // BrokerConfig main struct which holds references to sub configurations
 type BrokerConfig struct {
 	Log  LogConf  `yaml:log"`
@@ -79,7 +81,7 @@ func loadConfFile() error {
 func defaultConf() *BrokerConfig {
 	return &BrokerConfig{
 		Log: LogConf{
-			LogFile: "server.log",
+			LogFile:  "server.log",
 			LogLevel: "info",
 		},
 	}

@@ -23,6 +23,9 @@ setup: ## Install golint
 lint: ## Run golint on the code
 	golint internal/* pkg/* cmd/*
 
+format:
+	gofmt -w pkg/* internal/* cmd/*
+
 help: ## Shows the help
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
 	@echo ''

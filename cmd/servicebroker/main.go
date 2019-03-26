@@ -40,9 +40,7 @@ func main() {
 		Username: brokerConfig.HTTP.Auth.Username,
 		Password: brokerConfig.HTTP.Auth.Password,
 	}
-	apimServiceBroker := &broker.APIMServiceBroker{
-
-	}
+	apimServiceBroker := &broker.APIMServiceBroker{}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 	http.Handle("/", brokerAPI)
 

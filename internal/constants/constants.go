@@ -2,8 +2,10 @@ package constants
 
 // ConfFileEnv is used as a key to get the configuration file location
 const ConfFileEnv = "BROKER_APIM_CONF_FILE"
+
 // ConfigFileType constant is used to specify the Configuration file type(YAML)
 const ConfigFileType = "yaml"
+
 // EnvPrefix is the prefix for configuration parameters ex: BROKER_APIM_LOGCONF_LOGFILE
 const EnvPrefix = "BROKER_APIM"
 
@@ -26,6 +28,7 @@ const DebugMSGHttpsEnabled = "HTTPS is enabled"
 
 // LoggerName is used to specify the source of the logger
 const LoggerName = "wso2-apim-broker"
+
 // FilePerm is the permission for the server log file
 const FilePerm = 0644
 
