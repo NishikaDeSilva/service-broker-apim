@@ -15,15 +15,15 @@ import (
 func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 	logLevel, err := lager.LogLevelFromString(logLevelS)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(constants.ErrMsgInvalidLogLevel, logLevel))
+		return nil, errors.Wrapf(err, constants.ErrMsgInvalidLogLevel, logLevel)
 	}
 	f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, constants.FilePerm)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(constants.ErrMsgUnableToOpenLogFile, logFile))
+		return nil, errors.Wrapf(err, constants.ErrMsgUnableToOpenLogFile, logFile)
 	}
-	bl := lager.NewLogger(constants.LoggerName)
-	bl.RegisterSink(lager.NewWriterSink(io.MultiWriter(os.Stdout, f), logLevel))
-	return bl, nil
+	logger := lager.NewLogger(constants.LoggerName)
+	logger.RegisterSink(lager.NewWriterSink(io.MultiWriter(os.Stdout, f), logLevel))
+	return logger, nil
 }
 
 // HandleErrorAndExit prints an error and exit with exit code 1

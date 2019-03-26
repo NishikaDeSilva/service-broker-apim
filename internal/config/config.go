@@ -50,7 +50,7 @@ func LoadConfig() (*BrokerConfig, error) {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	if err := loadConfFile(); err != nil {
+	if err := loadConfigFile(); err != nil {
 		return nil, err
 	}
 
@@ -62,15 +62,15 @@ func LoadConfig() (*BrokerConfig, error) {
 	return brokerConfig, nil
 }
 
-// loadConfFile load the configuration file
+// loadConfigFile load the configuration file
 // Must set the "BROKER_APIM_CONF_FILE" env to the configuration file
-func loadConfFile() error {
+func loadConfigFile() error {
 	confFile, exists := os.LookupEnv(constants.ConfFileEnv)
 	if exists {
 		fmt.Println(fmt.Sprintf(constants.InfoMsgSettingUp, confFile))
 		viper.SetConfigFile(confFile)
 		if err := viper.ReadInConfig(); err != nil {
-			return errors.New(fmt.Sprintf(constants.ErrMsgUnableToReadConf, err))
+			return errors.Wrapf(err, constants.ErrMsgUnableToReadConf, err)
 		}
 		return nil
 	}
