@@ -1,7 +1,10 @@
+/*
+ *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ */
 package utils
 
 import (
-	"github.com/wso2/service-broker-apim/internal/constants"
+	"github.com/wso2/service-broker-apim/pkg/constants"
 	"os"
 	"testing"
 )

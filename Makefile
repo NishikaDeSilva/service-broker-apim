@@ -21,10 +21,10 @@ setup: ## Install golint
 	go get -u golang.org/x/lint/golint
 
 lint: ## Run golint on the code
-	golint internal/* pkg/* cmd/*
+	golint  pkg/* cmd/*
 
 format:
-	gofmt -w pkg/* internal/* cmd/*
+	gofmt -w pkg/* cmd/*
 
 help: ## Shows the help
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'

@@ -1,45 +1,49 @@
+/*
+ *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ */
+// config package responsible for loading, parsing the configuration
 package config
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/wso2/service-broker-apim/internal/constants"
+	"github.com/wso2/service-broker-apim/pkg/constants"
 	"os"
 	"strings"
 )
 
-// AuthConf holds the username and the password for basic auth
+// AuthConf represents the username and the password for basic auth
 type AuthConf struct {
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
-// TLSConf holds configuration needed for HTTPS
+// TLSConf represents configuration needed for HTTPS
 type TLSConf struct {
-	Enabled bool   `yaml:"enabled"`
-	Key     string `yaml:"key"`
-	Cert    string `yaml:"cert"`
+	Enabled bool   `mapstructure:"enabled"`
+	Key     string `mapstructure:"key"`
+	Cert    string `mapstructure:"cert"`
 }
 
-// LogConf holds the configuration related to logging
+// LogConf represents the configuration related to logging
 type LogConf struct {
-	LogFile  string `yaml:"logFile"`
-	LogLevel string `yaml:"logLevel"`
+	LogFile  string `mapstructure:"logFile"`
+	LogLevel string `mapstructure:"logLevel"`
 }
 
-// HTTPConf holds configuration needed for HTTP server
+// HTTPConf represents configuration needed for HTTP server
 type HTTPConf struct {
-	Auth AuthConf `yaml:"auth"`
-	TLS  TLSConf  `yaml:"tls"`
-	Host string   `yaml:"host"`
-	Port string   `yaml:"port"`
+	Auth AuthConf `mapstructure:"auth"`
+	TLS  TLSConf  `mapstructure:"tls"`
+	Host string   `mapstructure:"host"`
+	Port string   `mapstructure:"port"`
 }
 
 // BrokerConfig main struct which holds references to sub configurations
 type BrokerConfig struct {
-	Log  LogConf  `yaml:log"`
-	HTTP HTTPConf `yaml:"http"`
+	Log  LogConf  `mapstructure:log"`
+	HTTP HTTPConf `mapstructure:"http"`
 }
 
 // LoadConfig load configuration into BrokerConfig object
@@ -57,7 +61,7 @@ func LoadConfig() (*BrokerConfig, error) {
 	var brokerConfig = defaultConf()
 	err := viper.Unmarshal(brokerConfig)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf(constants.ErrMsgUnableToParseConf, err))
+		return nil, errors.Wrapf(err, constants.ErrMsgUnableToParseConf)
 	}
 	return brokerConfig, nil
 }

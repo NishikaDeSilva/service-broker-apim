@@ -1,18 +1,25 @@
+/*
+ *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ */
 package broker
 
 import (
 	"context"
 	"errors"
 	"github.com/pivotal-cf/brokerapi"
+	"github.com/wso2/service-broker-apim/pkg/config"
+	"github.com/wso2/service-broker-apim/pkg/constants"
 )
+
+type FreeBool bool
 
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
 type APIMServiceBroker struct {
+	BrokerConfig *config.BrokerConfig
 }
 
 func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
-
-	return nil, nil
+	return plan(), nil
 }
 
 func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
@@ -49,7 +56,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-	bindingID string) (brokerapi.GetBindingSpec, error) {
+bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -59,6 +66,86 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
+}
+
+// plan returns an array of services offered by this service broker
+func plan() []brokerapi.Service{
+	return []brokerapi.Service{
+		{
+			ID:                   constants.ServiceId,
+			Name:                 constants.ServiceName,
+			Description:          constants.ServiceDescription,
+			Bindable:             constants.ServiceBindable,
+			InstancesRetrievable: constants.ServiceInstancesRetrievable,
+			PlanUpdatable:        constants.ServicePlanUpdateAble,
+			Plans: []brokerapi.ServicePlan{
+				{
+					ID:              constants.PlanID,
+					Name:            constants.PlanName,
+					Description:     constants.PlanDescription,
+					Schemas:         &brokerapi.ServiceSchemas{
+						Instance:  brokerapi.ServiceInstanceSchema{
+							Create: brokerapi.Schema{
+								Parameters: map[string]interface{}{
+									"$schema": "http://json-schema.org/draft-04/schema#",
+									"type":    "object",
+									"properties": map[string]interface{}{
+										"api": map[string]interface{}{
+											"type":    "object",
+											"properties": map[string]interface{}{
+												"name" : map[string]interface{}{
+													"type": "string",
+												},
+												"description" : map[string]interface{}{
+													"type": "string",
+												},
+												"context" : map[string]interface{}{
+													"type": "string",
+												},
+												"version" : map[string]interface{}{
+													"type": "string",
+												},
+												"apiDefinition" : map[string]interface{}{
+													"type": "string",
+												},
+												"isDefaultVersion" : map[string]interface{}{
+													"type": "string",
+												},
+												"type" : map[string]interface{}{
+													"type": "string",
+												},
+												"transport" : map[string]interface{}{
+													"type": "array",
+													"items" : map[string]interface{}{
+														"type":"string",
+													},
+												},
+												"tiers" : map[string]interface{}{
+													"type": "array",
+													"items" : map[string]interface{}{
+														"type":"string",
+													},
+												},
+												"visibility" : map[string]interface{}{
+													"type": "string",
+												},
+												"status" : map[string]interface{}{
+													"type": "string",
+												},
+												"endpointConfig" : map[string]interface{}{
+													"type": "string",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
