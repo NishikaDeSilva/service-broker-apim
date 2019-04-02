@@ -67,7 +67,7 @@ func HandleErrorAndExit(err error) {
 
 // HandleErrorWithLoggerAndExit prints an error through the provided logger and exit with exit code 1
 // Only applicable upto server startup since process will be killed once invoked
-func HandleErrorWithLoggerAndExit(logger lager.Logger, errMsg string, err error) {
+func HandleErrorWithLoggerAndExit(errMsg string, err error) {
 	LogError(errMsg, err)
 	os.Exit(constants.ExitCode1)
 }

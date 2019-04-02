@@ -26,6 +26,13 @@ func main() {
 	if err != nil {
 		utils.HandleErrorAndExit(err)
 	}
+
+	//Initialize Token Manager
+	tManager := &broker.TokenManager{
+		Config: brokerConfig,
+	}
+	tManager.InitTokenManager("api_create")
+
 	// Handling terminating signal
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGTERM)
@@ -51,14 +58,14 @@ func main() {
 	logger.Info(fmt.Sprintf(constants.InfoMSGServerStart, host, port))
 	if !brokerConfig.HTTP.TLS.Enabled {
 		if err := http.ListenAndServe(host+":"+port, nil); err != nil {
-			utils.HandleErrorWithLoggerAndExit(logger,
+			utils.HandleErrorWithLoggerAndExit(
 				fmt.Sprintf(constants.ErrMSGUnableToStartServer, host, port), err)
 		}
 	} else {
 		logger.Debug(constants.DebugMSGHttpsEnabled)
 		if err := http.ListenAndServeTLS(host+":"+port,
 			brokerConfig.HTTP.TLS.Cert, brokerConfig.HTTP.TLS.Key, nil); err != nil {
-			utils.HandleErrorWithLoggerAndExit(logger, fmt.Sprintf(constants.ErrMSGUnableToStartServerTLS,
+			utils.HandleErrorWithLoggerAndExit(fmt.Sprintf(constants.ErrMSGUnableToStartServerTLS,
 				host,
 				port,
 				brokerConfig.HTTP.TLS.Key,

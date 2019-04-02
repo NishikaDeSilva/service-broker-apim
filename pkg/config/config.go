@@ -1,6 +1,7 @@
 /*
  *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  */
+
 // config package responsible for loading, parsing the configuration
 package config
 
@@ -12,6 +13,15 @@ import (
 	"os"
 	"strings"
 )
+
+// APIMConf represents the information required to interact with the APIM
+type APIMConf struct {
+	Username              string `mapstructure:"username"`
+	Password              string `mapstructure:"password"`
+	InsecureCon           bool   `mapstructure:"insecureCon"`
+	TokenEndpoint         string `mapstructure:"tokenEndpoint"`
+	DynamicClientEndpoint string `mapstructure:"dynamicClientEndpoint"`
+}
 
 // AuthConf represents the username and the password for basic auth
 type AuthConf struct {
@@ -44,6 +54,7 @@ type HTTPConf struct {
 type BrokerConfig struct {
 	Log  LogConf  `mapstructure:log"`
 	HTTP HTTPConf `mapstructure:"http"`
+	APIM APIMConf `mapstructure:"apim"`
 }
 
 // LoadConfig load configuration into BrokerConfig object
@@ -87,6 +98,25 @@ func defaultConf() *BrokerConfig {
 		Log: LogConf{
 			LogFile:  "server.log",
 			LogLevel: "info",
+		},
+		HTTP: HTTPConf{
+			Auth: AuthConf{
+				Username: "admin",
+				Password: "admin",
+			},
+			TLS: TLSConf{
+				Enabled: false,
+				Key:     "",
+				Cert:    "",
+			},
+			Host: "0.0.0.0",
+			Port: "8443",
+		},
+		APIM: APIMConf{
+			Username:              "admin",
+			Password:              "admin",
+			TokenEndpoint:         "https://localhost:8243/token",
+			DynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register",
 		},
 	}
 }

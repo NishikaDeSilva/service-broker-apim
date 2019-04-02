@@ -11,8 +11,6 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/constants"
 )
 
-type FreeBool bool
-
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
 type APIMServiceBroker struct {
 	BrokerConfig *config.BrokerConfig
@@ -24,6 +22,7 @@ func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]bro
 
 func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
+
 	return spec, nil
 }
 
@@ -56,7 +55,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-bindingID string) (brokerapi.GetBindingSpec, error) {
+	bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -66,12 +65,12 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 
 // plan returns an array of services offered by this service broker
-func plan() []brokerapi.Service{
+func plan() []brokerapi.Service {
 	return []brokerapi.Service{
 		{
 			ID:                   constants.ServiceId,
@@ -82,59 +81,59 @@ func plan() []brokerapi.Service{
 			PlanUpdatable:        constants.ServicePlanUpdateAble,
 			Plans: []brokerapi.ServicePlan{
 				{
-					ID:              constants.PlanID,
-					Name:            constants.PlanName,
-					Description:     constants.PlanDescription,
-					Schemas:         &brokerapi.ServiceSchemas{
-						Instance:  brokerapi.ServiceInstanceSchema{
+					ID:          constants.PlanID,
+					Name:        constants.PlanName,
+					Description: constants.PlanDescription,
+					Schemas: &brokerapi.ServiceSchemas{
+						Instance: brokerapi.ServiceInstanceSchema{
 							Create: brokerapi.Schema{
 								Parameters: map[string]interface{}{
 									"$schema": "http://json-schema.org/draft-04/schema#",
 									"type":    "object",
 									"properties": map[string]interface{}{
 										"api": map[string]interface{}{
-											"type":    "object",
+											"type": "object",
 											"properties": map[string]interface{}{
-												"name" : map[string]interface{}{
+												"name": map[string]interface{}{
 													"type": "string",
 												},
-												"description" : map[string]interface{}{
+												"description": map[string]interface{}{
 													"type": "string",
 												},
-												"context" : map[string]interface{}{
+												"context": map[string]interface{}{
 													"type": "string",
 												},
-												"version" : map[string]interface{}{
+												"version": map[string]interface{}{
 													"type": "string",
 												},
-												"apiDefinition" : map[string]interface{}{
+												"apiDefinition": map[string]interface{}{
 													"type": "string",
 												},
-												"isDefaultVersion" : map[string]interface{}{
+												"isDefaultVersion": map[string]interface{}{
 													"type": "string",
 												},
-												"type" : map[string]interface{}{
+												"type": map[string]interface{}{
 													"type": "string",
 												},
-												"transport" : map[string]interface{}{
+												"transport": map[string]interface{}{
 													"type": "array",
-													"items" : map[string]interface{}{
-														"type":"string",
+													"items": map[string]interface{}{
+														"type": "string",
 													},
 												},
-												"tiers" : map[string]interface{}{
+												"tiers": map[string]interface{}{
 													"type": "array",
-													"items" : map[string]interface{}{
-														"type":"string",
+													"items": map[string]interface{}{
+														"type": "string",
 													},
 												},
-												"visibility" : map[string]interface{}{
+												"visibility": map[string]interface{}{
 													"type": "string",
 												},
-												"status" : map[string]interface{}{
+												"status": map[string]interface{}{
 													"type": "string",
 												},
-												"endpointConfig" : map[string]interface{}{
+												"endpointConfig": map[string]interface{}{
 													"type": "string",
 												},
 											},
