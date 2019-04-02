@@ -48,6 +48,7 @@ func main() {
 	}
 	apimServiceBroker := &broker.APIMServiceBroker{
 		BrokerConfig: brokerConfig,
+		TokenManager:tManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 	// Register router with handlers

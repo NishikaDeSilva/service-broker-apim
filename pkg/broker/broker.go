@@ -15,6 +15,7 @@ import (
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
 type APIMServiceBroker struct {
 	BrokerConfig *config.BrokerConfig
+	TokenManager *TokenManager
 }
 
 func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
@@ -24,12 +25,26 @@ func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]bro
 func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
 	if isPlanOrg(serviceDetails) {
-
+		exists, err := isInstanceExists(serviceDetails, instanceID)
+		if err != nil {
+			return spec, err
+		}
+		if exists {
+			return spec, brokerapi.ErrInstanceAlreadyExists
+		}
+		apiId, err := CreateAPI(string(serviceDetails.RawParameters), apimServiceBroker.TokenManager)
+		if err != nil {
+			return spec, err
+		}
 	} else {
 		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
-			http.StatusBadRequest, "provisioning" )
+			http.StatusBadRequest, "provisioning")
 	}
 	return spec, nil
+}
+
+func isInstanceExists(details brokerapi.ProvisionDetails, s string) (bool, error) {
+	return false, nil
 }
 
 func (apimServiceBroker *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,
@@ -61,7 +76,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-	bindingID string) (brokerapi.GetBindingSpec, error) {
+bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -71,7 +86,7 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 
@@ -155,7 +170,7 @@ func Plan() []brokerapi.Service {
 	}
 }
 
-func isPlanOrg(d brokerapi.ProvisionDetails) bool{
+func isPlanOrg(d brokerapi.ProvisionDetails) bool {
 	if d.ServiceID == constants.OrgServiceId && d.PlanID == constants.OrgPlanID {
 		return true
 	}
