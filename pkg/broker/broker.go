@@ -9,6 +9,7 @@ import (
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/constants"
+	"net/http"
 )
 
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
@@ -17,12 +18,17 @@ type APIMServiceBroker struct {
 }
 
 func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
-	return plan(), nil
+	return Plan(), nil
 }
 
 func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
+	if isPlanOrg(serviceDetails) {
 
+	} else {
+		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+			http.StatusBadRequest, "provisioning" )
+	}
 	return spec, nil
 }
 
@@ -69,11 +75,11 @@ func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Con
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 
-// plan returns an array of services offered by this service broker
-func plan() []brokerapi.Service {
+// Plan returns an array of services offered by this service broker
+func Plan() []brokerapi.Service {
 	return []brokerapi.Service{
 		{
-			ID:                   constants.ServiceId,
+			ID:                   constants.OrgServiceId,
 			Name:                 constants.ServiceName,
 			Description:          constants.ServiceDescription,
 			Bindable:             constants.ServiceBindable,
@@ -81,7 +87,7 @@ func plan() []brokerapi.Service {
 			PlanUpdatable:        constants.ServicePlanUpdateAble,
 			Plans: []brokerapi.ServicePlan{
 				{
-					ID:          constants.PlanID,
+					ID:          constants.OrgPlanID,
 					Name:        constants.PlanName,
 					Description: constants.PlanDescription,
 					Schemas: &brokerapi.ServiceSchemas{
@@ -147,4 +153,11 @@ func plan() []brokerapi.Service {
 			},
 		},
 	}
+}
+
+func isPlanOrg(d brokerapi.ProvisionDetails) bool{
+	if d.ServiceID == constants.OrgServiceId && d.PlanID == constants.OrgPlanID {
+		return true
+	}
+	return false
 }

@@ -40,7 +40,7 @@ func ParseBody(res *http.Response, v interface{}) error {
 }
 
 // Invoke the request and parse the response body to the given struct
-func Invoke(insecureCon bool, context string, req *http.Request, body interface{}) error {
+func Invoke(insecureCon bool, context string, req *http.Request, body interface{}, resCode int) error {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureCon},
 	}
@@ -51,7 +51,7 @@ func Invoke(insecureCon bool, context string, req *http.Request, body interface{
 	if err != nil {
 		return errors.Wrapf(err, constants.ErrMSGUnableInitiateReq, context)
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != resCode {
 		return errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, resp.Status)
 	}
 	defer func() {
@@ -59,7 +59,7 @@ func Invoke(insecureCon bool, context string, req *http.Request, body interface{
 			utils.LogError(constants.ErrMSGUnableToCloseBody, err)
 		}
 	}()
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode == resCode {
 		err = ParseBody(resp, body)
 		if err != nil {
 			return errors.Wrapf(err, constants.ErrMSGUnableToParseRespBody, context)

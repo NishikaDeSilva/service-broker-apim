@@ -14,18 +14,18 @@ const ConfigFileType = "yaml"
 const EnvPrefix = "BROKER_APIM"
 
 // Error messages
-const ErrMsgUnableToReadConf = "Unable to read configuration: %s"
-const ErrMsgUnableToParseConf = "Unable to parse configuration"
-const ErrMsgInvalidLogLevel = "Invalid log level: %s"
-const ErrMsgUnableToOpenLogFile = "Unable to open the Log file: %s"
-const ErrMsgNoConfFile = "Couldn't find the Configuration file env: %s"
-const ErrMSGUnableToStartServerTLS = "Unable to start the server on Host: %s port: %s TLS key: %s TLS cert: %s"
-const ErrMSGUnableToStartServer = "Unable to start the server on Host: %s port: %s"
+const ErrMsgUnableToReadConf = "unable to read configuration: %s"
+const ErrMsgUnableToParseConf = "unable to parse configuration"
+const ErrMsgInvalidLogLevel = "invalid log level: %s"
+const ErrMsgUnableToOpenLogFile = "unable to open the Log file: %s"
+const ErrMsgNoConfFile = "couldn't find the Configuration file env: %s"
+const ErrMSGUnableToStartServerTLS = "unable to start the server on Host: %s port: %s TLS key: %s TLS cert: %s"
+const ErrMSGUnableToStartServer = "unable to start the server on Host: %s port: %s"
 
 // Info messages
-const InfoMsgSettingUp = "Loading the configuration file: %s "
-const InfoMSGShutdownBroker = "Starting APIM Service Broker shutdown"
-const InfoMSGServerStart = "Starting APIM broker on host: %s port: %s"
+const InfoMsgSettingUp = "loading the configuration file: %s "
+const InfoMSGShutdownBroker = "starting APIM Service Broker shutdown"
+const InfoMSGServerStart = "starting APIM broker on host: %s port: %s"
 
 // DebugMSGHttpsEnabled when HTTPS is enabled
 const DebugMSGHttpsEnabled = "HTTPS is enabled"
@@ -37,8 +37,8 @@ const LoggerName = "wso2-apim-broker"
 const FilePerm = 0644
 
 // Test messages
-const ErrMsgTestCouldNotSetEnv = "Couldn't set the ENV: %v"
-const ErrMsgTestIncorrectResult = "Expected value: %v but then returned value: %v"
+const ErrMsgTestCouldNotSetEnv = "couldn't set the ENV: %v"
+const ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 
 // ExitCode represents the OS exist code 1
 const ExitCode1 = 1

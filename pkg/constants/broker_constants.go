@@ -4,7 +4,7 @@
 
 package constants
 
-const ServiceId = "460F28F9-4D05-4889-970A-7AF5FB7D3CF8"
+const OrgServiceId = "460F28F9-4D05-4889-970A-7AF5FB7D3CF8"
 
 const ServiceName = "wso2-apim-service"
 
@@ -16,7 +16,7 @@ const ServiceInstancesRetrievable = false
 
 const ServicePlanUpdateAble = false
 
-const PlanID = "4DF4F2AF-EADF-4E76-A5CA-732FBC625593"
+const OrgPlanID = "4DF4F2AF-EADF-4E76-A5CA-732FBC625593"
 
 const PlanName = "org"
 

@@ -210,7 +210,7 @@ func GenToken(reqBody url.Values) (aT, rT string, expiresIn int, err error) {
 	req.SetBasicAuth(clientID, clientSec)
 	req.Header.Add(constants.HTTPContentType, constants.ContentTypeUrlEncoded)
 	var resBody TokenResp
-	if err := client.Invoke(inSecureCon, GenerateAccessToken, req, &resBody); err != nil {
+	if err := client.Invoke(inSecureCon, GenerateAccessToken, req, &resBody, http.StatusOK); err != nil {
 		return "", "", 0, err
 	}
 	return resBody.AccessToken, resBody.RefreshToken, resBody.ExpiresIn, nil
@@ -234,7 +234,7 @@ func DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret 
 	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
 
 	var resBody DynamicClientRegResBody
-	if err := client.Invoke(inSecureCon, DynamicClientRegMSG, req, &resBody); err != nil {
+	if err := client.Invoke(inSecureCon, DynamicClientRegMSG, req, &resBody, http.StatusOK); err != nil {
 		return "", "", err
 	}
 	return resBody.ClientId, resBody.ClientSecret, nil
