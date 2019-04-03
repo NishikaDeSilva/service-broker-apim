@@ -29,9 +29,20 @@ func main() {
 
 	//Initialize Token Manager
 	tManager := &broker.TokenManager{
-		Config: brokerConfig,
+		TokenEndpoint:brokerConfig.APIM.TokenEndpoint,
+		DynamicClientEndpoint : brokerConfig.APIM.DynamicClientEndpoint,
+		UserName              :brokerConfig.APIM.Username,
+		Password              :brokerConfig.APIM.Password,
+		InSecureCon           :brokerConfig.APIM.InsecureCon,
 	}
-	tManager.InitTokenManager("api_create")
+	tManager.InitTokenManager(broker.APICreateScope)
+
+	//Initialize APIM manager
+	apimManager := &broker.APIMManager{
+		APIMEndpoint:brokerConfig.APIM.PublisherEndpoint,
+		InsecureCon:brokerConfig.APIM.InsecureCon,
+	}
+
 
 	// Handling terminating signal
 	sigChannel := make(chan os.Signal, 1)
@@ -49,6 +60,7 @@ func main() {
 	apimServiceBroker := &broker.APIMServiceBroker{
 		BrokerConfig: brokerConfig,
 		TokenManager:tManager,
+		APIMManager:apimManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 	// Register router with handlers

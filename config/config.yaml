@@ -28,3 +28,4 @@ apim:
   insecureCon: true
   tokenEndpoint: "https://localhost:8243/token"
   dynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register"
+  publisherEndpoint: "https://localhost:9443/api/am/publisher/v0.14/apis"

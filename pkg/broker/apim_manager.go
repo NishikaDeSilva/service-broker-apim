@@ -7,31 +7,45 @@ package broker
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"net/http"
 )
 
 var (
-	apimBackend string
+	apimEndpoint string
+	insecureCon  bool
 )
 
+const (
+	CreateAPIContext       = "create API"
+	HeaderAuth             = "Authorization"
+	HeaderBear             = "Bearer "
+	APICreateScope         = "apim:api_create"
+)
 
-func CreateAPI(apiSpec string, tm TokenManager) (string,error){
+// APIMManager handles the communication with API Manager
+type APIMManager struct{
+	APIMEndpoint string
+	InsecureCon bool
+}
+
+// CreateAPI function creates
+func (am *APIMManager )CreateAPI(apiReqBody APIReqBody, tm *TokenManager) (string, error) {
 	buf := new(bytes.Buffer)
-	err := json.NewEncoder(buf).Encode(apiSpec)
-	req, err := http.NewRequest(http.MethodPost, "https://localhost:9443/api/am/publisher/v0.14/apis", buf )
-	aT,err:=tm.Token("api_create")
-	if err !=nil {
-		//TODO
-		return "",nil
-
+	err := json.NewEncoder(buf).Encode(apiReqBody)
+	req, err := http.NewRequest(http.MethodPost, am.APIMEndpoint, buf)
+	aT, err := tm.Token(APICreateScope)
+	if err != nil {
+		return "", errors.Wrap(err, CreateAPIContext)
 	}
-	req.Header.Add("Authorization", "Bearer "+ aT)
+	req.Header.Add(HeaderAuth, HeaderBear+aT)
 	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
-	var bd interface{}
-	if err:=client.Invoke(true,"create API", req, bd, http.StatusCreated);err!=nil{
-
+	var resBody APIResp
+	err = client.Invoke(am.InsecureCon, CreateAPIContext, req, &resBody, http.StatusCreated)
+	if err != nil {
+		return "", err
 	}
-	return "",nil
+	return resBody.Id, nil
 }

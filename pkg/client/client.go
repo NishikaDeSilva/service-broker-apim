@@ -16,6 +16,16 @@ import (
 	"net/http"
 )
 
+// Wraps more information about the error
+type InvokeError struct {
+	err        error
+	StatusCode int
+}
+
+func (e *InvokeError) Error() string {
+	return e.err.Error()
+}
+
 // B64BasicAuth returns a base64 encoded value of "u:p" string
 // base64Encode("username:password")
 func B64BasicAuth(u, p string) (string, error) {
@@ -52,7 +62,10 @@ func Invoke(insecureCon bool, context string, req *http.Request, body interface{
 		return errors.Wrapf(err, constants.ErrMSGUnableInitiateReq, context)
 	}
 	if resp.StatusCode != resCode {
-		return errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, resp.Status)
+		return &InvokeError{
+			err:        errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, resp.Status),
+			StatusCode: resp.StatusCode,
+		}
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -62,7 +75,10 @@ func Invoke(insecureCon bool, context string, req *http.Request, body interface{
 	if resp.StatusCode == resCode {
 		err = ParseBody(resp, body)
 		if err != nil {
-			return errors.Wrapf(err, constants.ErrMSGUnableToParseRespBody, context)
+			return &InvokeError{
+				err:        errors.Wrapf(err, constants.ErrMSGUnableToParseRespBody, context),
+				StatusCode: resp.StatusCode,
+			}
 		}
 	}
 	return nil

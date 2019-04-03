@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
-	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
@@ -20,7 +19,7 @@ import (
 	"time"
 )
 
-// BasicCredentials represents the username and password
+// BasicCredentials represents the username and Password
 type BasicCredentials struct {
 	Username string
 	Password string
@@ -64,8 +63,14 @@ type tokens struct {
 
 // TokenManager is used to manage Access token & Refresh token
 type TokenManager struct {
-	holder map[string]*tokens
-	Config *config.BrokerConfig
+	holder                map[string]*tokens
+	clientID              string
+	clientSec             string
+	TokenEndpoint         string
+	DynamicClientEndpoint string
+	UserName              string
+	Password              string
+	InSecureCon           bool
 }
 
 const (
@@ -77,17 +82,11 @@ const (
 	ErrMSGUnableToParseExpireTime = "Unable parse expiresIn time"
 	GenerateAccessToken           = "Generating access Token"
 	DynamicClientRegMSG           = "Dynamic Client Reg"
+	RefreshToken				  = "Refresh token"
 )
 
 var (
 	once                  sync.Once
-	clientID              string
-	clientSec             string
-	tokenEndpoint         string
-	dynamicClientEndpoint string
-	userName              string
-	password              string
-	inSecureCon           bool
 )
 
 // InitTokenManager initialize the Token Manager. This method runs only once.
@@ -97,24 +96,18 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 		if len(scopes) == 0 {
 			utils.HandleErrorWithLoggerAndExit(ErrMSGNotEnoughArgs, nil)
 		}
-		// Initializing global vars
-		userName = tm.Config.APIM.Username
-		password = tm.Config.APIM.Password
-		dynamicClientEndpoint = tm.Config.APIM.DynamicClientEndpoint
-		tokenEndpoint = tm.Config.APIM.TokenEndpoint
-		inSecureCon = tm.Config.APIM.InsecureCon
 
 		var errDynamic error
-		clientID, clientSec, errDynamic = DynamicClientReg(DefaultClientRegBody())
+		tm.clientID, tm.clientSec, errDynamic = tm.DynamicClientReg(DefaultClientRegBody())
 		if errDynamic != nil {
 			utils.HandleErrorWithLoggerAndExit(ErrMSGUnableToGetClientCreds, errDynamic)
 		}
-		utils.LogDebug(fmt.Sprintf(DebugMSGClientIDClientSec, clientID, clientSec))
+		utils.LogDebug(fmt.Sprintf(DebugMSGClientIDClientSec, tm.clientID, tm.clientSec))
 
 		tm.holder = make(map[string]*tokens)
 		for _, scope := range scopes {
-			data := accessTokenReqBody(scope)
-			aT, rT, expiresIn, err := GenToken(data)
+			data := tm.accessTokenReqBody(scope)
+			aT, rT, expiresIn, err := tm.genToken(data, GenerateAccessToken)
 			if err != nil {
 				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableTOGetAccessToken, scope), err)
 			}
@@ -133,10 +126,10 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 }
 
 // accessTokenReqBody functions returns Token request body
-func accessTokenReqBody(scope string) url.Values {
+func (tm *TokenManager)accessTokenReqBody(scope string) url.Values {
 	data := url.Values{}
-	data.Set(constants.UserName, userName)
-	data.Add(constants.Password, password)
+	data.Set(constants.UserName, tm.UserName)
+	data.Add(constants.Password, tm.Password)
 	data.Add(constants.GrantType, constants.GrantPassword)
 	data.Add(constants.Scope, scope)
 	return data
@@ -175,7 +168,7 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 		return t.aT, nil
 	}
 	data := refreshTokenReqBody(t.rT)
-	aT, rT, expiresIn, err := refreshToken(data)
+	aT, rT, expiresIn, err := tm.refreshToken(data)
 	if err != nil {
 		t.lock.Unlock()
 		return "", err
@@ -192,32 +185,32 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 }
 
 // refreshToken function generates a new Access token and a Refresh token
-func refreshToken(data url.Values) (aT, newRT string, expiresIn int, err error) {
-	aT, rT, expiresIn, err := GenToken(data)
+func (tm *TokenManager)refreshToken(data url.Values) (aT, newRT string, expiresIn int, err error) {
+	aT, rT, expiresIn, err := tm.genToken(data, RefreshToken)
 	if err != nil {
 		return "", "", 0, err
 	}
 	return aT, rT, expiresIn, nil
 }
 
-// GenToken returns an Access token and a Refresh token from given params,
-func GenToken(reqBody url.Values) (aT, rT string, expiresIn int, err error) {
-	req, err := http.NewRequest(http.MethodPost, tokenEndpoint, bytes.NewBufferString(reqBody.Encode()))
+// genToken returns an Access token and a Refresh token from given params,
+func (tm *TokenManager)genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
+	req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint, bytes.NewBufferString(reqBody.Encode()))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
-			GenerateAccessToken)
+			context)
 	}
-	req.SetBasicAuth(clientID, clientSec)
+	req.SetBasicAuth(tm.clientID, tm.clientSec)
 	req.Header.Add(constants.HTTPContentType, constants.ContentTypeUrlEncoded)
 	var resBody TokenResp
-	if err := client.Invoke(inSecureCon, GenerateAccessToken, req, &resBody, http.StatusOK); err != nil {
+	if err := client.Invoke(tm.InSecureCon, context, req, &resBody, http.StatusOK); err != nil {
 		return "", "", 0, err
 	}
 	return resBody.AccessToken, resBody.RefreshToken, resBody.ExpiresIn, nil
 }
 
 // DynamicClientReg gets the Client ID and Client Secret
-func DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
+func (tm *TokenManager)DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
 	// Encode the resBody
 	b := new(bytes.Buffer)
 	err := json.NewEncoder(b).Encode(reqBody)
@@ -226,15 +219,15 @@ func DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret 
 	}
 
 	// construct the request
-	req, err := http.NewRequest(http.MethodPost, dynamicClientEndpoint, b)
+	req, err := http.NewRequest(http.MethodPost, tm.DynamicClientEndpoint, b)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody, DynamicClientRegMSG)
 	}
-	req.SetBasicAuth(userName, password)
+	req.SetBasicAuth(tm.UserName, tm.Password)
 	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
 
 	var resBody DynamicClientRegResBody
-	if err := client.Invoke(inSecureCon, DynamicClientRegMSG, req, &resBody, http.StatusOK); err != nil {
+	if err := client.Invoke(tm.InSecureCon, DynamicClientRegMSG, req, &resBody, http.StatusOK); err != nil {
 		return "", "", err
 	}
 	return resBody.ClientId, resBody.ClientSecret, nil

@@ -21,6 +21,7 @@ type APIMConf struct {
 	InsecureCon           bool   `mapstructure:"insecureCon"`
 	TokenEndpoint         string `mapstructure:"tokenEndpoint"`
 	DynamicClientEndpoint string `mapstructure:"dynamicClientEndpoint"`
+	PublisherEndpoint     string `mapstructure:"publisherEndpoint"`
 }
 
 // AuthConf represents the username and the password for basic auth
@@ -117,6 +118,7 @@ func defaultConf() *BrokerConfig {
 			Password:              "admin",
 			TokenEndpoint:         "https://localhost:8243/token",
 			DynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register",
+			PublisherEndpoint:     "https://localhost:9443/api/am/publisher/v0.14/apis",
 		},
 	}
 }

@@ -5,10 +5,14 @@ package broker
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
 	"github.com/pivotal-cf/brokerapi"
+	"github.com/pkg/errors"
+	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/constants"
+	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 )
 
@@ -16,6 +20,7 @@ import (
 type APIMServiceBroker struct {
 	BrokerConfig *config.BrokerConfig
 	TokenManager *TokenManager
+	APIMManager  *APIMManager
 }
 
 func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
@@ -27,15 +32,27 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 	if isPlanOrg(serviceDetails) {
 		exists, err := isInstanceExists(serviceDetails, instanceID)
 		if err != nil {
+
 			return spec, err
 		}
 		if exists {
+			utils.LogError(CreateAPIContext, err)
 			return spec, brokerapi.ErrInstanceAlreadyExists
 		}
-		apiId, err := CreateAPI(string(serviceDetails.RawParameters), apimServiceBroker.TokenManager)
+		apiParam, err := toApiParam(serviceDetails.RawParameters)
 		if err != nil {
+			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+				http.StatusBadRequest, "Parsing parameters")
+		}
+		s, err := apimServiceBroker.APIMManager.CreateAPI(apiParam.APISpec, apimServiceBroker.TokenManager)
+		if err != nil {
+			if err.(*client.InvokeError).StatusCode == http.StatusConflict {
+				utils.LogError(CreateAPIContext, err)
+				return spec, brokerapi.ErrInstanceAlreadyExists
+			}
 			return spec, err
 		}
+		fmt.Println(s)
 	} else {
 		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "provisioning")
@@ -175,4 +192,18 @@ func isPlanOrg(d brokerapi.ProvisionDetails) bool {
 		return true
 	}
 	return false
+}
+
+// Parse API spec parameter
+func toApiParam(params json.RawMessage) (APIParam, error) {
+	var apiParam APIParam
+	bytes, err := params.MarshalJSON()
+	if err != nil {
+		return apiParam, errors.Wrap(err, "unable to marshal raw parameter")
+	}
+	err = json.Unmarshal(bytes, &apiParam)
+	if err != nil {
+		return apiParam, errors.Wrap(err, "unable to parse API parameter")
+	}
+	return apiParam, nil
 }
