@@ -63,6 +63,7 @@ type tokens struct {
 
 // TokenManager is used to manage Access token & Refresh token
 type TokenManager struct {
+	once sync.Once
 	holder                map[string]*tokens
 	clientID              string
 	clientSec             string
@@ -82,17 +83,13 @@ const (
 	ErrMSGUnableToParseExpireTime = "Unable parse expiresIn time"
 	GenerateAccessToken           = "Generating access Token"
 	DynamicClientRegMSG           = "Dynamic Client Reg"
-	RefreshToken				  = "Refresh token"
-)
-
-var (
-	once                  sync.Once
+	RefreshToken                  = "Refresh token"
 )
 
 // InitTokenManager initialize the Token Manager. This method runs only once.
 // Must run before using the TokenManager
 func (tm *TokenManager) InitTokenManager(scopes ...string) {
-	once.Do(func() {
+	tm.once.Do(func() {
 		if len(scopes) == 0 {
 			utils.HandleErrorWithLoggerAndExit(ErrMSGNotEnoughArgs, nil)
 		}
@@ -126,7 +123,7 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 }
 
 // accessTokenReqBody functions returns Token request body
-func (tm *TokenManager)accessTokenReqBody(scope string) url.Values {
+func (tm *TokenManager) accessTokenReqBody(scope string) url.Values {
 	data := url.Values{}
 	data.Set(constants.UserName, tm.UserName)
 	data.Add(constants.Password, tm.Password)
@@ -185,7 +182,7 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 }
 
 // refreshToken function generates a new Access token and a Refresh token
-func (tm *TokenManager)refreshToken(data url.Values) (aT, newRT string, expiresIn int, err error) {
+func (tm *TokenManager) refreshToken(data url.Values) (aT, newRT string, expiresIn int, err error) {
 	aT, rT, expiresIn, err := tm.genToken(data, RefreshToken)
 	if err != nil {
 		return "", "", 0, err
@@ -194,7 +191,7 @@ func (tm *TokenManager)refreshToken(data url.Values) (aT, newRT string, expiresI
 }
 
 // genToken returns an Access token and a Refresh token from given params,
-func (tm *TokenManager)genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
+func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
 	req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint, bytes.NewBufferString(reqBody.Encode()))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
@@ -210,7 +207,7 @@ func (tm *TokenManager)genToken(reqBody url.Values, context string) (aT, rT stri
 }
 
 // DynamicClientReg gets the Client ID and Client Secret
-func (tm *TokenManager)DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
+func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
 	// Encode the resBody
 	b := new(bytes.Buffer)
 	err := json.NewEncoder(b).Encode(reqBody)

@@ -7,6 +7,7 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/broker"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/constants"
+	"github.com/wso2/service-broker-apim/pkg/dbutil"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 	"os"
@@ -21,28 +22,42 @@ func main() {
 	if err != nil {
 		utils.HandleErrorAndExit(err)
 	}
-	//Initialize the logs
+	// Initialize the logs
 	logger, err := utils.InitLogger(brokerConfig.Log.LogFile, brokerConfig.Log.LogLevel)
 	if err != nil {
 		utils.HandleErrorAndExit(err)
 	}
 
-	//Initialize Token Manager
+	// Initialize ORM
+	dbutil.InitDB(&brokerConfig.DB)
+	// Create tables
+	instance := dbutil.Instance{}
+	instance.CreateTable()
+
+	s:=&dbutil.Instance{
+		InstanceID: "123",
+	}
+
+	e,r:= s.Retrieve()
+	if r!=nil{
+		fmt.Println("s")
+	}
+		fmt.Println(e)
+	// Initialize Token Manager
 	tManager := &broker.TokenManager{
-		TokenEndpoint:brokerConfig.APIM.TokenEndpoint,
-		DynamicClientEndpoint : brokerConfig.APIM.DynamicClientEndpoint,
-		UserName              :brokerConfig.APIM.Username,
-		Password              :brokerConfig.APIM.Password,
-		InSecureCon           :brokerConfig.APIM.InsecureCon,
+		TokenEndpoint:         brokerConfig.APIM.TokenEndpoint,
+		DynamicClientEndpoint: brokerConfig.APIM.DynamicClientEndpoint,
+		UserName:              brokerConfig.APIM.Username,
+		Password:              brokerConfig.APIM.Password,
+		InSecureCon:           brokerConfig.APIM.InsecureCon,
 	}
 	tManager.InitTokenManager(broker.APICreateScope)
 
-	//Initialize APIM manager
+	// Initialize APIM Manager
 	apimManager := &broker.APIMManager{
-		APIMEndpoint:brokerConfig.APIM.PublisherEndpoint,
-		InsecureCon:brokerConfig.APIM.InsecureCon,
+		APIMEndpoint: brokerConfig.APIM.PublisherEndpoint,
+		InsecureCon:  brokerConfig.APIM.InsecureCon,
 	}
-
 
 	// Handling terminating signal
 	sigChannel := make(chan os.Signal, 1)
@@ -59,8 +74,8 @@ func main() {
 	}
 	apimServiceBroker := &broker.APIMServiceBroker{
 		BrokerConfig: brokerConfig,
-		TokenManager:tManager,
-		APIMManager:apimManager,
+		TokenManager: tManager,
+		APIMManager:  apimManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 	// Register router with handlers

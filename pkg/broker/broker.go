@@ -12,6 +12,7 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/constants"
+	"github.com/wso2/service-broker-apim/pkg/dbutil"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 )
@@ -30,7 +31,9 @@ func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]bro
 func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
 	if isPlanOrg(serviceDetails) {
-		exists, err := isInstanceExists(serviceDetails, instanceID)
+		// Verifying whether the instance is already exists
+		exists, err := isInstanceExists(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID, instanceID)
+		// Handling DB connection error
 		if err != nil {
 
 			return spec, err
@@ -39,10 +42,11 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 			utils.LogError(CreateAPIContext, err)
 			return spec, brokerapi.ErrInstanceAlreadyExists
 		}
+		// Parse API JSON Spec
 		apiParam, err := toApiParam(serviceDetails.RawParameters)
 		if err != nil {
 			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-				http.StatusBadRequest, "Parsing parameters")
+				http.StatusBadRequest, "Parsing API JSON Spec parameter")
 		}
 		s, err := apimServiceBroker.APIMManager.CreateAPI(apiParam.APISpec, apimServiceBroker.TokenManager)
 		if err != nil {
@@ -60,8 +64,18 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 	return spec, nil
 }
 
-func isInstanceExists(details brokerapi.ProvisionDetails, s string) (bool, error) {
-	return false, nil
+// isInstanceExists returns true if the given instance with service ID and plan ID already exists in the DB
+func isInstanceExists(instanceID, serviceID, planID string, s string) (bool, error) {
+	i := &dbutil.Instance{
+		InstanceID:instanceID,
+		ServiceID:serviceID,
+		PlanID:planID,
+	}
+	exists, err :=i.Retrieve()
+	if err !=nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 func (apimServiceBroker *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,

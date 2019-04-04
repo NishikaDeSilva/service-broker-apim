@@ -14,6 +14,16 @@ import (
 	"strings"
 )
 
+// DBConfig represent the ORM configuration
+type DBConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	Database string
+	LogMode  bool
+}
+
 // APIMConf represents the information required to interact with the APIM
 type APIMConf struct {
 	Username              string `mapstructure:"username"`
@@ -56,6 +66,7 @@ type BrokerConfig struct {
 	Log  LogConf  `mapstructure:log"`
 	HTTP HTTPConf `mapstructure:"http"`
 	APIM APIMConf `mapstructure:"apim"`
+	DB   DBConfig `mapstructure:"db"`
 }
 
 // LoadConfig load configuration into BrokerConfig object
@@ -119,6 +130,14 @@ func defaultConf() *BrokerConfig {
 			TokenEndpoint:         "https://localhost:8243/token",
 			DynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register",
 			PublisherEndpoint:     "https://localhost:9443/api/am/publisher/v0.14/apis",
+		},
+		DB: DBConfig{
+			Host:     "localhost",
+			Port:     3306,
+			Username: "root",
+			Password: "root",
+			Database: "broker",
+			LogMode:  false,
 		},
 	}
 }

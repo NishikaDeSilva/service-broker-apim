@@ -13,26 +13,21 @@ import (
 	"net/http"
 )
 
-var (
-	apimEndpoint string
-	insecureCon  bool
-)
-
 const (
-	CreateAPIContext       = "create API"
-	HeaderAuth             = "Authorization"
-	HeaderBear             = "Bearer "
-	APICreateScope         = "apim:api_create"
+	CreateAPIContext = "create API"
+	HeaderAuth       = "Authorization"
+	HeaderBear       = "Bearer "
+	APICreateScope   = "apim:api_create"
 )
 
 // APIMManager handles the communication with API Manager
-type APIMManager struct{
+type APIMManager struct {
 	APIMEndpoint string
-	InsecureCon bool
+	InsecureCon  bool
 }
 
 // CreateAPI function creates
-func (am *APIMManager )CreateAPI(apiReqBody APIReqBody, tm *TokenManager) (string, error) {
+func (am *APIMManager) CreateAPI(apiReqBody APIReqBody, tm *TokenManager) (string, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(apiReqBody)
 	req, err := http.NewRequest(http.MethodPost, am.APIMEndpoint, buf)
