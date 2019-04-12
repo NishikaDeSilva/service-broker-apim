@@ -63,7 +63,7 @@ type tokens struct {
 
 // TokenManager is used to manage Access token & Refresh token
 type TokenManager struct {
-	once sync.Once
+	once                  sync.Once
 	holder                map[string]*tokens
 	clientID              string
 	clientSec             string
@@ -116,7 +116,7 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 			tm.holder[scope] = &tokens{
 				aT:        aT,
 				rT:        rT,
-				expiresIn: time.Now().Add(duration * time.Second),
+				expiresIn: time.Now().Add(duration),
 			}
 		}
 	})

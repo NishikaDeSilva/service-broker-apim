@@ -32,17 +32,10 @@ func main() {
 	dbutil.InitDB(&brokerConfig.DB)
 	// Create tables
 	instance := dbutil.Instance{}
-	instance.CreateTable()
+	dbutil.CreateTable(&instance, dbutil.TableInstance)
+	bind := dbutil.Bind{}
+	dbutil.CreateTable(&bind, dbutil.TableBind)
 
-	s:=&dbutil.Instance{
-		InstanceID: "123",
-	}
-
-	e,r:= s.Retrieve()
-	if r!=nil{
-		fmt.Println("s")
-	}
-		fmt.Println(e)
 	// Initialize Token Manager
 	tManager := &broker.TokenManager{
 		TokenEndpoint:         brokerConfig.APIM.TokenEndpoint,
@@ -51,7 +44,7 @@ func main() {
 		Password:              brokerConfig.APIM.Password,
 		InSecureCon:           brokerConfig.APIM.InsecureCon,
 	}
-	tManager.InitTokenManager(broker.APICreateScope)
+	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeAPPCreate)
 
 	// Initialize APIM Manager
 	apimManager := &broker.APIMManager{

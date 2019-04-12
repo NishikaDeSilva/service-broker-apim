@@ -26,15 +26,27 @@ type Instance struct {
 	ApimID     string `gorm:"type:varchar(100)"`
 }
 
+// Bind represents the Bind model in the Database
+type Bind struct {
+	InstanceID   string `gorm:"type:varchar(100)"`
+	BindID       string `gorm:"primary_key;type:varchar(100)"`
+	AccessToken  string `gorm:"type:varchar(100)"`
+	RefreshToken string `gorm:"type:varchar(100)"`
+	AppName      string `gorm:"type:varchar(100)"`
+	AppId        string `gorm:"type:varchar(100)"`
+}
+
 const (
-	TableInstance = "instances"
+	TableInstance  = "instances"
+	TableBind      = "binds"
 	ErrTableExists = 1050
-	)
+)
 
 var (
 	onceInit sync.Once
 	db       *gorm.DB
 )
+
 // Initialize database ORM
 func InitDB(conf *config.DBConfig) {
 	onceInit.Do(func() {
@@ -50,26 +62,28 @@ func InitDB(conf *config.DBConfig) {
 	})
 }
 
-// Create table for the Instance type
-func (i *Instance) CreateTable() {
-	if err := db.CreateTable(i).Error; err != nil {
-		if mysqlErr, ok:= err.(*mysql.MySQLError); ok {
+// Creates a table for the given model only if table already not exists
+func CreateTable(model interface{}, table string) {
+	if err := db.CreateTable(model).Error; err != nil {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			// Not throw error if the table already exists
 			if mysqlErr.Number != ErrTableExists {
-				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", i.Table()),err)
+				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
 			}
 		}
 	}
 }
 
-// Table returns the Table name of the Instance
-func (i *Instance) Table() string {
-	return TableInstance
-}
-
-func (i *Instance) Retrieve() (bool, error) {
-	result := db.Where(i).Find(i)
+// Retrieve the given Instance from the Database
+func Retrieve(model interface{}) (bool, error) {
+	result := db.Where(model).Find(model)
 	if result.RecordNotFound() {
 		return false, nil
 	}
 	return true, result.Error
+}
+
+// Store save the given Instance in the Database
+func Store(model interface{}, table string) error {
+	return db.Table(table).Save(model).Error
 }

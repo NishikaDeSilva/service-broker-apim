@@ -17,7 +17,6 @@ const (
 	CreateAPIContext = "create API"
 	HeaderAuth       = "Authorization"
 	HeaderBear       = "Bearer "
-	APICreateScope   = "apim:api_create"
 )
 
 // APIMManager handles the communication with API Manager
@@ -26,12 +25,20 @@ type APIMManager struct {
 	InsecureCon  bool
 }
 
+// AppReq represents the application creation request body
+type AppReq struct {
+	ThrottlingTier string `json:"throttlingTier"`
+	Description    string `json:"description"`
+	Name           string `json:"name"`
+	CallbackUrl    string `json:"callbackUrl"`
+}
+
 // CreateAPI function creates
 func (am *APIMManager) CreateAPI(apiReqBody APIReqBody, tm *TokenManager) (string, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(apiReqBody)
 	req, err := http.NewRequest(http.MethodPost, am.APIMEndpoint, buf)
-	aT, err := tm.Token(APICreateScope)
+	aT, err := tm.Token(ScopeAPICreate)
 	if err != nil {
 		return "", errors.Wrap(err, CreateAPIContext)
 	}
@@ -44,3 +51,5 @@ func (am *APIMManager) CreateAPI(apiReqBody APIReqBody, tm *TokenManager) (strin
 	}
 	return resBody.Id, nil
 }
+
+

@@ -4,7 +4,7 @@
 
 package broker
 
-type ApiMaxTps struct {
+type APIMaxTps struct {
 	Production int64 `json:"production,omitempty"`
 	Sandbox    int64 `json:"sandbox,omitempty"`
 }
@@ -77,7 +77,7 @@ type APIReqBody struct {
 	ApiLevelPolicy string `json:"apiLevelPolicy,omitempty"`
 	// Name of the Authorization header used for invoking the API. If it is not set, Authorization header name specified in tenant or system level will be used.
 	AuthorizationHeader string     `json:"authorizationHeader,omitempty"`
-	MaxTps              *ApiMaxTps `json:"maxTps,omitempty"`
+	MaxTps              *APIMaxTps `json:"maxTps,omitempty"`
 	// The visibility level of the API. Accepts one of the following. PUBLIC, PRIVATE, RESTRICTED OR CONTROLLED.
 	Visibility string `json:"visibility"`
 	// The user roles that are able to access the API
@@ -110,4 +110,17 @@ type APIResp struct {
 
 type APIParam struct {
 	APISpec APIReqBody `json:"api,omitempty"`
+}
+
+type ApplicationParam struct {
+	ThrottlingTier string `json:"throttlingTier"`
+	Description    string `json:"description"`
+	Name           string `json:"name"`
+	CallbackUrl    string `json:"callbackUrl"`
+}
+
+type SubscriptionReq struct {
+	Tier          string `json:"tier"`
+	ApiIdentifier string `json:"apiIdentifier"`
+	ApplicationId string `json:"applicationId"`
 }
