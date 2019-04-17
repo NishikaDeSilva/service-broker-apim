@@ -10,7 +10,7 @@ const ServiceName = "wso2-apim-service"
 
 const ServiceDescription = "WSO2 API Manager Services"
 
-const ServiceBindable = false
+const ServiceBindable = true
 
 const ServiceInstancesRetrievable = false
 

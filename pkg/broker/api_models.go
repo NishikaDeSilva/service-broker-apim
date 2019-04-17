@@ -107,20 +107,93 @@ type APIResp struct {
 	// UUID of the api registry artifact
 	Id string `json:"id,omitempty"`
 }
-
-type APIParam struct {
-	APISpec APIReqBody `json:"api,omitempty"`
-}
-
-type ApplicationParam struct {
+type ApplicationCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
 	Description    string `json:"description"`
 	Name           string `json:"name"`
 	CallbackUrl    string `json:"callbackUrl"`
 }
 
+type APIParam struct {
+	APISpec APIReqBody `json:"api,omitempty"`
+}
+
+type ApplicationParam struct {
+	SubscriptionTier string `json:"subscriptionTier"`
+	ApplicationCreateReq
+}
+
 type SubscriptionReq struct {
 	Tier          string `json:"tier"`
 	ApiIdentifier string `json:"apiIdentifier"`
 	ApplicationId string `json:"applicationId"`
+}
+
+// AppReq represents the application creation request body
+type AppReq struct {
+	ThrottlingTier string `json:"throttlingTier"`
+	Description    string `json:"description"`
+	Name           string `json:"name"`
+	CallbackUrl    string `json:"callbackUrl"`
+}
+
+// AppRes represents the application creation response body
+type AppRes struct {
+	ApplicationId string `json:"applicationId"`
+}
+
+// ApplicationKeyGenerateRequest represents the application key generation request
+type ApplicationKeyGenerateRequest struct {
+	KeyType      string `json:"keyType"`
+	ValidityTime string `json:"validityTime"`
+	// The grant types that are supported by the application
+	SupportedGrantTypes []string `json:"supportedGrantTypes,omitempty"`
+	// Callback URL
+	CallbackUrl string `json:"callbackUrl,omitempty"`
+	// Allowed domains for the access token
+	AccessAllowDomains []string `json:"accessAllowDomains"`
+	// Allowed scopes for the access token
+	Scopes []string `json:"scopes,omitempty"`
+	// Client ID for generating access token.
+	ClientId string `json:"clientId,omitempty"`
+	// Client secret for generating access token. This is given together with the client Id.
+	ClientSecret string `json:"clientSecret,omitempty"`
+}
+
+type ApplicationKey struct {
+	// The consumer key associated with the application and identifying the client
+	ConsumerKey string `json:"consumerKey,omitempty"`
+	// The client secret that is used to authenticate the client with the authentication server
+	ConsumerSecret string `json:"consumerSecret,omitempty"`
+	// The grant types that are supported by the application
+	SupportedGrantTypes []string `json:"supportedGrantTypes,omitempty"`
+	// Callback URL
+	CallbackUrl string `json:"callbackUrl,omitempty"`
+	// Describes the state of the key generation.
+	KeyState string `json:"keyState,omitempty"`
+	// Describes to which endpoint the key belongs
+	KeyType string `json:"keyType,omitempty"`
+	// Application group id (if any).
+	GroupId string `json:"groupId,omitempty"`
+	Token   *Token `json:"token,omitempty"`
+}
+
+type Token struct {
+	// Access token
+	AccessToken string `json:"accessToken,omitempty"`
+	// Valid scopes for the access token
+	TokenScopes []string `json:"tokenScopes,omitempty"`
+	// Maximum validity time for the access token
+	ValidityTime int64 `json:"validityTime,omitempty"`
+}
+
+type SubscriptionResp struct {
+	// The UUID of the subscription
+	SubscriptionId string `json:"subscriptionId,omitempty"`
+	// The UUID of the application
+	ApplicationId string `json:"applicationId"`
+	// The unique identifier of the API.
+	ApiIdentifier string `json:"apiIdentifier"`
+	Tier string `json:"tier"`
+	Status string `json:"status,omitempty"`
 }

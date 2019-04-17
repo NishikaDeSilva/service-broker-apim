@@ -31,10 +31,7 @@ func main() {
 	// Initialize ORM
 	dbutil.InitDB(&brokerConfig.DB)
 	// Create tables
-	instance := dbutil.Instance{}
-	dbutil.CreateTable(&instance, dbutil.TableInstance)
-	bind := dbutil.Bind{}
-	dbutil.CreateTable(&bind, dbutil.TableBind)
+	dbutil.CreateTables()
 
 	// Initialize Token Manager
 	tManager := &broker.TokenManager{
@@ -48,8 +45,9 @@ func main() {
 
 	// Initialize APIM Manager
 	apimManager := &broker.APIMManager{
-		APIMEndpoint: brokerConfig.APIM.PublisherEndpoint,
-		InsecureCon:  brokerConfig.APIM.InsecureCon,
+		PublisherEndpoint: brokerConfig.APIM.PublisherEndpoint,
+		StoreEndpoint:     brokerConfig.APIM.StoreEndpoint,
+		InsecureCon:       brokerConfig.APIM.InsecureCon,
 	}
 
 	// Handling terminating signal

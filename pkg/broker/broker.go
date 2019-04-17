@@ -6,6 +6,7 @@ package broker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
@@ -17,8 +18,9 @@ import (
 )
 
 const (
-	ScopeAPICreate = "apim:api_create"
-	ScopeAPPCreate = "apim:subscribe"
+	ScopeAPICreate         = "apim:api_create"
+	ScopeAPPCreate         = "apim:subscribe"
+	ErrMSGInstanceNotExist = "invalid instance Id: %s"
 )
 
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
@@ -39,6 +41,7 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 		exists, err := isInstanceExists(instanceID)
 		// Handling DB connection error
 		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to get instance: %s from database", instanceID), err)
 			return spec, err
 		}
 		if exists {
@@ -46,15 +49,16 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 			return spec, brokerapi.ErrInstanceAlreadyExists
 		}
 		// Parse API JSON Spec
-		apiParam, err := toApiParam(serviceDetails.RawParameters)
+		apiParam, err := toAPIParam(serviceDetails.RawParameters)
 		if err != nil {
+			utils.LogError("unable to parse API parameters", err)
 			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
 				http.StatusBadRequest, "Parsing API JSON Spec parameter")
 		}
-		apimID, err := apimServiceBroker.APIMManager.CreateAPI(apiParam.APISpec, apimServiceBroker.TokenManager)
+		apimID, err := apimServiceBroker.APIMManager.CreateAPI(&apiParam.APISpec, apimServiceBroker.TokenManager)
 		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to create API: %s", apiParam.APISpec.Name), err)
 			if err.(*client.InvokeError).StatusCode == http.StatusConflict {
-				utils.LogError(CreateAPIContext, err)
 				return spec, brokerapi.ErrInstanceAlreadyExists
 			}
 			return spec, err
@@ -63,15 +67,19 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 			ServiceID:  serviceDetails.ServiceID,
 			PlanID:     serviceDetails.PlanID,
 			InstanceID: instanceID,
-			ApimID:     apimID,
+			ApiID:      apimID,
+			APIName:    apiParam.APISpec.Name,
 		}
 		// Store instance in the database
-		err = dbutil.Store(i, dbutil.TableInstance)
+		err = dbutil.StoreInstance(i)
 		if err != nil {
-			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s APIM ID: %s",
+			utils.LogError(fmt.Sprintf("unable to store instance: %s", instanceID), err)
+			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
 				instanceID, apimID)
 		}
 	} else {
+		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, serviceDetails.PlanID),
+			err)
 		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "provisioning")
 	}
@@ -89,37 +97,126 @@ func (apimServiceBroker *APIMServiceBroker) Bind(ctx context.Context, instanceID
 	bind := &dbutil.Bind{
 		BindID:     bindingID,
 		InstanceID: instanceID,
+		ServiceID:  details.ServiceID,
+		PlanID:     details.PlanID,
 	}
-	exists, err := dbutil.Retrieve(&bind)
+	exists, err := dbutil.RetrieveBind(bind)
 	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to retrieve Bind from the database. BindID: %s InstanceID: %s",
+			bindingID, instanceID), err)
 		return brokerapi.Binding{}, err
 	}
-	// Bind exists but parameters are not equal
+	// Bind exists
 	if exists {
 		return brokerapi.Binding{}, brokerapi.ErrBindingAlreadyExists
 	}
-	appParam, err := toSubscriptionParam(details.RawParameters)
-	if err!=nil{
-		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-			http.StatusBadRequest, "Parsing Application JSON Spec parameter")
-	}
-	// Check for previous applications
-	bind = &dbutil.Bind{
-		BindID:  bindingID,
-		AppName: appParam.Name,
-	}
-	exists, err = dbutil.Retrieve(&bind)
+	applicationParam, err := toApplicationParam(details.RawParameters)
 	if err != nil {
+		utils.LogError("invalid parameter in application json", err)
+		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+			http.StatusBadRequest, "parsing Application JSON Spec parameter")
+	}
+	// application instance
+	app := &dbutil.Application{
+		AppName: applicationParam.Name,
+	}
+	exists, err = dbutil.RetrieveApp(app)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to retrieve application: %s from the database",
+			app.AppName), err)
 		return brokerapi.Binding{}, err
 	}
-	// Get credentials from the existing application
+	// Application already exists
 	if exists {
+		return brokerapi.Binding{}, nil
+	} else { // Creates a new application
+		appCreateReq := &ApplicationCreateReq{
+			ThrottlingTier: applicationParam.ThrottlingTier,
+			Description:    applicationParam.Description,
+			Name:           applicationParam.Name,
+			CallbackUrl:    applicationParam.CallbackUrl,
+		}
+		appID, err := apimServiceBroker.APIMManager.CreateApplication(appCreateReq, apimServiceBroker.TokenManager)
+		if err != nil {
+			e, ok := err.(*client.InvokeError)
+			var msg string
+			if ok {
+				msg = fmt.Sprintf("unable to create application: %s, response code: %d",
+					app.AppName, e.StatusCode)
+			} else {
+				msg = fmt.Sprintf("unable to create application: %s", app.AppName)
+			}
+			utils.LogError(msg, err)
+			return brokerapi.Binding{}, err
+		}
 
-	} else { // Creates an new Application
+		app.AppID = appID
+		// Store application before doing further API calls
+		err = dbutil.StoreApp(app)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to store application: %s", app.AppName), err)
+			return brokerapi.Binding{}, err
+		}
+		// Get the keys
+		appKeyGenResp, err := apimServiceBroker.APIMManager.GenerateKeys(appID, apimServiceBroker.TokenManager)
+		if err != nil {
+			e, ok := err.(*client.InvokeError)
+			var msg string
+			if ok {
+				msg = fmt.Sprintf("unable to generate keys for application: %s, response code: %d",
+					app.AppName, e.StatusCode)
+			} else {
+				msg = fmt.Sprintf("unable to generate keys for application: %s", app.AppName)
+			}
+			utils.LogError(msg, err)
+			return brokerapi.Binding{}, err
+		}
+		app.Token = appKeyGenResp.Token.AccessToken
+		app.ConsumerKey = appKeyGenResp.ConsumerKey
+		app.ConsumerSecret = appKeyGenResp.ConsumerSecret
+		// Store Application state
+		err = dbutil.UpdateApp(app)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to store application: %s", app.AppName), err)
+			return brokerapi.Binding{}, err
+		}
 
+		i := &dbutil.Instance{
+			InstanceID: instanceID,
+		}
+		exists, err := dbutil.RetrieveInstance(i)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to get instance: %s from DB", instanceID), err)
+			return brokerapi.Binding{}, err
+		}
+		if !exists {
+			utils.LogError(fmt.Sprintf(ErrMSGInstanceNotExist, instanceID), err)
+			return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
+		}
+		subscriptionID, err := apimServiceBroker.APIMManager.Subscribe(appID, i.ApiID,
+			applicationParam.SubscriptionTier, apimServiceBroker.TokenManager)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to create subscription for application: %s API: %s",
+				app.AppName, i.APIName), err)
+			return brokerapi.Binding{}, err
+		}
+		bind.SubscriptionID = subscriptionID
+		err = dbutil.StoreBind(bind)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to store bind ID: %s", bindingID), err)
+			return brokerapi.Binding{}, err
+		}
+
+		credentialsMap := map[string]interface{}{
+			"ConsumerKey":    app.ConsumerKey,
+			"ConsumerSecret": app.ConsumerSecret,
+			"AccessToken":    app.Token,
+		}
+
+		return brokerapi.Binding{
+			Credentials: credentialsMap,
+		}, nil
 	}
-
-	return brokerapi.Binding{}, nil
 }
 
 func (apimServiceBroker *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
@@ -141,7 +238,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-	bindingID string) (brokerapi.GetBindingSpec, error) {
+bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -151,7 +248,7 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 
@@ -239,36 +336,24 @@ func isPlanOrg(d brokerapi.ProvisionDetails) bool {
 	return (d.ServiceID == constants.OrgServiceId) && (d.PlanID == constants.OrgPlanID)
 }
 
-// toSubscriptionParam parses subscription parameter
-func toSubscriptionParam(params json.RawMessage) (ApplicationParam, error) {
+// toApplicationParam parses application parameters
+func toApplicationParam(params json.RawMessage) (ApplicationParam, error) {
 	var applicationParam ApplicationParam
 	err := json.Unmarshal(params, &applicationParam)
 	if err != nil {
-		return applicationParam, errors.Wrap(err, "unable to parse API parameter")
+		return applicationParam, errors.Wrap(err, "unable to parse application parameters")
 	}
 	return applicationParam, nil
 }
 
-// toApiParam parses API spec parameter
-func toApiParam(params json.RawMessage) (APIParam, error) {
+// toAPIParam parses API spec parameter
+func toAPIParam(params json.RawMessage) (APIParam, error) {
 	var apiParam APIParam
 	err := json.Unmarshal(params, &apiParam)
 	if err != nil {
-		return apiParam, errors.Wrap(err, "unable to parse API parameter")
+		return apiParam, errors.Wrap(err, "unable to parse API parameters")
 	}
 	return apiParam, nil
-}
-
-// isBindExists returns true if the given bindID already exists in the DB
-func isBindExists(bindID string) (bool, error) {
-	i := &dbutil.Bind{
-		BindID: bindID,
-	}
-	exists, err := dbutil.Retrieve(i)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
 }
 
 // isInstanceExists returns true if the given instanceID already exists in the DB
@@ -276,7 +361,7 @@ func isInstanceExists(instanceID string) (bool, error) {
 	i := &dbutil.Instance{
 		InstanceID: instanceID,
 	}
-	exists, err := dbutil.Retrieve(i)
+	exists, err := dbutil.RetrieveInstance(i)
 	if err != nil {
 		return false, err
 	}

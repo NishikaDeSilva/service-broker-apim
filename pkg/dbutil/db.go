@@ -23,23 +23,34 @@ type Instance struct {
 	InstanceID string `gorm:"primary_key;type:varchar(100)"`
 	ServiceID  string `gorm:"type:varchar(100)"`
 	PlanID     string `gorm:"type:varchar(100)"`
-	ApimID     string `gorm:"type:varchar(100)"`
+	ApiID      string `gorm:"type:varchar(100)"`
+	APIName    string `gorm:"type:varchar(100)"`
+}
+
+// Application represents the Application model in the database
+type Application struct {
+	AppName        string `gorm:"primary_key;type:varchar(100)"`
+	AppID          string `gorm:"type:varchar(100)"`
+	Token          string `gorm:"type:varchar(100)"`
+	ConsumerKey    string `gorm:"type:varchar(100)"`
+	ConsumerSecret string `gorm:"type:varchar(100)"`
 }
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	InstanceID   string `gorm:"type:varchar(100)"`
-	BindID       string `gorm:"primary_key;type:varchar(100)"`
-	AccessToken  string `gorm:"type:varchar(100)"`
-	RefreshToken string `gorm:"type:varchar(100)"`
-	AppName      string `gorm:"type:varchar(100)"`
-	AppId        string `gorm:"type:varchar(100)"`
+	InstanceID     string `gorm:"type:varchar(100)"`
+	BindID         string `gorm:"primary_key;type:varchar(100)"`
+	AppName        string `gorm:"type:varchar(100)"`
+	ServiceID      string `gorm:"type:varchar(100)"`
+	PlanID         string `gorm:"type:varchar(100)"`
+	SubscriptionID string `gorm:"type:varchar(100)"`
 }
 
 const (
-	TableInstance  = "instances"
-	TableBind      = "binds"
-	ErrTableExists = 1050
+	TableInstance    = "instances"
+	TableBind        = "binds"
+	TableApplication = "applications"
+	ErrTableExists   = 1050
 )
 
 var (
@@ -74,16 +85,63 @@ func CreateTable(model interface{}, table string) {
 	}
 }
 
-// Retrieve the given Instance from the Database
-func Retrieve(model interface{}) (bool, error) {
-	result := db.Where(model).Find(model)
+// store save the given Instance in the Database
+func store(model interface{}, table string) error {
+	return db.Table(table).Create(model).Error
+}
+
+// update update the given Instance in the Database
+func update(model interface{}, table string) error {
+	return db.Table(table).Save(model).Error
+}
+
+// retrieve function returns the given Instance from the Database
+func retrieve(model interface{}, table string) (bool, error) {
+	result := db.Table(table).Where(model).Find(model)
 	if result.RecordNotFound() {
 		return false, nil
 	}
 	return true, result.Error
 }
 
-// Store save the given Instance in the Database
-func Store(model interface{}, table string) error {
-	return db.Table(table).Save(model).Error
+// CreateInstanceTable creates the Instance table
+func CreateTables() {
+	CreateTable(&Instance{}, TableInstance)
+	CreateTable(&Bind{}, TableBind)
+	CreateTable(&Application{}, TableApplication)
+}
+
+// RetrieveInstance function returns the given Instance from the Database
+func RetrieveInstance(i *Instance) (bool, error) {
+	return retrieve(i, TableInstance)
+}
+
+// StoreInstance saves the Instance in the database
+func StoreInstance(i *Instance) error {
+	return store(i, TableInstance)
+}
+
+// RetrieveBind function returns the given Bind from the Database
+func RetrieveBind(b *Bind) (bool, error) {
+	return retrieve(b, TableBind)
+}
+
+// StoreBind saves the Bind in the database
+func StoreBind(b *Bind) error {
+	return store(b, TableBind)
+}
+
+// RetrieveApp function returns the given Application from the Database
+func RetrieveApp(a *Application) (bool, error) {
+	return retrieve(a, TableApplication)
+}
+
+// StoreApp saves the Application in the database
+func StoreApp(b *Application) error {
+	return store(b, TableApplication)
+}
+
+// UpdateApp update the application entry
+func UpdateApp(b *Application) error {
+	return update(b, TableApplication)
 }

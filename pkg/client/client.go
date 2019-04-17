@@ -6,14 +6,23 @@
 package client
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"github.com/wso2/service-broker-apim/pkg/utils"
+	"io"
 	"io/ioutil"
 	"net/http"
+)
+
+const (
+	HeaderAuth              = "Authorization"
+	HeaderBear              = "Bearer "
+	ErrMSGUnableToCreateReq = "unable to create request"
+	ErrMSGUnableToParseReqBody = "unable to parse request body"
 )
 
 // Wraps more information about the error
@@ -82,4 +91,25 @@ func Invoke(insecureCon bool, context string, req *http.Request, body interface{
 		}
 	}
 	return nil
+}
+
+// GentReq creates a HTTP request with an Authorization header and set the content type to application/json
+func GenReq(method, token, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+	}
+	req.Header.Add(HeaderAuth, HeaderBear+token)
+	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
+	return req, nil
+}
+
+// ByteBuf returns the byte buffer representation of the provided struct
+func ByteBuf(v interface{}) (*bytes.Buffer, error){
+	buf := new(bytes.Buffer)
+	err := json.NewEncoder(buf).Encode(v)
+	if err != nil {
+		return nil, errors.Wrap(err, ErrMSGUnableToParseReqBody)
+	}
+	return buf, nil
 }
