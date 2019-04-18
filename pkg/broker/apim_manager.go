@@ -18,6 +18,9 @@ const (
 	StoreApplicationContext       = "/api/am/store/v0.14/applications"
 	StoreSubscriptionContext      = "/api/am/store/v0.14/subscriptions"
 	GenerateApplicationKeyContext = StoreApplicationContext + "/generate-keys"
+	PublisherContext              = "/api/am/publisher/v0.14/apis"
+	PublisherChangeAPIContext     = PublisherContext + "/change-lifecycle"
+	PublishAPIContext             = "publish api"
 )
 
 // APIMManager handles the communication with API Manager
@@ -39,7 +42,7 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 		return "", errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPICreate)
 	}
 
-	req, err := client.GenReq(http.MethodPost, aT, am.PublisherEndpoint, buf)
+	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherContext, buf)
 	if err != nil {
 		return "", err
 	}
@@ -52,6 +55,24 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 	return resBody.Id, nil
 }
 
+// Publish an API in state "Created"
+func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
+	aT, err := tm.Token(ScopeAPIPublish)
+	if err != nil {
+		return errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPICreate)
+	}
+	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherChangeAPIContext, nil)
+	if err != nil {
+		return err
+	}
+	q := url.Values{}
+	q.Add("apiId", apiId)
+	q.Add("action", "Publish")
+	req.URL.RawQuery = q.Encode()
+	err = client.Invoke(am.InsecureCon, PublishAPIContext, req, nil, http.StatusOK)
+	return err
+}
+
 // CreateApplication creates an application
 func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *TokenManager) (string, error) {
 	buf, err := client.ByteBuf(reqBody)
@@ -62,7 +83,7 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPPCreate)
 	}
-	req, err := client.GenReq(http.MethodPost, aT, am.StoreEndpoint+StoreApplicationContext, buf)
+	req, err := client.PostReq(aT, am.StoreEndpoint+StoreApplicationContext, buf)
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +106,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	if err != nil {
 		return nil, errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPPCreate)
 	}
-	req, err := client.GenReq(http.MethodPost, aT, am.StoreEndpoint+GenerateApplicationKeyContext, buf)
+	req, err := client.PostReq(aT, am.StoreEndpoint+GenerateApplicationKeyContext, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +115,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	req.URL.RawQuery = q.Encode()
 
 	var resBody ApplicationKey
-	err = client.Invoke(am.InsecureCon, GenerateKeyContext, req, &resBody, http.StatusCreated)
+	err = client.Invoke(am.InsecureCon, GenerateKeyContext, req, &resBody, http.StatusOK)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +136,7 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPPCreate)
 	}
-	req, err := client.GenReq(http.MethodPost, aT, am.StoreEndpoint+StoreSubscriptionContext, buf)
+	req, err := client.PostReq(aT, am.StoreEndpoint+StoreSubscriptionContext, buf)
 	if err != nil {
 		return "", err
 	}

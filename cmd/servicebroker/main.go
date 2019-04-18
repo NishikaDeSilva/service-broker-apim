@@ -41,7 +41,7 @@ func main() {
 		Password:              brokerConfig.APIM.Password,
 		InSecureCon:           brokerConfig.APIM.InsecureCon,
 	}
-	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeAPPCreate)
+	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeAPPCreate, broker.ScopeAPIPublish)
 
 	// Initialize APIM Manager
 	apimManager := &broker.APIMManager{

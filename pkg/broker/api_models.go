@@ -115,13 +115,18 @@ type ApplicationCreateReq struct {
 }
 
 type APIParam struct {
-	APISpec APIReqBody `json:"api,omitempty"`
+	APISpec APIReqBody `json:"api"`
 }
 
-type ApplicationParam struct {
+type Application struct {
 	SubscriptionTier string `json:"subscriptionTier"`
 	ApplicationCreateReq
 }
+
+type ApplicationParam struct {
+	AppSpec Application `json:"app"`
+}
+
 
 type SubscriptionReq struct {
 	Tier          string `json:"tier"`

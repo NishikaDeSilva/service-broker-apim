@@ -130,8 +130,8 @@ func defaultConf() *BrokerConfig {
 			Password:              "admin",
 			TokenEndpoint:         "https://localhost:8243/token",
 			DynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register",
-			PublisherEndpoint:     "https://localhost:9443/api/am/publisher/v0.14/apis",
-			StoreEndpoint:         "https://localhost:9443/api/am/publisher/v0.14/apis",
+			PublisherEndpoint:     "https://localhost:9443",
+			StoreEndpoint:         "https://localhost:9443",
 		},
 		DB: DBConfig{
 			Host:     "localhost",

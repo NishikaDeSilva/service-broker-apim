@@ -20,6 +20,7 @@ import (
 const (
 	ScopeAPICreate         = "apim:api_create"
 	ScopeAPPCreate         = "apim:subscribe"
+	ScopeAPIPublish        = "apim:api_publish"
 	ErrMSGInstanceNotExist = "invalid instance Id: %s"
 )
 
@@ -55,10 +56,11 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
 				http.StatusBadRequest, "Parsing API JSON Spec parameter")
 		}
-		apimID, err := apimServiceBroker.APIMManager.CreateAPI(&apiParam.APISpec, apimServiceBroker.TokenManager)
+		apiID, err := apimServiceBroker.APIMManager.CreateAPI(&apiParam.APISpec, apimServiceBroker.TokenManager)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to create API: %s", apiParam.APISpec.Name), err)
-			if err.(*client.InvokeError).StatusCode == http.StatusConflict {
+			e, ok := err.(*client.InvokeError)
+			if ok && e.StatusCode == http.StatusConflict {
 				return spec, brokerapi.ErrInstanceAlreadyExists
 			}
 			return spec, err
@@ -67,7 +69,7 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 			ServiceID:  serviceDetails.ServiceID,
 			PlanID:     serviceDetails.PlanID,
 			InstanceID: instanceID,
-			ApiID:      apimID,
+			ApiID:      apiID,
 			APIName:    apiParam.APISpec.Name,
 		}
 		// Store instance in the database
@@ -75,7 +77,11 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to store instance: %s", instanceID), err)
 			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
-				instanceID, apimID)
+				instanceID, apiID)
+		}
+		if err = apimServiceBroker.APIMManager.PublishAPI(apiID, apimServiceBroker.TokenManager); err != nil {
+			utils.LogError(fmt.Sprintf("unable to publish API: %s", i.APIName), err)
+			return spec, err
 		}
 	} else {
 		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, serviceDetails.PlanID),
@@ -116,9 +122,22 @@ func (apimServiceBroker *APIMServiceBroker) Bind(ctx context.Context, instanceID
 		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
 			http.StatusBadRequest, "parsing Application JSON Spec parameter")
 	}
+
+	instance := &dbutil.Instance{
+		InstanceID: instanceID,
+	}
+	exists, err = dbutil.RetrieveInstance(instance)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to get instance: %s from DB", instanceID), err)
+		return brokerapi.Binding{}, err
+	}
+	if !exists {
+		utils.LogError(fmt.Sprintf(ErrMSGInstanceNotExist, instanceID), err)
+		return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
+	}
 	// application instance
 	app := &dbutil.Application{
-		AppName: applicationParam.Name,
+		AppName: applicationParam.AppSpec.Name,
 	}
 	exists, err = dbutil.RetrieveApp(app)
 	if err != nil {
@@ -128,14 +147,24 @@ func (apimServiceBroker *APIMServiceBroker) Bind(ctx context.Context, instanceID
 	}
 	// Application already exists
 	if exists {
-		return brokerapi.Binding{}, nil
+		bind.AppName = app.AppName
+		err = dbutil.StoreBind(bind)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to store bind ID: %s", bindingID), err)
+			return brokerapi.Binding{}, err
+		}
+		credentialsMap := credentialsMap(app)
+		return brokerapi.Binding{
+			Credentials: credentialsMap,
+		}, nil
 	} else { // Creates a new application
 		appCreateReq := &ApplicationCreateReq{
-			ThrottlingTier: applicationParam.ThrottlingTier,
-			Description:    applicationParam.Description,
-			Name:           applicationParam.Name,
-			CallbackUrl:    applicationParam.CallbackUrl,
+			ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
+			Description:    applicationParam.AppSpec.Description,
+			Name:           applicationParam.AppSpec.Name,
+			CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
 		}
+		// Create application
 		appID, err := apimServiceBroker.APIMManager.CreateApplication(appCreateReq, apimServiceBroker.TokenManager)
 		if err != nil {
 			e, ok := err.(*client.InvokeError)
@@ -181,44 +210,41 @@ func (apimServiceBroker *APIMServiceBroker) Bind(ctx context.Context, instanceID
 			return brokerapi.Binding{}, err
 		}
 
-		i := &dbutil.Instance{
-			InstanceID: instanceID,
-		}
-		exists, err := dbutil.RetrieveInstance(i)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("unable to get instance: %s from DB", instanceID), err)
-			return brokerapi.Binding{}, err
-		}
-		if !exists {
-			utils.LogError(fmt.Sprintf(ErrMSGInstanceNotExist, instanceID), err)
-			return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
-		}
-		subscriptionID, err := apimServiceBroker.APIMManager.Subscribe(appID, i.ApiID,
-			applicationParam.SubscriptionTier, apimServiceBroker.TokenManager)
+		subscriptionID, err := apimServiceBroker.APIMManager.Subscribe(appID, instance.ApiID,
+			applicationParam.AppSpec.SubscriptionTier, apimServiceBroker.TokenManager)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to create subscription for application: %s API: %s",
-				app.AppName, i.APIName), err)
+				app.AppName, instance.APIName), err)
 			return brokerapi.Binding{}, err
 		}
-		bind.SubscriptionID = subscriptionID
+		err = dbutil.StoreSubscription(&dbutil.Subscription{
+			AppID:          appID,
+			SubscriptionID: subscriptionID,
+		})
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to store subscription ID: %s application: %s", subscriptionID,
+				app.AppName), err)
+			return brokerapi.Binding{}, err
+		}
 		err = dbutil.StoreBind(bind)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to store bind ID: %s", bindingID), err)
 			return brokerapi.Binding{}, err
 		}
 
-		credentialsMap := map[string]interface{}{
-			"ConsumerKey":    app.ConsumerKey,
-			"ConsumerSecret": app.ConsumerSecret,
-			"AccessToken":    app.Token,
-		}
-
+		credentialsMap := credentialsMap(app)
 		return brokerapi.Binding{
 			Credentials: credentialsMap,
 		}, nil
 	}
 }
-
+func credentialsMap(app *dbutil.Application) map[string]interface{} {
+	return map[string]interface{}{
+		"ConsumerKey":    app.ConsumerKey,
+		"ConsumerSecret": app.ConsumerSecret,
+		"AccessToken":    app.Token,
+	}
+}
 func (apimServiceBroker *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.UnbindDetails, asyncAllowed bool) (brokerapi.UnbindSpec, error) {
 	return brokerapi.UnbindSpec{}, nil

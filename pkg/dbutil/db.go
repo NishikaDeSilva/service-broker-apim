@@ -29,13 +29,16 @@ type Instance struct {
 
 // Application represents the Application model in the database
 type Application struct {
-	AppName        string `gorm:"primary_key;type:varchar(100)"`
+	AppName        string `gorm:"type:varchar(100)"`
 	AppID          string `gorm:"type:varchar(100)"`
 	Token          string `gorm:"type:varchar(100)"`
 	ConsumerKey    string `gorm:"type:varchar(100)"`
 	ConsumerSecret string `gorm:"type:varchar(100)"`
 }
-
+type Subscription struct{
+	AppID string `gorm:"type:varchar(100)"`
+	SubscriptionID string `gorm:"primary_key;type:varchar(100)"`
+}
 // Bind represents the Bind model in the Database
 type Bind struct {
 	InstanceID     string `gorm:"type:varchar(100)"`
@@ -43,13 +46,13 @@ type Bind struct {
 	AppName        string `gorm:"type:varchar(100)"`
 	ServiceID      string `gorm:"type:varchar(100)"`
 	PlanID         string `gorm:"type:varchar(100)"`
-	SubscriptionID string `gorm:"type:varchar(100)"`
 }
 
 const (
 	TableInstance    = "instances"
 	TableBind        = "binds"
 	TableApplication = "applications"
+	TableSubscription = "subscriptions"
 	ErrTableExists   = 1050
 )
 
@@ -109,6 +112,7 @@ func CreateTables() {
 	CreateTable(&Instance{}, TableInstance)
 	CreateTable(&Bind{}, TableBind)
 	CreateTable(&Application{}, TableApplication)
+	CreateTable(&Subscription{}, TableSubscription)
 }
 
 // RetrieveInstance function returns the given Instance from the Database
@@ -134,6 +138,16 @@ func StoreBind(b *Bind) error {
 // RetrieveApp function returns the given Application from the Database
 func RetrieveApp(a *Application) (bool, error) {
 	return retrieve(a, TableApplication)
+}
+
+// StoreSubscription saves the Subscription in the database
+func StoreSubscription(s *Subscription) error {
+	return store(s, TableSubscription)
+}
+
+// RetrieveSubscription function returns the given Subscription from the Database
+func RetrieveSubscription(s *Subscription) (bool, error) {
+	return retrieve(s, TableSubscription)
 }
 
 // StoreApp saves the Application in the database

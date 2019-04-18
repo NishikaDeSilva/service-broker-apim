@@ -20,7 +20,7 @@ const ErrMSGUnableToParseRequestBody = "Unable to parse request body: %s"
 const ErrMSGUnableToCreateRequestBody = "Unable to create request body: %s"
 const ErrMSGUnableToParseRespBody = "Unable to parse response body: %s "
 const ErrMSGUnableInitiateReq = "Unable to initiate request: %s"
-const ErrMSGUnsuccessfulAPICall = "Unsuccessful API call with response Code: %s"
+const ErrMSGUnsuccessfulAPICall = "Unsuccessful API call: %s response Code: %s"
 const ErrMSGUnableToCloseBody = "Unable to close the body"
 
 const HTTPContentType = "Content-Type"

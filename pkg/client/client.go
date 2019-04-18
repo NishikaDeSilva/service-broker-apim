@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	HeaderAuth              = "Authorization"
-	HeaderBear              = "Bearer "
-	ErrMSGUnableToCreateReq = "unable to create request"
+	HeaderAuth                 = "Authorization"
+	HeaderBear                 = "Bearer "
+	ErrMSGUnableToCreateReq    = "unable to create request"
 	ErrMSGUnableToParseReqBody = "unable to parse request body"
 )
 
@@ -72,30 +72,33 @@ func Invoke(insecureCon bool, context string, req *http.Request, body interface{
 	}
 	if resp.StatusCode != resCode {
 		return &InvokeError{
-			err:        errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, resp.Status),
+			err:        errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, context, resp.Status),
 			StatusCode: resp.StatusCode,
 		}
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			utils.LogError(constants.ErrMSGUnableToCloseBody, err)
-		}
-	}()
-	if resp.StatusCode == resCode {
-		err = ParseBody(resp, body)
-		if err != nil {
-			return &InvokeError{
-				err:        errors.Wrapf(err, constants.ErrMSGUnableToParseRespBody, context),
-				StatusCode: resp.StatusCode,
+	// If response has a body
+	if body != nil {
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				utils.LogError(constants.ErrMSGUnableToCloseBody, err)
+			}
+		}()
+		if resp.StatusCode == resCode {
+			err = ParseBody(resp, body)
+			if err != nil {
+				return &InvokeError{
+					err:        errors.Wrapf(err, constants.ErrMSGUnableToParseRespBody, context),
+					StatusCode: resp.StatusCode,
+				}
 			}
 		}
 	}
 	return nil
 }
 
-// GentReq creates a HTTP request with an Authorization header and set the content type to application/json
-func GenReq(method, token, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, body)
+// PostReq creates a POST HTTP request with an Authorization header and set the content type to application/json
+func PostReq(token, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodPost, url, body)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
@@ -104,8 +107,18 @@ func GenReq(method, token, url string, body io.Reader) (*http.Request, error) {
 	return req, nil
 }
 
+// GetReq creates a GET HTTP request with an Authorization header
+func GetReq(token, url string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+	}
+	req.Header.Add(HeaderAuth, HeaderBear+token)
+	return req, nil
+}
+
 // ByteBuf returns the byte buffer representation of the provided struct
-func ByteBuf(v interface{}) (*bytes.Buffer, error){
+func ByteBuf(v interface{}) (*bytes.Buffer, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(v)
 	if err != nil {

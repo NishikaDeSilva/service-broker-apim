@@ -38,7 +38,7 @@ func TestGenReq(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	req, err := GenReq(http.MethodDelete, Token, "http://"+Host, buf)
+	req, err := PostReq(http.MethodDelete, Token, "http://"+Host, buf)
 	if err != nil {
 		t.Error(err)
 	}
