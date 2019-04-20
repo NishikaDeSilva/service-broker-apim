@@ -110,7 +110,7 @@ type APIResp struct {
 type ApplicationCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
 	Description    string `json:"description"`
-	Name           string `json:"name"`
+	Name           string `json:"name,omitempty"`
 	CallbackUrl    string `json:"callbackUrl"`
 }
 
@@ -127,23 +127,22 @@ type ApplicationParam struct {
 	AppSpec Application `json:"app"`
 }
 
-
 type SubscriptionReq struct {
 	Tier          string `json:"tier"`
 	ApiIdentifier string `json:"apiIdentifier"`
 	ApplicationId string `json:"applicationId"`
 }
 
-// AppReq represents the application creation request body
-type AppReq struct {
+// AppCreateReq represents the application creation request body
+type AppCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
 	Description    string `json:"description"`
 	Name           string `json:"name"`
 	CallbackUrl    string `json:"callbackUrl"`
 }
 
-// AppRes represents the application creation response body
-type AppRes struct {
+// AppCreateRes represents the application creation response body
+type AppCreateRes struct {
 	ApplicationId string `json:"applicationId"`
 }
 
@@ -199,6 +198,6 @@ type SubscriptionResp struct {
 	ApplicationId string `json:"applicationId"`
 	// The unique identifier of the API.
 	ApiIdentifier string `json:"apiIdentifier"`
-	Tier string `json:"tier"`
-	Status string `json:"status,omitempty"`
+	Tier          string `json:"tier"`
+	Status        string `json:"status,omitempty"`
 }

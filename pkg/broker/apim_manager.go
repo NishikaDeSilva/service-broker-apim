@@ -87,7 +87,7 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 	if err != nil {
 		return "", err
 	}
-	var resBody AppRes
+	var resBody AppCreateRes
 	err = client.Invoke(am.InsecureCon, CreateApplicationContext, req, &resBody, http.StatusCreated)
 	if err != nil {
 		return "", err
