@@ -91,11 +91,15 @@ func store(model interface{}, table string) error {
 	return db.Table(table).Create(model).Error
 }
 
-// update update the given Instance in the Database
+// update updates the given Instance in the Database
 func update(model interface{}, table string) error {
 	return db.Table(table).Save(model).Error
 }
 
+// delete deletes the given Instance in the Database
+func delete(model interface{}, table string) error {
+	return db.Table(table).Delete(model).Error
+}
 // retrieve function returns the given Instance from the Database
 func retrieve(model interface{}, table string) (bool, error) {
 	result := db.Table(table).Where(model).Find(model)
@@ -121,6 +125,11 @@ func RetrieveInstance(i *Instance) (bool, error) {
 func StoreInstance(i *Instance) error {
 	return store(i, TableInstance)
 }
+// DeleteInstance deletes the Instance in the database
+func DeleteInstance(i *Instance) error {
+	return delete(i, TableInstance)
+}
+
 
 // RetrieveBind function returns the given Bind from the Database
 func RetrieveBind(b *Bind) (bool, error) {
@@ -130,6 +139,10 @@ func RetrieveBind(b *Bind) (bool, error) {
 // StoreBind saves the Bind in the database
 func StoreBind(b *Bind) error {
 	return store(b, TableBind)
+}
+// DeleteBind deletes the Bind in the database
+func DeleteBind(b *Bind) error {
+	return delete(b, TableBind)
 }
 
 // RetrieveApp function returns the given Application from the Database
@@ -142,7 +155,12 @@ func StoreApp(b *Application) error {
 	return store(b, TableApplication)
 }
 
-// UpdateApp update the application entry
+// UpdateApp updates the application entry
 func UpdateApp(b *Application) error {
 	return update(b, TableApplication)
 }
+// DeleteApp deletes the application entry
+func DeleteApp(b *Application) error {
+	return delete(b, TableApplication)
+}
+

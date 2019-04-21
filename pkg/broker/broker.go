@@ -92,8 +92,33 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 	return spec, nil
 }
 
-func (apimServiceBroker *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,
+func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,
 	details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
+	instance := &dbutil.Instance{
+		InstanceID: instanceID,
+	}
+	exists, err := dbutil.RetrieveInstance(instance)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to get instance: %s from DB", instanceID), err)
+		return brokerapi.DeprovisionServiceSpec{}, err
+	}
+	if !exists {
+		return brokerapi.DeprovisionServiceSpec{}, brokerapi.ErrInstanceDoesNotExist
+	}
+
+	err = asb.APIMManager.DeleteAPI(instance.ApiID, asb.TokenManager)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to delete the API: %s, InstanceID: %s", instance.APIName,
+			instanceID), err)
+		return brokerapi.DeprovisionServiceSpec{}, err
+	}
+	err = dbutil.DeleteInstance(instance)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to delete the instance: %s, API: %s from the database ",
+			instance.InstanceID, instance.APIName), err)
+		return brokerapi.DeprovisionServiceSpec{}, err
+	}
+
 	return brokerapi.DeprovisionServiceSpec{}, nil
 }
 
@@ -263,7 +288,7 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 
 	if bind.AppName == bind.BindID { // application created using create-service-key
 		application := &dbutil.Application{
-			AppName:bind.AppName,
+			AppName: bind.AppName,
 		}
 		exists, err = dbutil.RetrieveApp(application)
 		if err != nil {
@@ -276,10 +301,16 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 				application.AppName, bindingID), err)
 			return brokerapi.UnbindSpec{}, err
 		}
-		err := asb.APIMManager.DeleteApplication(application.AppID, asb.TokenManager)
+		err = asb.APIMManager.DeleteApplication(application.AppID, asb.TokenManager)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to delete the appliaction: %s, bindID: %s InstanceID: %s",
 				bind.AppName, bindingID, instanceID), err)
+			return brokerapi.UnbindSpec{}, err
+		}
+		err = dbutil.DeleteApp(application)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to delete the application: %s from the database",
+				application.AppName), err)
 			return brokerapi.UnbindSpec{}, err
 		}
 	} else { // Deletes subscription
@@ -289,6 +320,11 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 				bind.SubscriptionID, bindingID, instanceID), err)
 			return brokerapi.UnbindSpec{}, err
 		}
+	}
+	err = dbutil.DeleteBind(bind)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to delete the bind: %s from the database", bindingID), err)
+		return brokerapi.UnbindSpec{}, err
 	}
 	return brokerapi.UnbindSpec{}, nil
 }

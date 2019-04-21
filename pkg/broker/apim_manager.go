@@ -24,6 +24,7 @@ const (
 	SubscribeContext              = "subscribe api"
 	UnSubscribeContext            = "unsubscribe api"
 	ApplicationDeleteContext      = "delete application"
+	APIDeleteContext              = "delete API"
 )
 
 // APIMManager handles the communication with API Manager
@@ -62,7 +63,7 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
 	aT, err := tm.Token(ScopeAPIPublish)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPIPublish)
 	}
 	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherChangeAPIContext, nil)
 	if err != nil {
@@ -186,6 +187,23 @@ func (am *APIMManager) DeleteApplication(applicationID string, tm *TokenManager)
 	return nil
 }
 
+
+// DeleteApplication method deletes the given API
+func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
+	aT, err := tm.Token(ScopeAPICreate)
+	if err != nil {
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
+	}
+	req, err := client.DeleteReq(aT, am.StoreEndpoint+PublisherContext+"/"+apiID)
+	if err != nil {
+		return err
+	}
+	err = client.Invoke(am.InsecureCon, APIDeleteContext, req, nil, http.StatusOK)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {
 	return &ApplicationKeyGenerateRequest{
 		ValidityTime:       "3600",
