@@ -31,7 +31,7 @@ type APIMServiceBroker struct {
 	APIMManager  *APIMManager
 }
 
-func (apimServiceBroker *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
+func (asb *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
 	return Plan(), nil
 }
 
@@ -164,8 +164,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	var application *dbutil.Application
 	// If the operation is create-service-key then no point of checking since each time an new app is created
 	var applicationExists bool
-	if details.BindResource != nil { //create service key command
-		utils.LogDebug("create-service-key operation is running")
+	if details.BindResource != nil {
 		cfAppName = details.BindResource.AppGuid
 		application = &dbutil.Application{
 			AppName: cfAppName,
@@ -176,7 +175,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 				application.AppName), err)
 			return brokerapi.Binding{}, err
 		}
-	} else {
+	} else { //create service key command
 		cfAppName = bindingID
 		application = &dbutil.Application{
 			AppName: cfAppName,
