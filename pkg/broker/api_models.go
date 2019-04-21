@@ -118,13 +118,13 @@ type APIParam struct {
 	APISpec APIReqBody `json:"api"`
 }
 
-type Application struct {
+type ApplicationConfig struct {
 	SubscriptionTier string `json:"subscriptionTier"`
 	ApplicationCreateReq
 }
 
 type ApplicationParam struct {
-	AppSpec Application `json:"app"`
+	AppSpec ApplicationConfig `json:"app"`
 }
 
 type SubscriptionReq struct {
@@ -177,7 +177,7 @@ type ApplicationKey struct {
 	KeyState string `json:"keyState,omitempty"`
 	// Describes to which endpoint the key belongs
 	KeyType string `json:"keyType,omitempty"`
-	// Application group id (if any).
+	// ApplicationConfig group id (if any).
 	GroupId string `json:"groupId,omitempty"`
 	Token   *Token `json:"token,omitempty"`
 }

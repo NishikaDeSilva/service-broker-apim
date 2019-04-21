@@ -15,12 +15,11 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/dbutil"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
-	"strconv"
 )
 
 const (
 	ScopeAPICreate         = "apim:api_create"
-	ScopeAPPCreate         = "apim:subscribe"
+	ScopeSubscribe         = "apim:subscribe"
 	ScopeAPIPublish        = "apim:api_publish"
 	ErrMSGInstanceNotExist = "invalid instance Id: %s"
 )
@@ -100,29 +99,16 @@ func (apimServiceBroker *APIMServiceBroker) Deprovision(ctx context.Context, ins
 
 func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
-	var isCreateServiceKey bool
-	var cfAppName string
-	if details.BindResource == nil { //create service key command
-		cfAppName = bindingID
-		isCreateServiceKey = true
-	} else {
-		cfAppName = details.BindResource.AppGuid
-	}
-	utils.LogDebug("is create-service-key operation running: " + strconv.FormatBool(isCreateServiceKey))
-
+	// Validates the parameters before moving forward
 	applicationParam, err := toApplicationParam(details.RawParameters)
 	if err != nil {
 		utils.LogError("invalid parameter in application json", err)
 		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-			http.StatusBadRequest, "parsing Application JSON Spec parameter")
+			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
 	}
 	// construct the bind object
 	bind := &dbutil.Bind{
-		BindID:     bindingID,
-		ServiceID:  details.ServiceID,
-		PlanID:     details.PlanID,
-		InstanceID: instanceID,
-		AppName:    cfAppName,
+		BindID: bindingID,
 	}
 	exists, err := dbutil.RetrieveBind(bind)
 	if err != nil {
@@ -147,18 +133,28 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		utils.LogError(fmt.Sprintf(ErrMSGInstanceNotExist, instanceID), err)
 		return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
 	}
+
+	var cfAppName string
 	// application instance
-	application := &dbutil.Application{
-		AppName: cfAppName,
-	}
+	var application *dbutil.Application
 	// If the operation is create-service-key then no point of checking since each time an new app is created
 	var applicationExists bool
-	if !isCreateServiceKey {
+	if details.BindResource != nil { //create service key command
+		utils.LogDebug("create-service-key operation is running")
+		cfAppName = details.BindResource.AppGuid
+		application = &dbutil.Application{
+			AppName: cfAppName,
+		}
 		applicationExists, err = dbutil.RetrieveApp(application)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to retrieve application: %s from the database",
 				application.AppName), err)
 			return brokerapi.Binding{}, err
+		}
+	} else {
+		cfAppName = bindingID
+		application = &dbutil.Application{
+			AppName: cfAppName,
 		}
 	}
 
@@ -208,7 +204,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		application.Token = appKeyGenResp.Token.AccessToken
 		application.ConsumerKey = appKeyGenResp.ConsumerKey
 		application.ConsumerSecret = appKeyGenResp.ConsumerSecret
-		// Update Application state
+		// Update ApplicationConfig state
 		err = dbutil.UpdateApp(application)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to store application: %s", application.AppName), err)
@@ -222,7 +218,12 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			application.AppName, instance.APIName), err)
 		return brokerapi.Binding{}, err
 	}
+	// Construct Bind struct & store
 	bind.SubscriptionID = subscriptionID
+	bind.AppName = cfAppName
+	bind.InstanceID = instanceID
+	bind.ServiceID = details.ServiceID
+	bind.PlanID = details.PlanID
 	err = dbutil.StoreBind(bind)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("unable to store bind ID: %s", bindingID), err)
@@ -242,8 +243,53 @@ func credentialsMap(app *dbutil.Application) map[string]interface{} {
 		"AccessToken":    app.Token,
 	}
 }
-func (apimServiceBroker *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
+func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.UnbindDetails, asyncAllowed bool) (brokerapi.UnbindSpec, error) {
+
+	// construct the bind object
+	bind := &dbutil.Bind{
+		BindID: bindingID,
+	}
+	exists, err := dbutil.RetrieveBind(bind)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to retrieve Bind from the database. BindID: %s InstanceID: %s",
+			bindingID, instanceID), err)
+		return brokerapi.UnbindSpec{}, err
+	}
+	// Bind not exists
+	if !exists {
+		return brokerapi.UnbindSpec{}, brokerapi.ErrBindingDoesNotExist
+	}
+
+	if bind.AppName == bind.BindID { // application created using create-service-key
+		application := &dbutil.Application{
+			AppName:bind.AppName,
+		}
+		exists, err = dbutil.RetrieveApp(application)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to retrieve application: %s from the database",
+				application.AppName), err)
+			return brokerapi.UnbindSpec{}, err
+		}
+		if !exists {
+			utils.LogError(fmt.Sprintf("application: %s does not exist for bindID: %s",
+				application.AppName, bindingID), err)
+			return brokerapi.UnbindSpec{}, err
+		}
+		err := asb.APIMManager.DeleteApplication(application.AppID, asb.TokenManager)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to delete the appliaction: %s, bindID: %s InstanceID: %s",
+				bind.AppName, bindingID, instanceID), err)
+			return brokerapi.UnbindSpec{}, err
+		}
+	} else { // Deletes subscription
+		err := asb.APIMManager.UnSubscribe(bind.SubscriptionID, asb.TokenManager)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("unable to remove the subscription: %s, bindID: %s InstanceID: %s",
+				bind.SubscriptionID, bindingID, instanceID), err)
+			return brokerapi.UnbindSpec{}, err
+		}
+	}
 	return brokerapi.UnbindSpec{}, nil
 }
 

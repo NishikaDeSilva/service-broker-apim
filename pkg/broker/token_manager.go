@@ -79,7 +79,7 @@ const (
 	ErrMSGNotEnoughArgs           = "At least one scope should be present"
 	ErrMSGUnableToGetClientCreds  = "Unable to get Client credentials"
 	DebugMSGClientIDClientSec     = "Client ID: %s Client Secret: %s"
-	ErrMSGUnableTOGetAccessToken  = "Unable to get access token for scope: %s"
+	ErrMSGUnableToGetAccessToken  = "Unable to get access token for scope: %s"
 	ErrMSGUnableToParseExpireTime = "Unable parse expiresIn time"
 	GenerateAccessToken           = "Generating access Token"
 	DynamicClientRegMSG           = "Dynamic Client Reg"
@@ -106,7 +106,7 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 			data := tm.accessTokenReqBody(scope)
 			aT, rT, expiresIn, err := tm.genToken(data, GenerateAccessToken)
 			if err != nil {
-				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableTOGetAccessToken, scope), err)
+				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableToGetAccessToken, scope), err)
 			}
 			// Handling the expire time of the access token
 			duration, err := time.ParseDuration(strconv.Itoa(expiresIn) + "s")

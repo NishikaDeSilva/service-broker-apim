@@ -107,6 +107,16 @@ func PostReq(token, url string, body io.Reader) (*http.Request, error) {
 	return req, nil
 }
 
+// DeleteReq function creates a DELETE HTTP request with an Authorization header
+func DeleteReq(token, url string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+	}
+	req.Header.Add(HeaderAuth, HeaderBear+token)
+	return req, nil
+}
+
 // GetReq creates a GET HTTP request with an Authorization header
 func GetReq(token, url string) (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)

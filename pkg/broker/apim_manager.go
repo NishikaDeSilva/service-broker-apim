@@ -21,6 +21,9 @@ const (
 	PublisherContext              = "/api/am/publisher/v0.14/apis"
 	PublisherChangeAPIContext     = PublisherContext + "/change-lifecycle"
 	PublishAPIContext             = "publish api"
+	SubscribeContext              = "subscribe api"
+	UnSubscribeContext            = "unsubscribe api"
+	ApplicationDeleteContext      = "delete application"
 )
 
 // APIMManager handles the communication with API Manager
@@ -39,7 +42,7 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 
 	aT, err := tm.Token(ScopeAPICreate)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPICreate)
+		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
 
 	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherContext, buf)
@@ -59,7 +62,7 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
 	aT, err := tm.Token(ScopeAPIPublish)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPICreate)
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
 	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherChangeAPIContext, nil)
 	if err != nil {
@@ -79,9 +82,9 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 	if err != nil {
 		return "", err
 	}
-	aT, err := tm.Token(ScopeAPPCreate)
+	aT, err := tm.Token(ScopeSubscribe)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPPCreate)
+		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
 	req, err := client.PostReq(aT, am.StoreEndpoint+StoreApplicationContext, buf)
 	if err != nil {
@@ -95,16 +98,16 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 	return resBody.ApplicationId, nil
 }
 
-// GenerateKeys generate keys for the given application
+// GenerateKeys method generate keys for the given application
 func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*ApplicationKey, error) {
 	reqBody := defaultApplicationKeyGenerateReq()
 	buf, err := client.ByteBuf(reqBody)
 	if err != nil {
 		return nil, err
 	}
-	aT, err := tm.Token(ScopeAPPCreate)
+	aT, err := tm.Token(ScopeSubscribe)
 	if err != nil {
-		return nil, errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPPCreate)
+		return nil, errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
 	req, err := client.PostReq(aT, am.StoreEndpoint+GenerateApplicationKeyContext, buf)
 	if err != nil {
@@ -122,6 +125,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	return &resBody, nil
 }
 
+// Subscribe method subscribes an application to a an API
 func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (string, error) {
 	reqBody := &SubscriptionReq{
 		ApplicationId: appID,
@@ -132,20 +136,54 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 	if err != nil {
 		return "", err
 	}
-	aT, err := tm.Token(ScopeAPPCreate)
+	aT, err := tm.Token(ScopeSubscribe)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableTOGetAccessToken, ScopeAPPCreate)
+		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
 	req, err := client.PostReq(aT, am.StoreEndpoint+StoreSubscriptionContext, buf)
 	if err != nil {
 		return "", err
 	}
 	var resBody SubscriptionResp
-	err = client.Invoke(am.InsecureCon, GenerateKeyContext, req, &resBody, http.StatusCreated)
+	err = client.Invoke(am.InsecureCon, SubscribeContext, req, &resBody, http.StatusCreated)
 	if err != nil {
 		return "", err
 	}
 	return resBody.SubscriptionId, nil
+}
+
+// UnSubscribe method removes the given subscription
+func (am *APIMManager) UnSubscribe(subscriptionID string, tm *TokenManager) error {
+	aT, err := tm.Token(ScopeSubscribe)
+	if err != nil {
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+	}
+	req, err := client.DeleteReq(aT, am.StoreEndpoint+StoreSubscriptionContext+"/"+subscriptionID)
+	if err != nil {
+		return err
+	}
+	err = client.Invoke(am.InsecureCon, UnSubscribeContext, req, nil, http.StatusOK)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteApplication method deletes the given application
+func (am *APIMManager) DeleteApplication(applicationID string, tm *TokenManager) error {
+	aT, err := tm.Token(ScopeSubscribe)
+	if err != nil {
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+	}
+	req, err := client.DeleteReq(aT, am.StoreEndpoint+StoreApplicationContext+"/"+applicationID)
+	if err != nil {
+		return err
+	}
+	err = client.Invoke(am.InsecureCon, ApplicationDeleteContext, req, nil, http.StatusOK)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {
