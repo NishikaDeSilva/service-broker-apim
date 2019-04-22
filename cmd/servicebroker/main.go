@@ -47,7 +47,6 @@ func main() {
 		DynamicClientEndpoint: brokerConfig.APIM.DynamicClientEndpoint,
 		UserName:              brokerConfig.APIM.Username,
 		Password:              brokerConfig.APIM.Password,
-		InSecureCon:           brokerConfig.APIM.InsecureCon,
 	}
 	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeSubscribe, broker.ScopeAPIPublish)
 
