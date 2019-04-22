@@ -90,7 +90,7 @@ func LoadConfig() (*BrokerConfig, error) {
 	return brokerConfig, nil
 }
 
-// loadConfigFile load the configuration file
+// loadConfigFile loads the configuration file
 // Must set the "BROKER_APIM_CONF_FILE" env to the configuration file
 func loadConfigFile() error {
 	confFile, exists := os.LookupEnv(constants.ConfFileEnv)

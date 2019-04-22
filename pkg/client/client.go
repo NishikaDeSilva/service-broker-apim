@@ -7,7 +7,6 @@ package client
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/pkg/errors"
@@ -24,6 +23,13 @@ const (
 	ErrMSGUnableToCreateReq    = "unable to create request"
 	ErrMSGUnableToParseReqBody = "unable to parse request body"
 )
+
+var client = http.DefaultClient
+
+// SetupClient overrides the default HTTP client. This method should be called before calling Invoke function
+func SetupClient(c *http.Client) {
+	client = c
+}
 
 // Wraps more information about the error
 type InvokeError struct {
@@ -59,13 +65,7 @@ func ParseBody(res *http.Response, v interface{}) error {
 }
 
 // Invoke the request and parse the response body to the given struct
-func Invoke(insecureCon bool, context string, req *http.Request, body interface{}, resCode int) error {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureCon},
-	}
-	client := &http.Client{
-		Transport: tr,
-	}
+func Invoke(context string, req *http.Request, body interface{}, resCode int) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrapf(err, constants.ErrMSGUnableInitiateReq, context)
@@ -110,16 +110,6 @@ func PostReq(token, url string, body io.Reader) (*http.Request, error) {
 // DeleteReq function creates a DELETE HTTP request with an Authorization header
 func DeleteReq(token, url string) (*http.Request, error) {
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
-	}
-	req.Header.Add(HeaderAuth, HeaderBear+token)
-	return req, nil
-}
-
-// GetReq creates a GET HTTP request with an Authorization header
-func GetReq(token, url string) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}

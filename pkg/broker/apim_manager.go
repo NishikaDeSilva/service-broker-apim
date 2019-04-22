@@ -52,7 +52,7 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 	}
 
 	var resBody APIResp
-	err = client.Invoke(am.InsecureCon, CreateAPIContext, req, &resBody, http.StatusCreated)
+	err = client.Invoke(CreateAPIContext, req, &resBody, http.StatusCreated)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +73,7 @@ func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
 	q.Add("apiId", apiId)
 	q.Add("action", "Publish")
 	req.URL.RawQuery = q.Encode()
-	err = client.Invoke(am.InsecureCon, PublishAPIContext, req, nil, http.StatusOK)
+	err = client.Invoke(PublishAPIContext, req, nil, http.StatusOK)
 	return err
 }
 
@@ -92,7 +92,7 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 		return "", err
 	}
 	var resBody AppCreateRes
-	err = client.Invoke(am.InsecureCon, CreateApplicationContext, req, &resBody, http.StatusCreated)
+	err = client.Invoke(CreateApplicationContext, req, &resBody, http.StatusCreated)
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +119,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	req.URL.RawQuery = q.Encode()
 
 	var resBody ApplicationKey
-	err = client.Invoke(am.InsecureCon, GenerateKeyContext, req, &resBody, http.StatusOK)
+	err = client.Invoke(GenerateKeyContext, req, &resBody, http.StatusOK)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 		return "", err
 	}
 	var resBody SubscriptionResp
-	err = client.Invoke(am.InsecureCon, SubscribeContext, req, &resBody, http.StatusCreated)
+	err = client.Invoke(SubscribeContext, req, &resBody, http.StatusCreated)
 	if err != nil {
 		return "", err
 	}
@@ -163,7 +163,7 @@ func (am *APIMManager) UnSubscribe(subscriptionID string, tm *TokenManager) erro
 	if err != nil {
 		return err
 	}
-	err = client.Invoke(am.InsecureCon, UnSubscribeContext, req, nil, http.StatusOK)
+	err = client.Invoke(UnSubscribeContext, req, nil, http.StatusOK)
 	if err != nil {
 		return err
 	}
@@ -180,13 +180,12 @@ func (am *APIMManager) DeleteApplication(applicationID string, tm *TokenManager)
 	if err != nil {
 		return err
 	}
-	err = client.Invoke(am.InsecureCon, ApplicationDeleteContext, req, nil, http.StatusOK)
+	err = client.Invoke(ApplicationDeleteContext, req, nil, http.StatusOK)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
 
 // DeleteApplication method deletes the given API
 func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
@@ -198,12 +197,13 @@ func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
 	if err != nil {
 		return err
 	}
-	err = client.Invoke(am.InsecureCon, APIDeleteContext, req, nil, http.StatusOK)
+	err = client.Invoke(APIDeleteContext, req, nil, http.StatusOK)
 	if err != nil {
 		return err
 	}
 	return nil
 }
+
 func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {
 	return &ApplicationKeyGenerateRequest{
 		ValidityTime:       "3600",

@@ -71,7 +71,6 @@ type TokenManager struct {
 	DynamicClientEndpoint string
 	UserName              string
 	Password              string
-	InSecureCon           bool
 }
 
 const (
@@ -200,7 +199,7 @@ func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT str
 	req.SetBasicAuth(tm.clientID, tm.clientSec)
 	req.Header.Add(constants.HTTPContentType, constants.ContentTypeUrlEncoded)
 	var resBody TokenResp
-	if err := client.Invoke(tm.InSecureCon, context, req, &resBody, http.StatusOK); err != nil {
+	if err := client.Invoke(context, req, &resBody, http.StatusOK); err != nil {
 		return "", "", 0, err
 	}
 	return resBody.AccessToken, resBody.RefreshToken, resBody.ExpiresIn, nil
@@ -224,7 +223,7 @@ func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clie
 	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
 
 	var resBody DynamicClientRegResBody
-	if err := client.Invoke(tm.InSecureCon, DynamicClientRegMSG, req, &resBody, http.StatusOK); err != nil {
+	if err := client.Invoke(DynamicClientRegMSG, req, &resBody, http.StatusOK); err != nil {
 		return "", "", err
 	}
 	return resBody.ClientId, resBody.ClientSecret, nil

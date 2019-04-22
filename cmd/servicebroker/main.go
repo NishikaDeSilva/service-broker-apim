@@ -2,9 +2,11 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/wso2/service-broker-apim/pkg/broker"
+	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"github.com/wso2/service-broker-apim/pkg/dbutil"
@@ -27,6 +29,12 @@ func main() {
 	if err != nil {
 		utils.HandleErrorAndExit(err)
 	}
+	// Initialize HTTP client
+	client.SetupClient(&http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: brokerConfig.APIM.InsecureCon},
+		},
+	})
 
 	// Initialize ORM
 	dbutil.InitDB(&brokerConfig.DB)

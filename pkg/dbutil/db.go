@@ -62,13 +62,12 @@ var (
 func InitDB(conf *config.DBConfig) {
 	onceInit.Do(func() {
 		url := conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
-			conf.Database + "?charset=utf8&parseTime=True&loc=Local"
+			conf.Database + "?charset=utf8"
 		var err error
 		db, err = gorm.Open(MySQL, url)
 		if err != nil {
 			utils.HandleErrorWithLoggerAndExit("cannot initiate ORM", err)
 		}
-		//db.AutoMigrate(&Instance{})
 		db.LogMode(conf.LogMode)
 	})
 }
@@ -111,14 +110,13 @@ func retrieve(model interface{}, table string) (bool, error) {
 
 // addForeignKeys configures foreign keys
 func addForeignKeys() {
-	if err := db.Model(&Bind{}).
+	err := db.Model(&Bind{}).
 		AddForeignKey("app_name", TableApplication+"(app_name)", "CASCADE",
 			"CASCADE").
 		AddForeignKey("instance_id", TableInstance+"(instance_id)", "CASCADE",
-			"CASCADE").Error; err != nil {
-		if err != nil {
-			utils.HandleErrorWithLoggerAndExit("unable to add foreign keys", err)
-		}
+			"CASCADE").Error
+	if err != nil {
+		utils.HandleErrorWithLoggerAndExit("unable to add foreign keys", err)
 	}
 }
 

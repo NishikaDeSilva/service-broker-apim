@@ -56,6 +56,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:e77a03f1e4f1e4e035e46dc3cd79b1e33acbf651540aaa5e148caf1296884d18"
+  name = "github.com/jarcoal/httpmock"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e598472b238f5d2a505e1316886da2171f86bfa4"
+  version = "v1.0.3"
+
+[[projects]]
   digest = "1:d4e6e8584d0a94ce567d237e19192dae44d57d2767ac7e1d7fbf5626d176381a"
   name = "github.com/jinzhu/gorm"
   packages = ["."]
@@ -203,6 +211,7 @@
   input-imports = [
     "code.cloudfoundry.org/lager",
     "github.com/go-sql-driver/mysql",
+    "github.com/jarcoal/httpmock",
     "github.com/jinzhu/gorm",
     "github.com/pivotal-cf/brokerapi",
     "github.com/pkg/errors",

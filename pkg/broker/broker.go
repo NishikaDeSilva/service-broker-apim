@@ -342,7 +342,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-bindingID string) (brokerapi.GetBindingSpec, error) {
+	bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -352,7 +352,7 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 
