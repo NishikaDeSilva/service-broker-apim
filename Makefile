@@ -4,6 +4,7 @@ build: ## Builds the service broker
 test: ## Runs the tests
 	go test -v ./pkg/utils/*
 	go test -v ./pkg/client/*
+	go test -v ./pkg/broker/*
 
 linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \

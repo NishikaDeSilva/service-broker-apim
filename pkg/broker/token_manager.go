@@ -6,7 +6,6 @@ package broker
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
@@ -163,8 +162,7 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 		t.lock.Unlock()
 		return t.aT, nil
 	}
-	data := refreshTokenReqBody(t.rT)
-	aT, rT, expiresIn, err := tm.refreshToken(data)
+	aT, rT, expiresIn, err := tm.refreshToken(t.rT)
 	if err != nil {
 		t.lock.Unlock()
 		return "", err
@@ -181,7 +179,8 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 }
 
 // refreshToken function generates a new Access token and a Refresh token
-func (tm *TokenManager) refreshToken(data url.Values) (aT, newRT string, expiresIn int, err error) {
+func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn int, err error) {
+	data := refreshTokenReqBody(rTNow)
 	aT, rT, expiresIn, err := tm.genToken(data, RefreshToken)
 	if err != nil {
 		return "", "", 0, err
@@ -208,8 +207,7 @@ func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT str
 // DynamicClientReg gets the Client ID and Client Secret
 func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
 	// Encode the resBody
-	b := new(bytes.Buffer)
-	err := json.NewEncoder(b).Encode(reqBody)
+	b, err := client.ByteBuf(reqBody)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToParseRequestBody, DynamicClientRegMSG)
 	}
