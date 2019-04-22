@@ -7,6 +7,7 @@ package broker
 import (
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
+	"github.com/wso2/service-broker-apim/pkg/constants"
 	"net/http"
 	"net/url"
 )
@@ -51,7 +52,7 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 		return "", err
 	}
 
-	var resBody APIResp
+	var resBody APICreateResp
 	err = client.Invoke(CreateAPIContext, req, &resBody, http.StatusCreated)
 	if err != nil {
 		return "", err
@@ -61,6 +62,9 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 
 // Publish an API in state "Created"
 func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
+	if apiId == "" {
+		return errors.New(constants.ErrMSGAPIIDEmpty)
+	}
 	aT, err := tm.Token(ScopeAPIPublish)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPIPublish)
@@ -101,6 +105,9 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 
 // GenerateKeys method generate keys for the given application
 func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*ApplicationKey, error) {
+	if appID == "" {
+		return nil, errors.New(constants.ErrMSGAPPIDEmpty)
+	}
 	reqBody := defaultApplicationKeyGenerateReq()
 	buf, err := client.ByteBuf(reqBody)
 	if err != nil {
@@ -193,7 +200,7 @@ func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
-	req, err := client.DeleteReq(aT, am.StoreEndpoint+PublisherContext+"/"+apiID)
+	req, err := client.DeleteReq(aT, am.PublisherEndpoint+PublisherContext+"/"+apiID)
 	if err != nil {
 		return err
 	}

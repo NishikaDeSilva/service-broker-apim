@@ -97,7 +97,7 @@ func TestDeleteReq(t *testing.T) {
 
 func TestInvoke(t *testing.T) {
 	t.Run("success test case", testInvokeSuccessFunc())
-	t.Run("failed test case", testInvokeFailedFunc())
+	t.Run("failure test case", testInvokeFailFunc())
 }
 
 func testInvokeSuccessFunc() func(t *testing.T) {
@@ -127,7 +127,7 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 	}
 }
 
-func testInvokeFailedFunc() func(t *testing.T) {
+func testInvokeFailFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()

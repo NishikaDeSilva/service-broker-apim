@@ -40,11 +40,11 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestLoadConfigFile(t *testing.T) {
-	t.Run("success test case", testLoadConfigFileSuccess())
-	t.Run("failed test case", testLoadConfigFileFailed())
+	t.Run("success test case", testLoadConfigFileSuccessFunc())
+	t.Run("fail test case", testLoadConfigFileFailFunc())
 }
 
-func testLoadConfigFileSuccess() func(t *testing.T) {
+func testLoadConfigFileSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		setUpEnv(t)
 		err := loadConfigFile()
@@ -58,7 +58,7 @@ func testLoadConfigFileSuccess() func(t *testing.T) {
 	}
 }
 
-func testLoadConfigFileFailed() func(t *testing.T) {
+func testLoadConfigFileFailFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		err := loadConfigFile()
 		if err == nil {

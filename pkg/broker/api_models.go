@@ -103,7 +103,7 @@ type APIReqBody struct {
 	CorsConfiguration   *ApiCorsConfiguration   `json:"corsConfiguration,omitempty"`
 }
 
-type APIResp struct {
+type APICreateResp struct {
 	// UUID of the api registry artifact
 	Id string `json:"id,omitempty"`
 }

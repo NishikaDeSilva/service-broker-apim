@@ -24,10 +24,10 @@ const (
 	expiresIn             = 3600
 )
 
-var tm *TokenManager
+var tmTest *TokenManager
 
 func init() {
-	tm = &TokenManager{
+	tmTest = &TokenManager{
 		DynamicClientEndpoint: dynamicClientEndpoint,
 		UserName:              "admin",
 		Password:              "admin",
@@ -57,11 +57,11 @@ func testIsExpired(time time.Time, expectedVal bool) func(t *testing.T) {
 }
 
 func TestDynamicClientReg(t *testing.T) {
-	t.Run("success test case", testDynamicClientRegSuccess())
-	t.Run("failed test case", testDynamicClientRegFail())
+	t.Run("success test case", testDynamicClientRegSuccessFunc())
+	t.Run("failed test case", testDynamicClientRegFailFunc())
 }
 
-func testDynamicClientRegSuccess() func(t *testing.T) {
+func testDynamicClientRegSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -73,7 +73,7 @@ func testDynamicClientRegSuccess() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint, responder)
 
-		clientId, _, err := tm.DynamicClientReg(DefaultClientRegBody())
+		clientId, _, err := tmTest.DynamicClientReg(DefaultClientRegBody())
 		if err != nil {
 			t.Error(err)
 		}
@@ -83,7 +83,7 @@ func testDynamicClientRegSuccess() func(t *testing.T) {
 	}
 }
 
-func testDynamicClientRegFail() func(t *testing.T) {
+func testDynamicClientRegFailFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -93,7 +93,7 @@ func testDynamicClientRegFail() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint, responder)
 
-		_, _, err = tm.DynamicClientReg(DefaultClientRegBody())
+		_, _, err = tmTest.DynamicClientReg(DefaultClientRegBody())
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusMethodNotAllowed))
 		}
@@ -101,11 +101,11 @@ func testDynamicClientRegFail() func(t *testing.T) {
 }
 
 func TestGenToken(t *testing.T) {
-	t.Run("success test case", testGenTokenSuccess())
-	t.Run("failure test case", testGenTokenFail())
+	t.Run("success test case", testGenTokenSuccessFunc())
+	t.Run("failure test case", testGenTokenFailFunc())
 }
 
-func testGenTokenFail() func(t *testing.T) {
+func testGenTokenFailFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -115,14 +115,15 @@ func testGenTokenFail() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint, responder)
 
-		data := tm.accessTokenReqBody("scope:test")
-		_, _, _, err = tm.genToken(data, GenerateAccessToken)
+		data := tmTest.accessTokenReqBody("scope:test")
+		_, _, _, err = tmTest.genToken(data, GenerateAccessToken)
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusMethodNotAllowed))
 		}
 	}
 }
-func testGenTokenSuccess() func(t *testing.T) {
+
+func testGenTokenSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -136,8 +137,8 @@ func testGenTokenSuccess() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint, responder)
 
-		data := tm.accessTokenReqBody("scope:test")
-		aT, rT, ex, err := tm.genToken(data, GenerateAccessToken)
+		data := tmTest.accessTokenReqBody("scope:test")
+		aT, rT, ex, err := tmTest.genToken(data, GenerateAccessToken)
 		if err != nil {
 			t.Error(err)
 		}
@@ -155,20 +156,20 @@ func testGenTokenSuccess() func(t *testing.T) {
 
 func TestAccessTokenReqBody(t *testing.T) {
 	data := url.Values{}
-	data.Set(constants.UserName, tm.UserName)
-	data.Add(constants.Password, tm.Password)
+	data.Set(constants.UserName, tmTest.UserName)
+	data.Add(constants.Password, tmTest.Password)
 	data.Add(constants.GrantType, constants.GrantPassword)
 	data.Add(constants.Scope, scope)
 
-	result := tm.accessTokenReqBody(scope)
+	result := tmTest.accessTokenReqBody(scope)
 	if !reflect.DeepEqual(result, data) {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, data, result)
 	}
 }
 
-func testTokenSuccess() func(t *testing.T) {
+func testTokenSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
-		aT, err := tm.Token(scope)
+		aT, err := tmTest.Token(scope)
 		if err != nil {
 			t.Error(err)
 		}
@@ -178,7 +179,7 @@ func testTokenSuccess() func(t *testing.T) {
 	}
 }
 
-func testTokenRefresh() func(t *testing.T) {
+func testTokenRefreshFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -191,10 +192,10 @@ func testTokenRefresh() func(t *testing.T) {
 			t.Error(err)
 		}
 		// Force fully expire the current token
-		tm.holder[scope].expiresIn = time.Now().Add(-10 * time.Second)
+		tmTest.holder[scope].expiresIn = time.Now().Add(-10 * time.Second)
 		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint, responder)
 
-		aT, err := tm.Token(scope)
+		aT, err := tmTest.Token(scope)
 		if err != nil {
 			t.Error(err)
 		}
@@ -205,6 +206,6 @@ func testTokenRefresh() func(t *testing.T) {
 }
 
 func TestToken(t *testing.T) {
-	t.Run("success test case", testTokenSuccess())
-	t.Run("refresh test case", testTokenRefresh())
+	t.Run("success test case", testTokenSuccessFunc())
+	t.Run("refresh test case", testTokenRefreshFunc())
 }
