@@ -4,6 +4,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"os"
 	"testing"
@@ -38,5 +39,17 @@ func TestValidateParam(t *testing.T) {
 	valid = ValidateParams("a", "b", "")
 	if valid {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+	}
+}
+
+func TestRawMSGToString(t *testing.T) {
+	msg:= `{"foo":"bar"}`
+	raw := json.RawMessage(`{"foo":"bar"}`)
+	result, err := RawMSGToString(&raw)
+	if err != nil {
+		t.Error(err)
+	}
+	if result != msg {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, msg, result)
 	}
 }

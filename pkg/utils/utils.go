@@ -7,6 +7,7 @@ package utils
 
 import (
 	"code.cloudfoundry.org/lager"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/constants"
@@ -47,10 +48,9 @@ func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 }
 
 // IoWriterLog returns the IO writer object for logging
-func IoWriterLog() io.Writer{
+func IoWriterLog() io.Writer {
 	return ioWriter
 }
-
 
 // LogInfo logs Info level messages using configured lager.Logger
 func LogInfo(msg string) {
@@ -81,9 +81,8 @@ func HandleErrorWithLoggerAndExit(errMsg string, err error) {
 	os.Exit(constants.ExitCode1)
 }
 
-
 // ValidateParams returns false if one of the arguments are empty
-func ValidateParams(vals ...string) bool{
+func ValidateParams(vals ...string) bool {
 	if vals == nil {
 		return false
 	}
@@ -93,4 +92,13 @@ func ValidateParams(vals ...string) bool{
 		}
 	}
 	return true
+}
+
+// RawMSGToString converts json.RawMessage into String
+func RawMSGToString(msg *json.RawMessage) (string, error) {
+	j, err := json.Marshal(msg)
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
 }

@@ -31,22 +31,23 @@ type Instance struct {
 
 // Application represents the Application model in the database
 type Application struct {
-	AppName        string `gorm:"primary_key;type:varchar(100)"`
-	AppID          string `gorm:"type:varchar(100);not null;unique"`
-	Token          string `gorm:"type:varchar(100)"`
-	ConsumerKey    string `gorm:"type:varchar(100)"`
-	ConsumerSecret string `gorm:"type:varchar(100)"`
+	AppName          string `gorm:"primary_key;type:varchar(100)"`
+	AppID            string `gorm:"type:varchar(100);not null;unique"`
+	Token            string `gorm:"type:varchar(100)"`
+	ConsumerKey      string `gorm:"type:varchar(100)"`
+	ConsumerSecret   string `gorm:"type:varchar(100)"`
 	SubscriptionTier string `gorm:"type:varchar(100);not null"`
 }
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	BindID           string `gorm:"primary_key;type:varchar(100)"`
-	SubscriptionID   string `gorm:"type:varchar(100);not null;unique"`
-	InstanceID       string `gorm:"type:varchar(100);not null"`
-	AppName          string `gorm:"type:varchar(100);not null"`
-	ServiceID        string `gorm:"type:varchar(100);not null"`
-	PlanID           string `gorm:"type:varchar(100);not null"`
+	BindID          string `gorm:"primary_key;type:varchar(100)"`
+	SubscriptionID  string `gorm:"type:varchar(100);not null;unique"`
+	InstanceID      string `gorm:"type:varchar(100);not null"`
+	AppName         string `gorm:"type:varchar(100);not null"`
+	ServiceID       string `gorm:"type:varchar(100);not null"`
+	PlanID          string `gorm:"type:varchar(100);not null"`
+	IsCreateService bool   `gorm:"type:BOOLEAN;not null;default:false"`
 }
 
 const (

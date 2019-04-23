@@ -56,7 +56,13 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
 				http.StatusBadRequest, "Parsing API JSON Spec parameter")
 		}
-		apiID, err := apimServiceBroker.APIMManager.CreateAPI(&apiParam.APISpec, apimServiceBroker.TokenManager)
+		req, err := toAPICreateReq(apiParam)
+		if err != nil {
+			utils.LogError("unable to create API create request", err)
+			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+				http.StatusBadRequest, "creating API create request")
+		}
+		apiID, err := apimServiceBroker.APIMManager.CreateAPI(req, apimServiceBroker.TokenManager)
 		if err != nil {
 			utils.LogError(fmt.Sprintf("unable to create API: %s", apiParam.APISpec.Name), err)
 			e, ok := err.(*client.InvokeError)
@@ -161,11 +167,16 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
 	}
 
-	var cfAppName string
-	// application instance
-	var application *dbutil.Application
-	// If the operation is create-service-key then no point of checking since each time an new app is created
-	var applicationExists bool
+	var (
+		// Is the create service key flow
+		isCreateService = false
+		// Application name
+		cfAppName string
+		// Application instance
+		application *dbutil.Application
+		// Whether the application exists or not
+		applicationExists = false
+	)
 	if details.BindResource != nil && details.BindResource.AppGuid != "" {
 		utils.LogDebug(details.BindResource.AppGuid)
 		cfAppName = details.BindResource.AppGuid
@@ -179,7 +190,12 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			return brokerapi.Binding{}, err
 		}
 	} else { //create service key command
-		cfAppName = bindingID
+		// If the operation is create-service-key then no point of checking since each time an new app is created
+		isCreateService = true
+		if utils.ValidateParams(applicationParam.AppSpec.Name) {
+			return brokerapi.Binding{}, errors.New(`invalid value for "Name" parameter`)
+		}
+		cfAppName = applicationParam.AppSpec.Name
 		application = &dbutil.Application{
 			AppName: cfAppName,
 		}
@@ -248,7 +264,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		}
 	}
 	if utils.ValidateParams(applicationParam.AppSpec.SubscriptionTier) {
-		return brokerapi.Binding{}, errors.New("invalid parameters")
+		return brokerapi.Binding{}, errors.New(`invalid value for the SubscriptionTier "parameter"`)
 	}
 	utils.LogDebug(fmt.Sprintf("creating a subscription for application: %s, API: %s", cfAppName, instance.APIName))
 	subscriptionID, err := asb.APIMManager.Subscribe(application.AppID, instance.ApiID,
@@ -264,6 +280,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	bind.InstanceID = instanceID
 	bind.ServiceID = details.ServiceID
 	bind.PlanID = details.PlanID
+	bind.IsCreateService = isCreateService
 	err = dbutil.StoreBind(bind)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("unable to store bind ID: %s", bindingID), err)
@@ -301,7 +318,7 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 		return brokerapi.UnbindSpec{}, brokerapi.ErrBindingDoesNotExist
 	}
 
-	if bind.AppName == bind.BindID { // application created using create-service-key
+	if bind.IsCreateService { // application created using create-service-key
 		application := &dbutil.Application{
 			AppName: bind.AppName,
 		}
@@ -486,4 +503,56 @@ func isInstanceExists(instanceID string) (bool, error) {
 		return false, err
 	}
 	return exists, nil
+}
+
+
+// toAPICreateReq function returns API create request body from the given broker.APIParam
+func toAPICreateReq(source APIParam) (*APIReqBody, error) {
+	apiDef, err := utils.RawMSGToString(&source.APISpec.ApiDefinition)
+	if err != nil {
+		return nil, err
+	}
+	endpointConfig, err := utils.RawMSGToString(&source.APISpec.EndpointConfig)
+	if err != nil {
+		return nil, err
+	}
+	req := &APIReqBody{
+		Name:                         source.APISpec.Name,
+		Description:                  source.APISpec.Description,
+		Context:                      source.APISpec.Context,
+		Version:                      source.APISpec.Version,
+		Provider:                     source.APISpec.Provider,
+		IsDefaultVersion:             source.APISpec.IsDefaultVersion,
+		Visibility:                   source.APISpec.Visibility,
+		ThumbnailUri:                 source.APISpec.ThumbnailUri,
+		ApiDefinition:                apiDef,
+		WsdlUri:                      source.APISpec.WsdlUri,
+		ResponseCaching:              source.APISpec.ResponseCaching,
+		CacheTimeout:                 source.APISpec.CacheTimeout,
+		DestinationStatsEnabled:      source.APISpec.DestinationStatsEnabled,
+		Status:                       source.APISpec.Status,
+		Type_:                        source.APISpec.Type_,
+		Transport:                    source.APISpec.Transport,
+		Tiers:                        source.APISpec.Tiers,
+		Tags:                         source.APISpec.Tags,
+		ApiLevelPolicy:               source.APISpec.ApiLevelPolicy,
+		AuthorizationHeader:          source.APISpec.AuthorizationHeader,
+		MaxTps:                       source.APISpec.MaxTps,
+		VisibleRoles:                 source.APISpec.VisibleRoles,
+		VisibleTenants:               source.APISpec.VisibleTenants,
+		EndpointSecurity:             source.APISpec.EndpointSecurity,
+		GatewayEnvironments:          source.APISpec.GatewayEnvironments,
+		Labels:                       source.APISpec.Labels,
+		Sequences:                    source.APISpec.Sequences,
+		SubscriptionAvailability:     source.APISpec.SubscriptionAvailability,
+		SubscriptionAvailableTenants: source.APISpec.SubscriptionAvailableTenants,
+		AdditionalProperties:         source.APISpec.AdditionalProperties,
+		AccessControl:                source.APISpec.AccessControl,
+		AccessControlRoles:           source.APISpec.AccessControlRoles,
+		BusinessInformation:          source.APISpec.BusinessInformation,
+		CorsConfiguration:            source.APISpec.CorsConfiguration,
+		EndpointConfig:               endpointConfig,
+	}
+
+	return req, nil
 }
