@@ -54,7 +54,7 @@ type TokenResp struct {
 
 // tokens represent the Access token & Refresh token for a particular scope
 type tokens struct {
-	lock      sync.RWMutex
+	lock      sync.RWMutex //ensures atomic writes to following fields
 	aT        string
 	rT        string
 	expiresIn time.Time

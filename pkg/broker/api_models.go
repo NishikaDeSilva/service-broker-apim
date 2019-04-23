@@ -109,9 +109,9 @@ type APICreateResp struct {
 }
 type ApplicationCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
-	Description    string `json:"description"`
+	Description    string `json:"description,omitempty"`
 	Name           string `json:"name,omitempty"`
-	CallbackUrl    string `json:"callbackUrl"`
+	CallbackUrl    string `json:"callbackUrl,omitempty"`
 }
 
 type APIParam struct {

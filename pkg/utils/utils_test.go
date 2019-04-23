@@ -25,3 +25,18 @@ func TestGetEnv(t *testing.T) {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, envDefault, re2)
 	}
 }
+
+func TestValidateParam(t *testing.T) {
+	valid := ValidateParams()
+	if valid {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+	}
+	valid = ValidateParams("a", "b", "c")
+	if !valid {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+	}
+	valid = ValidateParams("a", "b", "")
+	if valid {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+	}
+}

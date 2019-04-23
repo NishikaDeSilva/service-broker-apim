@@ -1,6 +1,7 @@
 /*
  *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  */
+
 // Package utils holds a common set of Util functions
 package utils
 
@@ -14,6 +15,7 @@ import (
 )
 
 var logger lager.Logger
+var ioWriter io.Writer
 
 // GetEnv returns the value (which may be empty) If the Key is present in the environment
 // Otherwise the default value is returned
@@ -39,9 +41,16 @@ func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 		return nil, errors.Wrapf(err, constants.ErrMsgUnableToOpenLogFile, logFile)
 	}
 	logger = lager.NewLogger(constants.LoggerName)
-	logger.RegisterSink(lager.NewWriterSink(io.MultiWriter(os.Stdout, f), logL))
+	ioWriter = io.MultiWriter(os.Stdout, f)
+	logger.RegisterSink(lager.NewWriterSink(ioWriter, logL))
 	return logger, nil
 }
+
+// IoWriterLog returns the IO writer object for logging
+func IoWriterLog() io.Writer{
+	return ioWriter
+}
+
 
 // LogInfo logs Info level messages using configured lager.Logger
 func LogInfo(msg string) {
@@ -70,4 +79,18 @@ func HandleErrorAndExit(err error) {
 func HandleErrorWithLoggerAndExit(errMsg string, err error) {
 	LogError(errMsg, err)
 	os.Exit(constants.ExitCode1)
+}
+
+
+// ValidateParams returns false if one of the arguments are empty
+func ValidateParams(vals ...string) bool{
+	if vals == nil {
+		return false
+	}
+	for _, val := range vals {
+		if val == "" {
+			return false
+		}
+	}
+	return true
 }

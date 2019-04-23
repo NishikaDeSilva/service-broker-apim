@@ -124,6 +124,7 @@ func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string
 
 func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
+	utils.LogDebug(fmt.Sprintf("Instance ID: %s, Bind ID: %s", instanceID, bindingID))
 	// Validates the parameters before moving forward
 	applicationParam, err := toApplicationParam(details.RawParameters)
 	if err != nil {
@@ -131,6 +132,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
 			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
 	}
+
 	// construct the bind object
 	bind := &dbutil.Bind{
 		BindID: bindingID,
@@ -164,7 +166,8 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	var application *dbutil.Application
 	// If the operation is create-service-key then no point of checking since each time an new app is created
 	var applicationExists bool
-	if details.BindResource != nil {
+	if details.BindResource != nil && details.BindResource.AppGuid != "" {
+		utils.LogDebug(details.BindResource.AppGuid)
 		cfAppName = details.BindResource.AppGuid
 		application = &dbutil.Application{
 			AppName: cfAppName,
@@ -180,16 +183,24 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		application = &dbutil.Application{
 			AppName: cfAppName,
 		}
+		utils.LogDebug(fmt.Sprintf("create service key command. Application: %s", cfAppName))
 	}
 
 	// Creates a new application
 	if !applicationExists {
+		if utils.ValidateParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
+			applicationParam.AppSpec.CallbackUrl) {
+			return brokerapi.Binding{}, errors.New("invalid parameters")
+		}
 		appCreateReq := &ApplicationCreateReq{
 			ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
 			Description:    applicationParam.AppSpec.Description,
 			Name:           cfAppName,
 			CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
 		}
+		utils.LogDebug(fmt.Sprintf("Creating a new application: %s, ThrottlingTier: %s, "+
+			"Description: %s, CallbackUrl: %s ", appCreateReq.Name, appCreateReq.ThrottlingTier,
+			appCreateReq.Description, appCreateReq.CallbackUrl))
 		appID, err := asb.APIMManager.CreateApplication(appCreateReq, asb.TokenManager)
 		if err != nil {
 			e, ok := err.(*client.InvokeError)
@@ -228,6 +239,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		application.Token = appKeyGenResp.Token.AccessToken
 		application.ConsumerKey = appKeyGenResp.ConsumerKey
 		application.ConsumerSecret = appKeyGenResp.ConsumerSecret
+		application.SubscriptionTier = applicationParam.AppSpec.SubscriptionTier
 		// Update ApplicationConfig state
 		err = dbutil.UpdateApp(application)
 		if err != nil {
@@ -235,6 +247,10 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			return brokerapi.Binding{}, err
 		}
 	}
+	if utils.ValidateParams(applicationParam.AppSpec.SubscriptionTier) {
+		return brokerapi.Binding{}, errors.New("invalid parameters")
+	}
+	utils.LogDebug(fmt.Sprintf("creating a subscription for application: %s, API: %s", cfAppName, instance.APIName))
 	subscriptionID, err := asb.APIMManager.Subscribe(application.AppID, instance.ApiID,
 		applicationParam.AppSpec.SubscriptionTier, asb.TokenManager)
 	if err != nil {
@@ -342,7 +358,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-	bindingID string) (brokerapi.GetBindingSpec, error) {
+bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -352,7 +368,7 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 

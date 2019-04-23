@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/utils"
+	"log"
 	"strconv"
 	"sync"
 )
@@ -34,23 +36,27 @@ type Application struct {
 	Token          string `gorm:"type:varchar(100)"`
 	ConsumerKey    string `gorm:"type:varchar(100)"`
 	ConsumerSecret string `gorm:"type:varchar(100)"`
+	SubscriptionTier string `gorm:"type:varchar(100);not null"`
 }
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	BindID         string `gorm:"primary_key;type:varchar(100)"`
-	SubscriptionID string `gorm:"type:varchar(100);not null;unique"`
-	InstanceID     string `gorm:"type:varchar(100);not null"`
-	AppName        string `gorm:"type:varchar(100);not null"`
-	ServiceID      string `gorm:"type:varchar(100);not null"`
-	PlanID         string `gorm:"type:varchar(100);not null"`
+	BindID           string `gorm:"primary_key;type:varchar(100)"`
+	SubscriptionID   string `gorm:"type:varchar(100);not null;unique"`
+	InstanceID       string `gorm:"type:varchar(100);not null"`
+	AppName          string `gorm:"type:varchar(100);not null"`
+	ServiceID        string `gorm:"type:varchar(100);not null"`
+	PlanID           string `gorm:"type:varchar(100);not null"`
 }
 
 const (
-	TableInstance    = "instances"
-	TableBind        = "binds"
-	TableApplication = "applications"
-	ErrTableExists   = 1050
+	TableInstance           = "instances"
+	TableBind               = "binds"
+	TableApplication        = "applications"
+	ErrTableExists          = 1050
+	ErrMSGAPPNameMissing    = "AppName is missing"
+	ErrMSGInstanceIDMissing = "InstanceID is missing"
+	ErrMSGBindIDMissing     = "BindID is missing"
 )
 
 var (
@@ -69,6 +75,11 @@ func InitDB(conf *config.DBConfig) {
 			utils.HandleErrorWithLoggerAndExit("cannot initiate ORM", err)
 		}
 		db.LogMode(conf.LogMode)
+		ioWriter := utils.IoWriterLog()
+		if ioWriter == nil {
+			utils.HandleErrorWithLoggerAndExit("cannot setup logger for DB", errors.New("IoWriter for logging is not initialized"))
+		}
+		db.SetLogger(gorm.Logger{LogWriter: log.New(ioWriter, "database", 0)})
 	})
 }
 
@@ -99,7 +110,7 @@ func deleteEntry(model interface{}, table string) error {
 	return db.Table(table).Delete(model).Error
 }
 
-// retrieve function returns the given Instance from the Database
+// retrieve function returns the given Instance from the Database ix exists
 func retrieve(model interface{}, table string) (bool, error) {
 	result := db.Table(table).Where(model).Find(model)
 	if result.RecordNotFound() {
@@ -130,50 +141,80 @@ func CreateTables() {
 
 // RetrieveInstance function returns the given Instance from the Database
 func RetrieveInstance(i *Instance) (bool, error) {
+	if i.InstanceID == "" {
+		return false, errors.New(ErrMSGInstanceIDMissing)
+	}
 	return retrieve(i, TableInstance)
 }
 
 // StoreInstance saves the Instance in the database
 func StoreInstance(i *Instance) error {
+	if i.InstanceID == "" {
+		return errors.New(ErrMSGInstanceIDMissing)
+	}
 	return store(i, TableInstance)
 }
 
 // DeleteInstance deletes the Instance in the database
 func DeleteInstance(i *Instance) error {
+	if i.InstanceID == "" {
+		return errors.New(ErrMSGInstanceIDMissing)
+	}
 	return deleteEntry(i, TableInstance)
 }
 
 // RetrieveBind function returns the given Bind from the Database
 func RetrieveBind(b *Bind) (bool, error) {
+	if b.BindID == "" {
+		return false, errors.New(ErrMSGBindIDMissing)
+	}
 	return retrieve(b, TableBind)
 }
 
 // StoreBind saves the Bind in the database
 func StoreBind(b *Bind) error {
+	if b.BindID == "" {
+		return errors.New(ErrMSGBindIDMissing)
+	}
 	return store(b, TableBind)
 }
 
 // DeleteBind deletes the Bind in the database
 func DeleteBind(b *Bind) error {
+	if b.BindID == "" {
+		return errors.New(ErrMSGBindIDMissing)
+	}
 	return deleteEntry(b, TableBind)
 }
 
 // RetrieveApp function returns the given Application from the Database
 func RetrieveApp(a *Application) (bool, error) {
+	if a.AppName == "" {
+		return false, errors.New(ErrMSGAPPNameMissing)
+	}
 	return retrieve(a, TableApplication)
 }
 
 // StoreApp saves the Application in the database
 func StoreApp(b *Application) error {
+	if b.AppName == "" {
+		return errors.New(ErrMSGAPPNameMissing)
+	}
 	return store(b, TableApplication)
 }
 
 // UpdateApp updates the application entry
 func UpdateApp(b *Application) error {
+	if b.AppName == "" {
+		return errors.New(ErrMSGAPPNameMissing)
+	}
 	return update(b, TableApplication)
 }
 
 // DeleteApp deletes the application entry
 func DeleteApp(b *Application) error {
+	if b.AppName == "" {
+		return errors.New(ErrMSGAPPNameMissing)
+	}
 	return deleteEntry(b, TableApplication)
 }

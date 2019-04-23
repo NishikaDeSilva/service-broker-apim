@@ -62,7 +62,7 @@ func main() {
 	signal.Notify(sigChannel, syscall.SIGTERM)
 	go func() {
 		<-sigChannel
-		logger.Info(constants.InfoMSGShutdownBroker)
+		utils.LogInfo(constants.InfoMSGShutdownBroker)
 		os.Exit(0)
 	}()
 
@@ -81,14 +81,14 @@ func main() {
 
 	host := brokerConfig.HTTP.Host
 	port := brokerConfig.HTTP.Port
-	logger.Info(fmt.Sprintf(constants.InfoMSGServerStart, host, port))
+	utils.LogInfo(fmt.Sprintf(constants.InfoMSGServerStart, host, port))
 	if !brokerConfig.HTTP.TLS.Enabled {
 		if err := http.ListenAndServe(host+":"+port, nil); err != nil {
 			utils.HandleErrorWithLoggerAndExit(
 				fmt.Sprintf(constants.ErrMSGUnableToStartServer, host, port), err)
 		}
 	} else {
-		logger.Debug(constants.DebugMSGHttpsEnabled)
+		utils.LogDebug(constants.DebugMSGHttpsEnabled)
 		if err := http.ListenAndServeTLS(host+":"+port,
 			brokerConfig.HTTP.TLS.Cert, brokerConfig.HTTP.TLS.Key, nil); err != nil {
 			utils.HandleErrorWithLoggerAndExit(fmt.Sprintf(constants.ErrMSGUnableToStartServerTLS,
