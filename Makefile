@@ -25,7 +25,7 @@ setup: ## Install golint
 lint: ## Run golint on the code
 	golint  pkg/* cmd/*
 
-format:
+format: ## Run gofmt on the code
 	gofmt -w pkg/* cmd/*
 
 help: ## Shows the help

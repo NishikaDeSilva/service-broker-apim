@@ -396,73 +396,14 @@ func Plan() []brokerapi.Service {
 			ID:                   constants.OrgServiceId,
 			Name:                 constants.ServiceName,
 			Description:          constants.ServiceDescription,
-			Bindable:             constants.ServiceBindable,
-			InstancesRetrievable: constants.ServiceInstancesRetrievable,
-			PlanUpdatable:        constants.ServicePlanUpdateAble,
+			Bindable:             true,
+			InstancesRetrievable: false,
+			PlanUpdatable:        false,
 			Plans: []brokerapi.ServicePlan{
 				{
 					ID:          constants.OrgPlanID,
 					Name:        constants.PlanName,
 					Description: constants.PlanDescription,
-					Schemas: &brokerapi.ServiceSchemas{
-						Instance: brokerapi.ServiceInstanceSchema{
-							Create: brokerapi.Schema{
-								Parameters: map[string]interface{}{
-									"$schema": "http://json-schema.org/draft-04/schema#",
-									"type":    "object",
-									"properties": map[string]interface{}{
-										"api": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"name": map[string]interface{}{
-													"type": "string",
-												},
-												"description": map[string]interface{}{
-													"type": "string",
-												},
-												"context": map[string]interface{}{
-													"type": "string",
-												},
-												"version": map[string]interface{}{
-													"type": "string",
-												},
-												"apiDefinition": map[string]interface{}{
-													"type": "string",
-												},
-												"isDefaultVersion": map[string]interface{}{
-													"type": "string",
-												},
-												"type": map[string]interface{}{
-													"type": "string",
-												},
-												"transport": map[string]interface{}{
-													"type": "array",
-													"items": map[string]interface{}{
-														"type": "string",
-													},
-												},
-												"tiers": map[string]interface{}{
-													"type": "array",
-													"items": map[string]interface{}{
-														"type": "string",
-													},
-												},
-												"visibility": map[string]interface{}{
-													"type": "string",
-												},
-												"status": map[string]interface{}{
-													"type": "string",
-												},
-												"endpointConfig": map[string]interface{}{
-													"type": "string",
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 		},

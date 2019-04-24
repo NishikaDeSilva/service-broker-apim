@@ -1,0 +1,9 @@
+{
+  "app": {
+    "name": "Test-application",
+    "subscriptionTier": "Unlimited",
+    "throttlingTier": "Unlimited",
+    "description": "sample app description",
+    "callbackUrl": "http://my.server.com/callback"
+  }
+}

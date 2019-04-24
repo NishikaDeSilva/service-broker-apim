@@ -1,0 +1,52 @@
+{
+  "api": {
+    "name": "Test-Demo",
+    "description": "Sample API.\r\n",
+    "context": "/demo",
+    "version": "1.0.0",
+    "isDefaultVersion": false,
+    "visibility": "PUBLIC",
+    "apiDefinition": {
+      "swagger": "2.0",
+      "paths": {
+        "/get": {
+          "get": {
+            "responses": {
+              "200": {
+                "description": ""
+              }
+            },
+            "x-auth-type": "Application & Application User",
+            "x-throttling-tier": "Unlimited"
+          }
+        }
+      },
+      "info": {
+        "title": "Test",
+        "version": "v1"
+      }
+    },
+    "status": "PUBLISHED",
+    "type": "HTTP",
+    "transport": [
+      "http",
+      "https"
+    ],
+    "tiers": [
+      "Unlimited"
+    ],
+    "endpointConfig": {
+      "production_endpoints": {
+        "url": "http://sample.cf.app.backend/",
+        "config": null,
+        "template_not_supported": false
+      },
+      "sandbox_endpoints": {
+        "url": "http://sample.cf.app.backend/",
+        "config": null,
+        "template_not_supported": false
+      },
+      "endpoint_type": "http"
+    }
+  }
+}

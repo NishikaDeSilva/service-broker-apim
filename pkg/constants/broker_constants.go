@@ -10,12 +10,6 @@ const ServiceName = "wso2apim-service"
 
 const ServiceDescription = "WSO2 API Manager Services"
 
-const ServiceBindable = true
-
-const ServiceInstancesRetrievable = false
-
-const ServicePlanUpdateAble = false
-
 const OrgPlanID = "4CA4F2AF-EADF-4E76-A5CA-732FBC625593"
 
 const PlanName = "org"
