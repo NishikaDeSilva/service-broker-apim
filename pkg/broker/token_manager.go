@@ -82,6 +82,8 @@ const (
 	GenerateAccessToken           = "Generating access Token"
 	DynamicClientRegMSG           = "Dynamic Client Reg"
 	RefreshToken                  = "Refresh token"
+	DynamicClientContext          = "/client-registration/v0.14/register"
+	TokenContext                  = "/token"
 )
 
 // InitTokenManager initialize the Token Manager. This method runs only once.
@@ -190,7 +192,7 @@ func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn 
 
 // genToken returns an Access token and a Refresh token from given params,
 func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
-	req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint, bytes.NewBufferString(reqBody.Encode()))
+	req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewBufferString(reqBody.Encode()))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
 			context)
@@ -213,7 +215,7 @@ func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clie
 	}
 
 	// construct the request
-	req, err := http.NewRequest(http.MethodPost, tm.DynamicClientEndpoint, b)
+	req, err := http.NewRequest(http.MethodPost, tm.DynamicClientEndpoint+DynamicClientContext, b)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody, DynamicClientRegMSG)
 	}

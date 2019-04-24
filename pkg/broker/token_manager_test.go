@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	dynamicClientEndpoint = "http://localhost/dynamic"
-	tokenEndpoint         = "http://localhost/token"
+	dynamicClientEndpoint = "http://localhost"
+	tokenEndpoint         = "http://localhost"
 	scope                 = "scope:test"
 	token                 = "token"
 	refreshToken          = "refreshToken"
@@ -71,7 +71,7 @@ func testDynamicClientRegSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint, responder)
+		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint+DynamicClientContext, responder)
 
 		clientId, _, err := tmTest.DynamicClientReg(DefaultClientRegBody())
 		if err != nil {
@@ -91,7 +91,7 @@ func testDynamicClientRegFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint, responder)
+		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint+DynamicClientContext, responder)
 
 		_, _, err = tmTest.DynamicClientReg(DefaultClientRegBody())
 		if err == nil {
@@ -113,7 +113,7 @@ func testGenTokenFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint, responder)
+		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint+TokenContext, responder)
 
 		data := tmTest.accessTokenReqBody("scope:test")
 		_, _, _, err = tmTest.genToken(data, GenerateAccessToken)
@@ -135,7 +135,7 @@ func testGenTokenSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint, responder)
+		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint+TokenContext, responder)
 
 		data := tmTest.accessTokenReqBody("scope:test")
 		aT, rT, ex, err := tmTest.genToken(data, GenerateAccessToken)
@@ -193,7 +193,7 @@ func testTokenRefreshFunc() func(t *testing.T) {
 		}
 		// Force fully expire the current token
 		tmTest.holder[scope].expiresIn = time.Now().Add(-10 * time.Second)
-		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint, responder)
+		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint+TokenContext, responder)
 
 		aT, err := tmTest.Token(scope)
 		if err != nil {

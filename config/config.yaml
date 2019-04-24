@@ -26,10 +26,11 @@ apim:
   password: "admin"
   # If "true", doesn't validate the certificate for the APIM
   insecureCon: true
-  tokenEndpoint: "https://localhost:8243/token"
-  dynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register"
+  tokenEndpoint: "https://localhost:8243"
+  dynamicClientEndpoint: "https://localhost:9443"
   publisherEndpoint: "https://localhost:9443"
   storeEndpoint: "https://localhost:9443"
+
 db:
   host:     "localhost"
   port:     3306

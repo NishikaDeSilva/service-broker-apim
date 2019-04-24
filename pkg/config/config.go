@@ -128,8 +128,8 @@ func defaultConf() *BrokerConfig {
 		APIM: APIMConf{
 			Username:              "admin",
 			Password:              "admin",
-			TokenEndpoint:         "https://localhost:8243/token",
-			DynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register",
+			TokenEndpoint:         "https://localhost:8243",
+			DynamicClientEndpoint: "https://localhost:9443",
 			PublisherEndpoint:     "https://localhost:9443",
 			StoreEndpoint:         "https://localhost:9443",
 		},
