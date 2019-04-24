@@ -22,6 +22,7 @@ const (
 	ScopeSubscribe         = "apim:subscribe"
 	ScopeAPIPublish        = "apim:api_publish"
 	ErrMSGInstanceNotExist = "invalid instance Id: %s"
+	ErrMSGInvalidSVCPlan    = "Invalid service or Plan"
 )
 
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
@@ -37,69 +38,74 @@ func (asb *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service
 
 func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
-	if isPlanOrg(serviceDetails) {
-		// Verifying whether the instance is already exists
-		exists, err := isInstanceExists(instanceID)
-		// Handling DB connection error
-		if err != nil {
-			utils.LogError(fmt.Sprintf("unable to get instance: %s from database", instanceID), err)
-			return spec, err
-		}
-		if exists {
-			utils.LogError(CreateAPIContext, err)
-			return spec, brokerapi.ErrInstanceAlreadyExists
-		}
-		// Parse API JSON Spec
-		apiParam, err := toAPIParam(serviceDetails.RawParameters)
-		if err != nil {
-			utils.LogError("unable to parse API parameters", err)
-			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-				http.StatusBadRequest, "Parsing API JSON Spec parameter")
-		}
-		req, err := toAPICreateReq(apiParam)
-		if err != nil {
-			utils.LogError("unable to create API create request", err)
-			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-				http.StatusBadRequest, "creating API create request")
-		}
-		apiID, err := apimServiceBroker.APIMManager.CreateAPI(req, apimServiceBroker.TokenManager)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("unable to create API: %s", apiParam.APISpec.Name), err)
-			e, ok := err.(*client.InvokeError)
-			if ok && e.StatusCode == http.StatusConflict {
-				return spec, brokerapi.ErrInstanceAlreadyExists
-			}
-			return spec, err
-		}
-		i := &dbutil.Instance{
-			ServiceID:  serviceDetails.ServiceID,
-			PlanID:     serviceDetails.PlanID,
-			InstanceID: instanceID,
-			ApiID:      apiID,
-			APIName:    apiParam.APISpec.Name,
-		}
-		// Store instance in the database
-		err = dbutil.StoreInstance(i)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("unable to store instance: %s", instanceID), err)
-			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
-				instanceID, apiID)
-		}
-		if err = apimServiceBroker.APIMManager.PublishAPI(apiID, apimServiceBroker.TokenManager); err != nil {
-			utils.LogError(fmt.Sprintf("unable to publish API: %s", i.APIName), err)
-			return spec, err
-		}
-	} else {
+	if !isOrgFlow(serviceDetails.ServiceID, serviceDetails.PlanID) {
 		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, serviceDetails.PlanID),
-			err)
+			errors.New(ErrMSGInvalidSVCPlan))
 		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "provisioning")
+	}
+	// Verifying whether the instance is already exists
+	exists, err := isInstanceExists(instanceID)
+	// Handling DB connection error
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to get instance: %s from database", instanceID), err)
+		return spec, err
+	}
+	if exists {
+		utils.LogError(CreateAPIContext, err)
+		return spec, brokerapi.ErrInstanceAlreadyExists
+	}
+	// Parse API JSON Spec
+	apiParam, err := toAPIParam(serviceDetails.RawParameters)
+	if err != nil {
+		utils.LogError("unable to parse API parameters", err)
+		return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+			http.StatusBadRequest, "Parsing API JSON Spec parameter")
+	}
+	req, err := toAPICreateReq(apiParam)
+	if err != nil {
+		utils.LogError("unable to create API create request", err)
+		return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+			http.StatusBadRequest, "creating API create request")
+	}
+	apiID, err := apimServiceBroker.APIMManager.CreateAPI(req, apimServiceBroker.TokenManager)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to create API: %s", apiParam.APISpec.Name), err)
+		e, ok := err.(*client.InvokeError)
+		if ok && e.StatusCode == http.StatusConflict {
+			return spec, brokerapi.ErrInstanceAlreadyExists
+		}
+		return spec, err
+	}
+	i := &dbutil.Instance{
+		ServiceID:  serviceDetails.ServiceID,
+		PlanID:     serviceDetails.PlanID,
+		InstanceID: instanceID,
+		ApiID:      apiID,
+		APIName:    apiParam.APISpec.Name,
+	}
+	// Store instance in the database
+	err = dbutil.StoreInstance(i)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to store instance: %s", instanceID), err)
+		return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
+			instanceID, apiID)
+	}
+	if err = apimServiceBroker.APIMManager.PublishAPI(apiID, apimServiceBroker.TokenManager); err != nil {
+		utils.LogError(fmt.Sprintf("unable to publish API: %s", i.APIName), err)
+		return spec, err
 	}
 	return spec, nil
 }
 
 func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,
 	details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
+	if !isOrgFlow(details.ServiceID, details.PlanID) {
+		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, details.PlanID),
+			errors.New(ErrMSGInvalidSVCPlan))
+		return brokerapi.DeprovisionServiceSpec{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+			http.StatusBadRequest, "Deprovisioning")
+	}
 	instance := &dbutil.Instance{
 		InstanceID: instanceID,
 	}
@@ -131,6 +137,12 @@ func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string
 func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
 	utils.LogDebug(fmt.Sprintf("Instance ID: %s, Bind ID: %s", instanceID, bindingID))
+	if !isOrgFlow(details.ServiceID, details.PlanID) {
+		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, details.PlanID),
+			errors.New(ErrMSGInvalidSVCPlan))
+		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+			http.StatusBadRequest, "Binding")
+	}
 	// Validates the parameters before moving forward
 	applicationParam, err := toApplicationParam(details.RawParameters)
 	if err != nil {
@@ -178,7 +190,6 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		applicationExists = false
 	)
 	if details.BindResource != nil && details.BindResource.AppGuid != "" {
-		utils.LogDebug(details.BindResource.AppGuid)
 		cfAppName = details.BindResource.AppGuid
 		application = &dbutil.Application{
 			AppName: cfAppName,
@@ -192,7 +203,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	} else { //create service key command
 		// If the operation is create-service-key then no point of checking since each time an new app is created
 		isCreateService = true
-		if utils.ValidateParams(applicationParam.AppSpec.Name) {
+		if !utils.IsValidParams(applicationParam.AppSpec.Name) {
 			return brokerapi.Binding{}, errors.New(`invalid value for "Name" parameter`)
 		}
 		cfAppName = applicationParam.AppSpec.Name
@@ -204,9 +215,9 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 
 	// Creates a new application
 	if !applicationExists {
-		if utils.ValidateParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
+		if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
 			applicationParam.AppSpec.CallbackUrl) {
-			return brokerapi.Binding{}, errors.New("invalid parameters")
+			return brokerapi.Binding{}, errors.New("Invalid parameters")
 		}
 		appCreateReq := &ApplicationCreateReq{
 			ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
@@ -214,7 +225,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			Name:           cfAppName,
 			CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
 		}
-		utils.LogDebug(fmt.Sprintf("Creating a new application: %s, ThrottlingTier: %s, "+
+		utils.LogDebug(fmt.Sprintf("creating a new application: %s, ThrottlingTier: %s, "+
 			"Description: %s, CallbackUrl: %s ", appCreateReq.Name, appCreateReq.ThrottlingTier,
 			appCreateReq.Description, appCreateReq.CallbackUrl))
 		appID, err := asb.APIMManager.CreateApplication(appCreateReq, asb.TokenManager)
@@ -263,7 +274,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			return brokerapi.Binding{}, err
 		}
 	}
-	if utils.ValidateParams(applicationParam.AppSpec.SubscriptionTier) {
+	if !utils.IsValidParams(applicationParam.AppSpec.SubscriptionTier) {
 		return brokerapi.Binding{}, errors.New(`invalid value for the SubscriptionTier "parameter"`)
 	}
 	utils.LogDebug(fmt.Sprintf("creating a subscription for application: %s, API: %s", cfAppName, instance.APIName))
@@ -302,7 +313,12 @@ func credentialsMap(app *dbutil.Application) map[string]interface{} {
 }
 func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.UnbindDetails, asyncAllowed bool) (brokerapi.UnbindSpec, error) {
-
+	if !isOrgFlow(details.ServiceID, details.PlanID) {
+		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, details.PlanID),
+			errors.New(ErrMSGInvalidSVCPlan))
+		return brokerapi.UnbindSpec{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+			http.StatusBadRequest, "Unbinding")
+	}
 	// construct the bind object
 	bind := &dbutil.Bind{
 		BindID: bindingID,
@@ -319,6 +335,7 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 	}
 
 	if bind.IsCreateService { // application created using create-service-key
+		utils.LogDebug(fmt.Sprintf("delete service key command. Application: %s", bind.AppName))
 		application := &dbutil.Application{
 			AppName: bind.AppName,
 		}
@@ -410,8 +427,8 @@ func Plan() []brokerapi.Service {
 	}
 }
 
-func isPlanOrg(d brokerapi.ProvisionDetails) bool {
-	return (d.ServiceID == constants.OrgServiceId) && (d.PlanID == constants.OrgPlanID)
+func isOrgFlow(serviceID, planID string) bool {
+	return (serviceID == constants.OrgServiceId) && (planID == constants.OrgPlanID)
 }
 
 // toApplicationParam parses application parameters
@@ -445,7 +462,6 @@ func isInstanceExists(instanceID string) (bool, error) {
 	}
 	return exists, nil
 }
-
 
 // toAPICreateReq function returns API create request body from the given broker.APIParam
 func toAPICreateReq(source APIParam) (*APIReqBody, error) {
@@ -494,6 +510,5 @@ func toAPICreateReq(source APIParam) (*APIReqBody, error) {
 		CorsConfiguration:            source.APISpec.CorsConfiguration,
 		EndpointConfig:               endpointConfig,
 	}
-
 	return req, nil
 }

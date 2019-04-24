@@ -1,0 +1,440 @@
+{
+	"info": {
+		"_postman_id": "b0294ff2-a6e5-4fa3-bd9f-2cdb5a990be5",
+		"name": "OSB",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "catalog",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/catalog",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"catalog"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"api\": {\n    \"name\": \"Test-Demo\",\n    \"description\": \"Sample API.\\r\\n\",\n    \"context\": \"/demo\",\n    \"version\": \"1.0.0\",\n    \"isDefaultVersion\": false,\n    \"visibility\": \"PUBLIC\",\n    \"apiDefinition\": {\n      \"swagger\": \"2.0\",\n      \"paths\": {\n        \"/get\": {\n          \"get\": {\n            \"responses\": {\n              \"200\": {\n                \"description\": \"\"\n              }\n            },\n            \"x-auth-type\": \"Application & Application User\",\n            \"x-throttling-tier\": \"Unlimited\"\n          }\n        }\n      },\n      \"info\": {\n        \"title\": \"Test\",\n        \"version\": \"v1\"\n      }\n    },\n    \"status\": \"PUBLISHED\",\n    \"type\": \"HTTP\",\n    \"transport\": [\n      \"http\",\n      \"https\"\n    ],\n    \"tiers\": [\n      \"Unlimited\"\n    ],\n    \"endpointConfig\": {\n      \"production_endpoints\": {\n        \"url\": \"http://sample.cf.app.backend/\",\n        \"config\": null,\n        \"template_not_supported\": false\n      },\n      \"sandbox_endpoints\": {\n        \"url\": \"http://sample.cf.app.backend/\",\n        \"config\": null,\n        \"template_not_supported\": false\n      },\n      \"endpoint_type\": \"http\"\n    }\n  }\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "bind-service",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"context\": {\n    \"platform\": \"cloudfoundry\",\n    \"some_field\": \"some-contextual-data\"\n  },\n\"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{plan-id}}\",\n  \"bind_resource\": {\n    \"app_guid\": \"{{app-guid}}\"\n  },\n  \"parameters\": {\n    \"app\": {\n    \t\"subscriptionTier\": \"Unlimited\",\n    \"throttlingTier\": \"Unlimited\",\n    \"description\": \"sample app description\",\n    \"callbackUrl\": \"http://my.server.com/callback\"\n}\n   \n  }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{bind-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}",
+						"service_bindings",
+						"{{bind-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "bind-service 2nd time",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"context\": {\n    \"platform\": \"cloudfoundry\",\n    \"some_field\": \"some-contextual-data\"\n  },\n\"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{plan-id}}\",\n  \"bind_resource\": {\n    \"app_guid\": \"{{app-guid}}\"\n  },\n  \"parameters\": {\n    \"app\": {\n    \t\"subscriptionTier\": \"Unlimited\"\n}\n   \n  }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{bind-id-2}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}",
+						"service_bindings",
+						"{{bind-id-2}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "unbind-service",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{bind-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}",
+						"service_bindings",
+						"{{bind-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service-key",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{service-key-bind-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}",
+						"service_bindings",
+						"{{service-key-bind-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": ""
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service-key",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"context\": {\n    \"platform\": \"cloudfoundry\",\n    \"some_field\": \"some-contextual-data\"\n  },\n\"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{plan-id}}\",\n  \"parameters\": {\n    \"app\": {\n    \t\"name\":\"Service-key\",\n    \t\"subscriptionTier\": \"Unlimited\",\n    \"throttlingTier\": \"Unlimited\",\n    \"description\": \"sample app description\",\n    \"callbackUrl\": \"http://my.server.com/callback\"\n}\n   \n  }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{service-key-bind-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{instance-id}}",
+						"service_bindings",
+						"{{service-key-bind-id}}"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -81,8 +81,8 @@ func HandleErrorWithLoggerAndExit(errMsg string, err error) {
 	os.Exit(constants.ExitCode1)
 }
 
-// ValidateParams returns false if one of the arguments are empty
-func ValidateParams(vals ...string) bool {
+// IsValidParams returns false if one of the arguments are empty or argument is nil
+func IsValidParams(vals ...string) bool {
 	if vals == nil {
 		return false
 	}

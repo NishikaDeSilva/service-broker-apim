@@ -28,15 +28,15 @@ func TestGetEnv(t *testing.T) {
 }
 
 func TestValidateParam(t *testing.T) {
-	valid := ValidateParams()
+	valid := IsValidParams()
 	if valid {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
 	}
-	valid = ValidateParams("a", "b", "c")
+	valid = IsValidParams("a", "b", "c")
 	if !valid {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
 	}
-	valid = ValidateParams("a", "b", "")
+	valid = IsValidParams("a", "b", "")
 	if valid {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
 	}
