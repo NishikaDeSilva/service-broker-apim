@@ -171,6 +171,7 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 	}
 	//Parse time to type time.Duration
 	duration, err := time.ParseDuration(strconv.Itoa(expiresIn) + SecondSuffix)
+	utils.LogDebug("access token expires in: " + strconv.Itoa(expiresIn))
 	tm.holder[scope] = &tokens{
 		aT:        aT,
 		rT:        rT,

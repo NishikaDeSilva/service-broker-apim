@@ -22,7 +22,7 @@ const (
 	ScopeSubscribe         = "apim:subscribe"
 	ScopeAPIPublish        = "apim:api_publish"
 	ErrMSGInstanceNotExist = "invalid instance Id: %s"
-	ErrMSGInvalidSVCPlan    = "Invalid service or Plan"
+	ErrMSGInvalidSVCPlan   = "Invalid service or Plan"
 )
 
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
@@ -36,7 +36,7 @@ func (asb *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service
 	return Plan(), nil
 }
 
-func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
+func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
 	if !isOrgFlow(serviceDetails.ServiceID, serviceDetails.PlanID) {
 		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, serviceDetails.PlanID),
@@ -68,7 +68,8 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 		return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
 			http.StatusBadRequest, "creating API create request")
 	}
-	apiID, err := apimServiceBroker.APIMManager.CreateAPI(req, apimServiceBroker.TokenManager)
+
+	apiID, err := asb.APIMManager.CreateAPI(req, asb.TokenManager)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("unable to create API: %s", apiParam.APISpec.Name), err)
 		e, ok := err.(*client.InvokeError)
@@ -88,11 +89,22 @@ func (apimServiceBroker *APIMServiceBroker) Provision(ctx context.Context, insta
 	err = dbutil.StoreInstance(i)
 	if err != nil {
 		utils.LogError(fmt.Sprintf("unable to store instance: %s", instanceID), err)
+		errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
+		if errDel != nil {
+			utils.LogError(fmt.Sprintf("failed to cleanup, unable to delete the API: %s, InstanceID: %s", apiParam.APISpec.Name,
+				instanceID), errDel)
+		}
+
 		return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
 			instanceID, apiID)
 	}
-	if err = apimServiceBroker.APIMManager.PublishAPI(apiID, apimServiceBroker.TokenManager); err != nil {
+	if err = asb.APIMManager.PublishAPI(apiID, asb.TokenManager); err != nil {
 		utils.LogError(fmt.Sprintf("unable to publish API: %s", i.APIName), err)
+		errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
+		if errDel != nil {
+			utils.LogError(fmt.Sprintf("failed to cleanup, unable to delete the API: %s, InstanceID: %s", apiParam.APISpec.Name,
+				instanceID), errDel)
+		}
 		return spec, err
 	}
 	return spec, nil
@@ -136,6 +148,7 @@ func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string
 
 func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
+
 	utils.LogDebug(fmt.Sprintf("Instance ID: %s, Bind ID: %s", instanceID, bindingID))
 	if !isOrgFlow(details.ServiceID, details.PlanID) {
 		utils.LogError(fmt.Sprintf("invalid instanceID: %s or planID: %s", instanceID, details.PlanID),
@@ -191,28 +204,24 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	)
 	if details.BindResource != nil && details.BindResource.AppGuid != "" {
 		cfAppName = details.BindResource.AppGuid
-		application = &dbutil.Application{
-			AppName: cfAppName,
-		}
-		applicationExists, err = dbutil.RetrieveApp(application)
-		if err != nil {
-			utils.LogError(fmt.Sprintf("unable to retrieve application: %s from the database",
-				application.AppName), err)
-			return brokerapi.Binding{}, err
-		}
 	} else { //create service key command
-		// If the operation is create-service-key then no point of checking since each time an new app is created
 		isCreateService = true
 		if !utils.IsValidParams(applicationParam.AppSpec.Name) {
 			return brokerapi.Binding{}, errors.New(`invalid value for "Name" parameter`)
 		}
 		cfAppName = applicationParam.AppSpec.Name
-		application = &dbutil.Application{
-			AppName: cfAppName,
-		}
 		utils.LogDebug(fmt.Sprintf("create service key command. Application: %s", cfAppName))
 	}
-
+	application = &dbutil.Application{
+		AppName: cfAppName,
+	}
+	// Avoid creating new application in, Bind-service command and service-key command which failed in Generating keys
+	applicationExists, err = dbutil.RetrieveApp(application)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("unable to retrieve application: %s from the database",
+			application.AppName), err)
+		return brokerapi.Binding{}, err
+	}
 	// Creates a new application
 	if !applicationExists {
 		if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
