@@ -22,17 +22,17 @@ const MySQL = "mysql"
 
 // Instance represents the Instance model in the Database
 type Instance struct {
-	InstanceID string `gorm:"primary_key;type:varchar(100)"`
-	ServiceID  string `gorm:"type:varchar(100);not null"`
-	PlanID     string `gorm:"type:varchar(100);not null"`
-	ApiID      string `gorm:"type:varchar(100);not null;unique"`
-	APIName    string `gorm:"type:varchar(100);not null;unique"`
+	Id        string `gorm:"primary_key;type:varchar(100)"`
+	ServiceID string `gorm:"type:varchar(100);not null"`
+	PlanID    string `gorm:"type:varchar(100);not null"`
+	ApiID     string `gorm:"type:varchar(100);not null;unique"`
+	APIName   string `gorm:"type:varchar(100);not null;unique"`
 }
 
 // Application represents the Application model in the database
 type Application struct {
-	AppName          string `gorm:"primary_key;type:varchar(100)"`
-	AppID            string `gorm:"type:varchar(100);not null;unique"`
+	Name             string `gorm:"primary_key;type:varchar(100)"`
+	Id               string `gorm:"type:varchar(100);not null;unique"`
 	Token            string `gorm:"type:varchar(100)"`
 	ConsumerKey      string `gorm:"type:varchar(100)"`
 	ConsumerSecret   string `gorm:"type:varchar(100)"`
@@ -41,7 +41,7 @@ type Application struct {
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	BindID          string `gorm:"primary_key;type:varchar(100)"`
+	Id              string `gorm:"primary_key;type:varchar(100)"`
 	SubscriptionID  string `gorm:"type:varchar(100);not null;unique"`
 	InstanceID      string `gorm:"type:varchar(100);not null"`
 	AppName         string `gorm:"type:varchar(100);not null"`
@@ -55,9 +55,9 @@ const (
 	TableBind               = "binds"
 	TableApplication        = "applications"
 	ErrTableExists          = 1050
-	ErrMSGAPPNameMissing    = "AppName is missing"
-	ErrMSGInstanceIDMissing = "InstanceID is missing"
-	ErrMSGBindIDMissing     = "BindID is missing"
+	ErrMSGAPPNameMissing    = "Name is missing"
+	ErrMSGInstanceIDMissing = "Id is missing"
+	ErrMSGBindIDMissing     = "Id is missing"
 )
 
 var (
@@ -123,9 +123,9 @@ func retrieve(model interface{}, table string) (bool, error) {
 // addForeignKeys configures foreign keys
 func addForeignKeys() {
 	err := db.Model(&Bind{}).
-		AddForeignKey("app_name", TableApplication+"(app_name)", "CASCADE",
+		AddForeignKey("app_name", TableApplication+"(name)", "CASCADE",
 			"CASCADE").
-		AddForeignKey("instance_id", TableInstance+"(instance_id)", "CASCADE",
+		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {
 		utils.HandleErrorWithLoggerAndExit("unable to add foreign keys", err)
@@ -142,7 +142,7 @@ func CreateTables() {
 
 // RetrieveInstance function returns the given Instance from the Database
 func RetrieveInstance(i *Instance) (bool, error) {
-	if i.InstanceID == "" {
+	if i.Id == "" {
 		return false, errors.New(ErrMSGInstanceIDMissing)
 	}
 	return retrieve(i, TableInstance)
@@ -150,7 +150,7 @@ func RetrieveInstance(i *Instance) (bool, error) {
 
 // StoreInstance saves the Instance in the database
 func StoreInstance(i *Instance) error {
-	if i.InstanceID == "" {
+	if i.Id == "" {
 		return errors.New(ErrMSGInstanceIDMissing)
 	}
 	return store(i, TableInstance)
@@ -158,7 +158,7 @@ func StoreInstance(i *Instance) error {
 
 // DeleteInstance deletes the Instance in the database
 func DeleteInstance(i *Instance) error {
-	if i.InstanceID == "" {
+	if i.Id == "" {
 		return errors.New(ErrMSGInstanceIDMissing)
 	}
 	return deleteEntry(i, TableInstance)
@@ -166,7 +166,7 @@ func DeleteInstance(i *Instance) error {
 
 // RetrieveBind function returns the given Bind from the Database
 func RetrieveBind(b *Bind) (bool, error) {
-	if b.BindID == "" {
+	if b.Id == "" {
 		return false, errors.New(ErrMSGBindIDMissing)
 	}
 	return retrieve(b, TableBind)
@@ -174,7 +174,7 @@ func RetrieveBind(b *Bind) (bool, error) {
 
 // StoreBind saves the Bind in the database
 func StoreBind(b *Bind) error {
-	if b.BindID == "" {
+	if b.Id == "" {
 		return errors.New(ErrMSGBindIDMissing)
 	}
 	return store(b, TableBind)
@@ -182,7 +182,7 @@ func StoreBind(b *Bind) error {
 
 // DeleteBind deletes the Bind in the database
 func DeleteBind(b *Bind) error {
-	if b.BindID == "" {
+	if b.Id == "" {
 		return errors.New(ErrMSGBindIDMissing)
 	}
 	return deleteEntry(b, TableBind)
@@ -190,7 +190,7 @@ func DeleteBind(b *Bind) error {
 
 // RetrieveApp function returns the given Application from the Database
 func RetrieveApp(a *Application) (bool, error) {
-	if a.AppName == "" {
+	if a.Name == "" {
 		return false, errors.New(ErrMSGAPPNameMissing)
 	}
 	return retrieve(a, TableApplication)
@@ -198,7 +198,7 @@ func RetrieveApp(a *Application) (bool, error) {
 
 // StoreApp saves the Application in the database
 func StoreApp(b *Application) error {
-	if b.AppName == "" {
+	if b.Name == "" {
 		return errors.New(ErrMSGAPPNameMissing)
 	}
 	return store(b, TableApplication)
@@ -206,7 +206,7 @@ func StoreApp(b *Application) error {
 
 // UpdateApp updates the application entry
 func UpdateApp(b *Application) error {
-	if b.AppName == "" {
+	if b.Name == "" {
 		return errors.New(ErrMSGAPPNameMissing)
 	}
 	return update(b, TableApplication)
@@ -214,7 +214,7 @@ func UpdateApp(b *Application) error {
 
 // DeleteApp deletes the application entry
 func DeleteApp(b *Application) error {
-	if b.AppName == "" {
+	if b.Name == "" {
 		return errors.New(ErrMSGAPPNameMissing)
 	}
 	return deleteEntry(b, TableApplication)

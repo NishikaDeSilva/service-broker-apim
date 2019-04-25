@@ -6,6 +6,7 @@ package broker
 
 import (
 	"bytes"
+	"code.cloudfoundry.org/lager"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
@@ -76,7 +77,6 @@ const (
 	SecondSuffix                  = "s"
 	ErrMSGNotEnoughArgs           = "At least one scope should be present"
 	ErrMSGUnableToGetClientCreds  = "Unable to get Client credentials"
-	DebugMSGClientIDClientSec     = "Client ID: %s Client Secret: %s"
 	ErrMSGUnableToGetAccessToken  = "Unable to get access token for scope: %s"
 	ErrMSGUnableToParseExpireTime = "Unable parse expiresIn time"
 	GenerateAccessToken           = "Generating access Token"
@@ -99,7 +99,6 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 		if errDynamic != nil {
 			utils.HandleErrorWithLoggerAndExit(ErrMSGUnableToGetClientCreds, errDynamic)
 		}
-		utils.LogDebug(fmt.Sprintf(DebugMSGClientIDClientSec, tm.clientID, tm.clientSec))
 
 		tm.holder = make(map[string]*tokens)
 		for _, scope := range scopes {
@@ -171,7 +170,13 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 	}
 	//Parse time to type time.Duration
 	duration, err := time.ParseDuration(strconv.Itoa(expiresIn) + SecondSuffix)
-	utils.LogDebug("access token expires in: " + strconv.Itoa(expiresIn))
+	utils.LogDebug("token details", &utils.LogData{
+		Data: lager.Data{
+			"access token":  aT,
+			"refresh token": rT,
+			"expires in":    expiresIn,
+		},
+	})
 	tm.holder[scope] = &tokens{
 		aT:        aT,
 		rT:        rT,
@@ -194,7 +199,7 @@ func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn 
 // genToken returns an Access token and a Refresh token from given params,
 func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
 	//req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewBufferString(reqBody.Encode()))
-	req,err:= client.ToRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewReader([]byte(reqBody.Encode())))
+	req, err := client.ToRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewReader([]byte(reqBody.Encode())))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
 			context)
@@ -218,7 +223,7 @@ func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clie
 
 	// construct the request
 	// Not using n=client.PostReq() method since here custom headers are added
-	req,err:= client.ToRequest(http.MethodPost, tm.DynamicClientEndpoint+DynamicClientContext, r)
+	req, err := client.ToRequest(http.MethodPost, tm.DynamicClientEndpoint+DynamicClientContext, r)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody, DynamicClientRegMSG)
 	}

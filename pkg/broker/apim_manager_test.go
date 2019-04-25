@@ -22,7 +22,7 @@ const (
 
 var (
 	dummyToken = &tokens{
-		aT:        "token",
+		aT: "token",
 		// Make sure the expire time is enough to run all test cases since token
 		// might be expired in the middle of the testing due to retrying.
 		expiresIn: time.Now().Add(100 * time.Second),

@@ -201,9 +201,9 @@ func testTokenRefreshFunc(t *testing.T) {
 				aT: token,
 				rT: refreshToken,
 				// Force fully expire the current token
-				expiresIn: time.Now().Add(-10  * time.Second),
+				expiresIn: time.Now().Add(-10 * time.Second),
 			},
-		},}
+		}}
 	httpmock.RegisterResponder(http.MethodPost, tokenEndpoint+TokenContext, responder)
 
 	aT, err := tm.Token(scope)

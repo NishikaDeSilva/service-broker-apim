@@ -25,7 +25,7 @@ const ErrMSGUnableToStartServer = "unable to start the server on Host: %s port: 
 // Info messages
 const InfoMsgSettingUp = "loading the configuration file: %s "
 const InfoMSGShutdownBroker = "starting APIM Service Broker shutdown"
-const InfoMSGServerStart = "starting APIM broker on host: %s port: %s"
+const InfoMSGServerStart = "starting APIM broker"
 
 // DebugMSGHttpsEnabled when HTTPS is enabled
 const DebugMSGHttpsEnabled = "HTTPS is enabled"

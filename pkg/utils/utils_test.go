@@ -43,7 +43,7 @@ func TestValidateParam(t *testing.T) {
 }
 
 func TestRawMSGToString(t *testing.T) {
-	msg:= `{"foo":"bar"}`
+	msg := `{"foo":"bar"}`
 	raw := json.RawMessage(`{"foo":"bar"}`)
 	result, err := RawMSGToString(&raw)
 	if err != nil {

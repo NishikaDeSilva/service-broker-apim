@@ -7,9 +7,9 @@ package client
 
 import (
 	"bytes"
+	"code.cloudfoundry.org/lager"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"github.com/wso2/service-broker-apim/pkg/utils"
@@ -49,7 +49,7 @@ type Client struct {
 	minBackOff    time.Duration
 	maxBackOff    time.Duration
 	// Maximum number of retries
-	maxRetry      int
+	maxRetry int
 }
 
 var client = &Client{
@@ -118,7 +118,7 @@ func Invoke(context string, req *Request, body interface{}, resCode int) error {
 	if body != nil {
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				utils.LogError(constants.ErrMSGUnableToCloseBody, err)
+				utils.LogError(constants.ErrMSGUnableToCloseBody, err, &utils.LogData{})
 			}
 		}()
 
@@ -184,21 +184,28 @@ func (c *Client) Do(req *Request) (resp *http.Response, err error) {
 		resp, err = c.httpClient.Do(req.R)
 		// This error occurs due to  network connectivity problem and not for Non 2xx responses
 		if err != nil {
-			utils.LogError("unable to create reader", err)
 			return nil, err
 		}
 		if !c.checkForReTry(resp) {
 			break
 		}
+		var logData = &utils.LogData{
+			Data: lager.Data{
+				"url":           req.R.URL,
+				"response code": resp.StatusCode,
+			},
+		}
 		if req.body != nil {
 			// Reset the body reader
 			if _, err := req.body.Seek(0, 0); err != nil {
-				utils.LogError("unable to reset body reader", err)
+				utils.LogError("unable to reset body reader", err, logData)
 				return nil, err
 			}
 		}
-		utils.LogDebug(fmt.Sprintf("retry attempt: %d", i))
-		time.Sleep(c.backOff(c.minBackOff, c.maxBackOff, i))
+		bt := c.backOff(c.minBackOff, c.maxBackOff, i)
+		logData.AddData("back off time", bt.Seconds()).AddData("attempt", i)
+		utils.LogDebug("retrying the request", logData)
+		time.Sleep(bt)
 	}
 	return resp, nil
 }

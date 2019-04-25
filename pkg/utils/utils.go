@@ -18,6 +18,10 @@ import (
 var logger = lager.NewLogger(constants.LoggerName)
 var ioWriter io.Writer
 
+type LogData struct {
+	Data lager.Data
+}
+
 // GetEnv returns the value (which may be empty) If the Key is present in the environment
 // Otherwise the default value is returned
 func GetEnv(key, defaultVal string) string {
@@ -52,18 +56,18 @@ func IoWriterLog() io.Writer {
 }
 
 // LogInfo logs Info level messages using configured lager.Logger
-func LogInfo(msg string) {
-	logger.Info(msg)
+func LogInfo(msg string, data *LogData) {
+	logger.Info(msg, data.Data)
 }
 
 // LogError logs Info level messages using configured lager.Logger
-func LogError(msg string, err error) {
-	logger.Error(msg, err)
+func LogError(msg string, err error, data *LogData) {
+	logger.Error(msg, err, data.Data)
 }
 
 // LogDebug logs Info level messages using configured lager.Logger
-func LogDebug(msg string) {
-	logger.Debug(msg)
+func LogDebug(msg string, data *LogData) {
+	logger.Debug(msg, data.Data)
 }
 
 // HandleErrorAndExit prints an error and exit with exit code 1
@@ -76,7 +80,7 @@ func HandleErrorAndExit(err error) {
 // HandleErrorWithLoggerAndExit prints an error through the provided logger and exit with exit code 1
 // Only applicable upto server startup since process will be killed once invoked
 func HandleErrorWithLoggerAndExit(errMsg string, err error) {
-	LogError(errMsg, err)
+	LogError(errMsg, err, &LogData{})
 	os.Exit(constants.ExitCode1)
 }
 
@@ -100,4 +104,9 @@ func RawMSGToString(msg *json.RawMessage) (string, error) {
 		return "", err
 	}
 	return string(j), nil
+}
+
+func (l *LogData) AddData(key string, val interface{}) *LogData {
+	l.Data[key] = val
+	return l
 }
