@@ -27,19 +27,28 @@ const (
 	ErrMSGUnableToParseReqBody = "unable to parse request body"
 )
 
-//
+// Request wraps the http.request and the Body
+// Body is wrapped with io.ReadSeeker which allows to reset the body buffer to initial state in retires
+type Request struct {
+	body io.ReadSeeker
+	R    *http.Request
+}
+
+// RetryPolicy defines a function which validate the response and apply desired policy
+// to determine whether to retry the particular request or not
 type RetryPolicy func(resp *http.Response) bool
 
-//
+// BackOffPolicy policy determines the duration between two retires
 type BackOffPolicy func(min, max time.Duration, attempt int) time.Duration
 
-//
+// Client represent the state of the HTTP client
 type Client struct {
 	httpClient    *http.Client
 	checkForReTry RetryPolicy
 	backOff       BackOffPolicy
 	minBackOff    time.Duration
 	maxBackOff    time.Duration
+	// Maximum number of retries
 	maxRetry      int
 }
 
@@ -91,7 +100,7 @@ func ParseBody(res *http.Response, v interface{}) error {
 }
 
 // Invoke the request and parse the response body to the given struct
-func Invoke(context string, req *http.Request, body interface{}, resCode int) error {
+func Invoke(context string, req *Request, body interface{}, resCode int) error {
 	var resp *http.Response
 	var err error
 	resp, err = client.Do(req)
@@ -100,7 +109,7 @@ func Invoke(context string, req *http.Request, body interface{}, resCode int) er
 	}
 	if resp.StatusCode != resCode {
 		return &InvokeError{
-			err:        errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, context, resp.Status, req.URL),
+			err:        errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, context, resp.Status, req.R.URL),
 			StatusCode: resp.StatusCode,
 		}
 	}
@@ -124,57 +133,77 @@ func Invoke(context string, req *http.Request, body interface{}, resCode int) er
 	return nil
 }
 
-
 // PostReq creates a POST HTTP request with an Authorization header and set the content type to application/json
-func PostReq(token, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodPost, url, body)
+func PostReq(token, url string, body io.ReadSeeker) (*Request, error) {
+	req, err := ToRequest(http.MethodPost, url, body)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
-	req.Header.Add(HeaderAuth, HeaderBear+token)
-	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
+	req.R.Header.Add(HeaderAuth, HeaderBear+token)
+	req.R.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
 	return req, nil
 }
 
 // DeleteReq function creates a DELETE HTTP request with an Authorization header
-func DeleteReq(token, url string) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+func DeleteReq(token, url string) (*Request, error) {
+	req, err := ToRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
-	req.Header.Add(HeaderAuth, HeaderBear+token)
+	req.R.Header.Add(HeaderAuth, HeaderBear+token)
 	return req, nil
 }
 
-// ByteBuf returns the byte buffer representation of the provided struct
-func ByteBuf(v interface{}) (*bytes.Buffer, error) {
+// BodyReader returns the byte buffer representation of the provided struct
+func BodyReader(v interface{}) (io.ReadSeeker, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(v)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToParseReqBody)
 	}
-	return buf, nil
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
-func (c *Client) Do(r *http.Request) (resp *http.Response, err error) {
+// ToRequest function returns client.Request struct which wraps the http.request and therequest Body
+func ToRequest(method, url string, body io.ReadSeeker) (*Request, error) {
+	var rcBody io.ReadCloser
+	if body != nil {
+		rcBody = ioutil.NopCloser(body)
+	}
+	req, err := http.NewRequest(method, url, rcBody)
+	if err != nil {
+		return nil, err
+	}
+	return &Request{R: req, body: body}, nil
+}
+
+// Do method invokes the request and returns the response and an error if exists
+// If the request is failed it will retry according to the registered Retry policy and Back off policy
+func (c *Client) Do(req *Request) (resp *http.Response, err error) {
 	for i := 1; i <= c.maxRetry; i++ {
-		resp, err = c.httpClient.Do(r)
+		resp, err = c.httpClient.Do(req.R)
 		// This error occurs due to  network connectivity problem and not for Non 2xx responses
 		if err != nil {
+			utils.LogError("unable to create reader", err)
 			return nil, err
 		}
 		if !c.checkForReTry(resp) {
-			if r.Body != nil {
-				r.Body.
-			}
 			break
 		}
-		utils.LogDebug(fmt.Sprintf("Retry attempt: %d", i))
+		if req.body != nil {
+			// Reset the body reader
+			if _, err := req.body.Seek(0, 0); err != nil {
+				utils.LogError("unable to reset body reader", err)
+				return nil, err
+			}
+		}
+		utils.LogDebug(fmt.Sprintf("retry attempt: %d", i))
 		time.Sleep(c.backOff(c.minBackOff, c.maxBackOff, i))
 	}
 	return resp, nil
 }
 
+// defaultRetryPolicy will retry the request if the response code is 4XX or 5XX
 func defaultRetryPolicy(resp *http.Response) bool {
 	if resp.StatusCode >= 400 {
 		return true
@@ -182,6 +211,7 @@ func defaultRetryPolicy(resp *http.Response) bool {
 	return false
 }
 
+// defaultBackOffPolicy waits until attempt^2 or (min,max)
 func defaultBackOffPolicy(min, max time.Duration, attempt int) time.Duration {
 	du := math.Pow(2, float64(attempt))
 	sleep := time.Duration(du) * time.Second

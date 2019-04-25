@@ -34,9 +34,11 @@ func init() {
 		TokenEndpoint:         tokenEndpoint,
 		holder: map[string]*tokens{
 			scope: {
-				aT:        token,
-				rT:        refreshToken,
-				expiresIn: time.Now().Add(10 * time.Second),
+				aT: token,
+				rT: refreshToken,
+				// Make sure the expire time is enough to run all test cases since token
+				// might be expired in the middle of the testing due to retrying.
+				expiresIn: time.Now().Add(150 * time.Second),
 			},
 		},
 	}
@@ -167,45 +169,53 @@ func TestAccessTokenReqBody(t *testing.T) {
 	}
 }
 
-func testTokenSuccessFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		aT, err := tmTest.Token(scope)
-		if err != nil {
-			t.Error(err)
-		}
-		if aT != token {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, token, aT)
-		}
+func testTokenSuccessFunc(t *testing.T) {
+	aT, err := tmTest.Token(scope)
+	if err != nil {
+		t.Error(err)
 	}
+	if aT != token {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, token, aT)
+	}
+
 }
 
-func testTokenRefreshFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, TokenResp{
-			AccessToken:  "newToken",
-			RefreshToken: "newRefreshToken",
-			ExpiresIn:    expiresIn,
-		})
-		if err != nil {
-			t.Error(err)
-		}
-		// Force fully expire the current token
-		tmTest.holder[scope].expiresIn = time.Now().Add(-10 * time.Second)
-		httpmock.RegisterResponder(http.MethodPost, tokenEndpoint+TokenContext, responder)
+func testTokenRefreshFunc(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	responder, err := httpmock.NewJsonResponder(http.StatusOK, TokenResp{
+		AccessToken:  "newToken",
+		RefreshToken: "newRefreshToken",
+		ExpiresIn:    expiresIn,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	tm := &TokenManager{
+		DynamicClientEndpoint: dynamicClientEndpoint,
+		UserName:              "admin",
+		Password:              "admin",
+		TokenEndpoint:         tokenEndpoint,
+		holder: map[string]*tokens{
+			scope: {
+				aT: token,
+				rT: refreshToken,
+				// Force fully expire the current token
+				expiresIn: time.Now().Add(-10  * time.Second),
+			},
+		},}
+	httpmock.RegisterResponder(http.MethodPost, tokenEndpoint+TokenContext, responder)
 
-		aT, err := tmTest.Token(scope)
-		if err != nil {
-			t.Error(err)
-		}
-		if aT != "newToken" {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, "newToken", aT)
-		}
+	aT, err := tm.Token(scope)
+	if err != nil {
+		t.Error(err)
+	}
+	if aT != "newToken" {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, "newToken", aT)
 	}
 }
 
 func TestToken(t *testing.T) {
-	t.Run("success test case", testTokenSuccessFunc())
-	t.Run("refresh test case", testTokenRefreshFunc())
+	testTokenSuccessFunc(t)
+	testTokenRefreshFunc(t)
 }

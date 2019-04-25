@@ -4,7 +4,6 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"github.com/jarcoal/httpmock"
 	"github.com/wso2/service-broker-apim/pkg/constants"
@@ -51,26 +50,25 @@ func TestB64BasicAuth(t *testing.T) {
 }
 
 func TestPostReq(t *testing.T) {
-	buf := new(bytes.Buffer)
-	err := json.NewEncoder(buf).Encode(payload)
+	b, err := BodyReader(payload)
 	if err != nil {
 		t.Error(err)
 	}
-	req, err := PostReq(Token, HttpMockEndpoint, buf)
+	req, err := PostReq(Token, HttpMockEndpoint, b)
 	if err != nil {
 		t.Error(err)
 	}
-	if req.Method != http.MethodPost {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, http.MethodPost, req.Method)
+	if req.R.Method != http.MethodPost {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, http.MethodPost, req.R.Method)
 	}
-	if req.Host != Host {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, Host, req.Host)
+	if req.R.Host != Host {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, Host, req.R.Host)
 	}
-	if req.Header.Get(HeaderAuth) != (HeaderBear + Token) {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, HeaderBear+Token, req.Header.Get(HeaderAuth))
+	if req.R.Header.Get(HeaderAuth) != (HeaderBear + Token) {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, HeaderBear+Token, req.R.Header.Get(HeaderAuth))
 	}
 	var val testVal
-	err = json.NewDecoder(req.Body).Decode(&val)
+	err = json.NewDecoder(req.R.Body).Decode(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -84,14 +82,14 @@ func TestDeleteReq(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if req.Method != http.MethodDelete {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, http.MethodDelete, req.Method)
+	if req.R.Method != http.MethodDelete {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, http.MethodDelete, req.R.Method)
 	}
-	if req.Host != Host {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, Host, req.Host)
+	if req.R.Host != Host {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, Host, req.R.Host)
 	}
-	if req.Header.Get(HeaderAuth) != (HeaderBear + Token) {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, HeaderBear+Token, req.Header.Get(HeaderAuth))
+	if req.R.Header.Get(HeaderAuth) != (HeaderBear + Token) {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, HeaderBear+Token, req.R.Header.Get(HeaderAuth))
 	}
 }
 
@@ -107,7 +105,7 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 		httpmock.RegisterResponder("POST", HttpMockEndpoint,
 			httpmock.NewStringResponder(200, PayloadString))
 
-		buf, err := ByteBuf(PayloadString)
+		buf, err := BodyReader(PayloadString)
 		if err != nil {
 			t.Error(err)
 		}
@@ -157,13 +155,13 @@ func testInvokeFailFunc() func(t *testing.T) {
 	}
 }
 
-func TestByteBuf(t *testing.T) {
-	buf, err := ByteBuf(payload)
+func TestBodyReader(t *testing.T) {
+	r, err := BodyReader(payload)
 	if err != nil {
 		t.Error(err)
 	}
 	var val testVal
-	err = json.NewDecoder(buf).Decode(&val)
+	err = json.NewDecoder(r).Decode(&val)
 	if err != nil {
 		t.Error(err)
 	}
@@ -173,7 +171,7 @@ func TestByteBuf(t *testing.T) {
 }
 
 func TestParseBody(t *testing.T) {
-	buf, err := ByteBuf(payload)
+	buf, err := BodyReader(payload)
 	if err != nil {
 		t.Error(err)
 	}

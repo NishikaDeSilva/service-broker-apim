@@ -15,7 +15,7 @@ import (
 	"os"
 )
 
-var logger lager.Logger
+var logger = lager.NewLogger(constants.LoggerName)
 var ioWriter io.Writer
 
 // GetEnv returns the value (which may be empty) If the Key is present in the environment
@@ -41,7 +41,6 @@ func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, constants.ErrMsgUnableToOpenLogFile, logFile)
 	}
-	logger = lager.NewLogger(constants.LoggerName)
 	ioWriter = io.MultiWriter(os.Stdout, f)
 	logger.RegisterSink(lager.NewWriterSink(ioWriter, logL))
 	return logger, nil

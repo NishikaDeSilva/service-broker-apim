@@ -193,13 +193,14 @@ func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn 
 
 // genToken returns an Access token and a Refresh token from given params,
 func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
-	req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewBufferString(reqBody.Encode()))
+	//req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewBufferString(reqBody.Encode()))
+	req,err:= client.ToRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewReader([]byte(reqBody.Encode())))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
 			context)
 	}
-	req.SetBasicAuth(tm.clientID, tm.clientSec)
-	req.Header.Add(constants.HTTPContentType, constants.ContentTypeUrlEncoded)
+	req.R.SetBasicAuth(tm.clientID, tm.clientSec)
+	req.R.Header.Add(constants.HTTPContentType, constants.ContentTypeUrlEncoded)
 	var resBody TokenResp
 	if err := client.Invoke(context, req, &resBody, http.StatusOK); err != nil {
 		return "", "", 0, err
@@ -210,18 +211,19 @@ func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT str
 // DynamicClientReg gets the Client ID and Client Secret
 func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
 	// Encode the resBody
-	b, err := client.ByteBuf(reqBody)
+	r, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToParseRequestBody, DynamicClientRegMSG)
 	}
 
 	// construct the request
-	req, err := http.NewRequest(http.MethodPost, tm.DynamicClientEndpoint+DynamicClientContext, b)
+	// Not using n=client.PostReq() method since here custom headers are added
+	req,err:= client.ToRequest(http.MethodPost, tm.DynamicClientEndpoint+DynamicClientContext, r)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody, DynamicClientRegMSG)
 	}
-	req.SetBasicAuth(tm.UserName, tm.Password)
-	req.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
+	req.R.SetBasicAuth(tm.UserName, tm.Password)
+	req.R.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
 
 	var resBody DynamicClientRegResBody
 	if err := client.Invoke(DynamicClientRegMSG, req, &resBody, http.StatusOK); err != nil {

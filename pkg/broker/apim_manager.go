@@ -37,7 +37,7 @@ type APIMManager struct {
 
 // CreateAPI function creates an API
 func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string, error) {
-	buf, err := client.ByteBuf(reqBody)
+	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
@@ -76,14 +76,14 @@ func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
 	q := url.Values{}
 	q.Add("apiId", apiId)
 	q.Add("action", "Publish")
-	req.URL.RawQuery = q.Encode()
+	req.R.URL.RawQuery = q.Encode()
 	err = client.Invoke(PublishAPIContext, req, nil, http.StatusOK)
 	return err
 }
 
 // CreateApplication creates an application
 func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *TokenManager) (string, error) {
-	buf, err := client.ByteBuf(reqBody)
+	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +109,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 		return nil, errors.New(constants.ErrMSGAPPIDEmpty)
 	}
 	reqBody := defaultApplicationKeyGenerateReq()
-	buf, err := client.ByteBuf(reqBody)
+	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	}
 	q := url.Values{}
 	q.Add("applicationId", appID)
-	req.URL.RawQuery = q.Encode()
+	req.R.URL.RawQuery = q.Encode()
 
 	var resBody ApplicationKey
 	err = client.Invoke(GenerateKeyContext, req, &resBody, http.StatusOK)
@@ -140,7 +140,7 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 		ApiIdentifier: apiID,
 		Tier:          tier,
 	}
-	buf, err := client.ByteBuf(reqBody)
+	bodyReader, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +148,7 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.PostReq(aT, am.StoreEndpoint+StoreSubscriptionContext, buf)
+	req, err := client.PostReq(aT, am.StoreEndpoint+StoreSubscriptionContext, bodyReader)
 	if err != nil {
 		return "", err
 	}
