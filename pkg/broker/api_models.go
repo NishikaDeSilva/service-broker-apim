@@ -4,8 +4,6 @@
 
 package broker
 
-import "encoding/json"
-
 type APIMaxTps struct {
 	Production int64 `json:"production,omitempty"`
 	Sandbox    int64 `json:"sandbox,omitempty"`
@@ -104,68 +102,6 @@ type APIReqBody struct {
 	BusinessInformation *ApiBusinessInformation `json:"businessInformation,omitempty"`
 	CorsConfiguration   *ApiCorsConfiguration   `json:"corsConfiguration,omitempty"`
 }
-
-type APICFParams struct {
-	//Id string `json:"id,omitempty"`
-	// Name of the API
-	Name string `json:"name"`
-	// A brief description about the API
-	Description string `json:"description"`
-	// A string that represents the context of the user's request
-	Context string `json:"context"`
-	// The version of the API
-	Version string `json:"version"`
-	// If the provider value is not given, the user invoking the API will be used as the provider.
-	Provider string `json:"provider,omitempty"`
-	// This describes in which status of the lifecycle the API is
-	Status       string `json:"status"`
-	ThumbnailUri string `json:"thumbnailUri,omitempty"`
-	// Swagger definition of the API which contains details about URI templates and scopes
-	ApiDefinition json.RawMessage `json:"apiDefinition"`
-	// WSDL URL if the API is based on a WSDL endpoint
-	WsdlUri                 string `json:"wsdlUri,omitempty"`
-	ResponseCaching         string `json:"responseCaching,omitempty"`
-	CacheTimeout            int32  `json:"cacheTimeout,omitempty"`
-	DestinationStatsEnabled string `json:"destinationStatsEnabled,omitempty"`
-	IsDefaultVersion        bool   `json:"isDefaultVersion"`
-	// The transport to be set. Accepted values are HTTP, WS
-	Type_ string `json:"type"`
-	// Supported transports for the API (http and/or https).
-	Transport []string `json:"transport"`
-	// Search keywords related to the API
-	Tags []string `json:"tags,omitempty"`
-	// The subscription tiers selected for the particular API
-	Tiers []string `json:"tiers"`
-	// The policy selected for the particular API
-	ApiLevelPolicy string `json:"apiLevelPolicy,omitempty"`
-	// Name of the Authorization header used for invoking the API. If it is not set, Authorization header name specified in tenant or system level will be used.
-	AuthorizationHeader string     `json:"authorizationHeader,omitempty"`
-	MaxTps              *APIMaxTps `json:"maxTps,omitempty"`
-	// The visibility level of the API. Accepts one of the following. PUBLIC, PRIVATE, RESTRICTED OR CONTROLLED.
-	Visibility string `json:"visibility"`
-	// The user roles that are able to access the API
-	VisibleRoles     []string             `json:"visibleRoles,omitempty"`
-	VisibleTenants   []string             `json:"visibleTenants,omitempty"`
-	EndpointConfig   json.RawMessage      `json:"endpointConfig"`
-	EndpointSecurity *ApiEndpointSecurity `json:"endpointSecurity,omitempty"`
-	// Comma separated list of gateway environments.
-	GatewayEnvironments string `json:"gatewayEnvironments,omitempty"`
-	// Labels of micro-gateway environments attached to the API.
-	Labels    []Label    `json:"labels,omitempty"`
-	Sequences []Sequence `json:"sequences,omitempty"`
-	// The subscription availability. Accepts one of the following. current_tenant, all_tenants or specific_tenants.
-	SubscriptionAvailability     string   `json:"subscriptionAvailability,omitempty"`
-	SubscriptionAvailableTenants []string `json:"subscriptionAvailableTenants,omitempty"`
-	// Map of custom properties of API
-	AdditionalProperties map[string]string `json:"additionalProperties,omitempty"`
-	// Is the API is restricted to certain set of publishers or creators or is it visible to all the publishers and creators. If the accessControl restriction is none, this API can be modified by all the publishers and creators, if not it can only be viewable/modifiable by certain set of publishers and creators,  based on the restriction.
-	AccessControl string `json:"accessControl,omitempty"`
-	// The user roles that are able to view/modify as API publisher or creator.
-	AccessControlRoles  []string                `json:"accessControlRoles,omitempty"`
-	BusinessInformation *ApiBusinessInformation `json:"businessInformation,omitempty"`
-	CorsConfiguration   *ApiCorsConfiguration   `json:"corsConfiguration,omitempty"`
-}
-
 type APICreateResp struct {
 	// UUID of the api registry artifact
 	Id string `json:"id,omitempty"`
@@ -178,7 +114,7 @@ type ApplicationCreateReq struct {
 }
 
 type APIParam struct {
-	APISpec APICFParams `json:"api"`
+	APISpec APIReqBody `json:"api"`
 }
 
 type ApplicationConfig struct {
@@ -263,4 +199,21 @@ type SubscriptionResp struct {
 	ApiIdentifier string `json:"apiIdentifier"`
 	Tier          string `json:"tier"`
 	Status        string `json:"status,omitempty"`
+}
+
+type APISearchInfo struct {
+	Provider    string `json:"provider"`
+	Version     string `json:"version"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	Name        string `json:"name"`
+	Context     string `json:"context"`
+	Id          string `json:"id"`
+}
+
+type APISearchResp struct {
+	Previous string          `json:"previous"`
+	List     []APISearchInfo `json:"list"`
+	Count    int             `json:"count"`
+	Next     string          `json:"next"`
 }

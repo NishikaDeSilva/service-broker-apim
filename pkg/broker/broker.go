@@ -48,80 +48,77 @@ func (asb *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service
 
 func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	serviceDetails brokerapi.ProvisionDetails, asyncAllowed bool) (spec brokerapi.ProvisionedServiceSpec, err error) {
-	var data = &utils.LogData{
+	var logData = &utils.LogData{
 		Data: lager.Data{
 			LogKeyServiceID:  serviceDetails.ServiceID,
 			LogKeyPlanID:     serviceDetails.PlanID,
 			LogKeyInstanceID: instanceID,
 		},
 	}
-	if !isOrgFlow(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), data)
-		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
-			http.StatusBadRequest, "provisioning")
-	}
-	// Verifying whether the instance is already exists
-	exists, err := isInstanceExists(instanceID)
-	// Handling DB connection error
-	if err != nil {
-		utils.LogError("unable to get instance from DB", err, data)
-		return spec, err
-	}
-	if exists {
-		utils.LogError(CreateAPIContext, err, data)
-		return spec, brokerapi.ErrInstanceAlreadyExists
-	}
-	// Parse API JSON Spec
-	apiParam, err := toAPIParam(serviceDetails.RawParameters)
-	if err != nil {
-		utils.LogError("unable to parse API parameters", err, data)
-		return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-			http.StatusBadRequest, "Parsing API JSON Spec parameter")
-	}
-
-	data.AddData(LogKeyAPIName, apiParam.APISpec.Name)
-	req, err := toAPICreateReq(apiParam)
-	if err != nil {
-		utils.LogError("unable to create API create request", err, data)
-		return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-			http.StatusBadRequest, "creating API create request")
-	}
-
-	apiID, err := asb.APIMManager.CreateAPI(req, asb.TokenManager)
-	if err != nil {
-		utils.LogError("unable to create API", err, data)
-		e, ok := err.(*client.InvokeError)
-		if ok && e.StatusCode == http.StatusConflict {
+	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+		// Verifying whether the instance is already exists
+		exists, err := isInstanceExists(instanceID)
+		// Handling DB connection error
+		if err != nil {
+			utils.LogError("unable to get instance from DB", err, logData)
+			return spec, err
+		}
+		if exists {
+			utils.LogError(CreateAPIContext, brokerapi.ErrInstanceAlreadyExists, logData)
 			return spec, brokerapi.ErrInstanceAlreadyExists
 		}
-		return spec, err
-	}
-	i := &dbutil.Instance{
-		ServiceID: serviceDetails.ServiceID,
-		PlanID:    serviceDetails.PlanID,
-		Id:        instanceID,
-		ApiID:     apiID,
-		APIName:   apiParam.APISpec.Name,
-	}
-	data.AddData(LogKeyAPIId, apiID)
-	// Store instance in the database
-	err = dbutil.StoreInstance(i)
-	if err != nil {
-		utils.LogError("unable to store instance", err, data)
-		errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
-		if errDel != nil {
-			utils.LogError("failed to cleanup, unable to delete the API", errDel, data)
+		// Parse API JSON Spec
+		apiParam, err := toAPIParam(serviceDetails.RawParameters)
+		if err != nil {
+			utils.LogError("unable to parse API parameters", err, logData)
+			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+				http.StatusBadRequest, "Parsing API JSON Spec parameter")
 		}
-		return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
-			instanceID, apiID)
-	}
-	if err = asb.APIMManager.PublishAPI(apiID, asb.TokenManager); err != nil {
-		utils.LogError("unable to publish API", err, data)
-		errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
-		if errDel != nil {
-			utils.LogError("failed to cleanup, unable to delete the API", errDel, data)
+
+		logData.AddData(LogKeyAPIName, apiParam.APISpec.Name)
+
+		apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec, asb.TokenManager)
+		if err != nil {
+			utils.LogError("unable to create API", err, logData)
+			e, ok := err.(*client.InvokeError)
+			if ok && e.StatusCode == http.StatusConflict {
+				return spec, brokerapi.ErrInstanceAlreadyExists
+			}
+			return spec, err
 		}
-		return spec, err
+		i := &dbutil.Instance{
+			ServiceID: serviceDetails.ServiceID,
+			PlanID:    serviceDetails.PlanID,
+			Id:        instanceID,
+			ApiID:     apiID,
+			APIName:   apiParam.APISpec.Name,
+		}
+		logData.AddData(LogKeyAPIId, apiID)
+		// Store instance in the database
+		err = dbutil.StoreInstance(i)
+		if err != nil {
+			utils.LogError("unable to store instance", err, logData)
+			errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
+			if errDel != nil {
+				utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
+			}
+			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
+				instanceID, apiID)
+		}
+		if err = asb.APIMManager.PublishAPI(apiID, asb.TokenManager); err != nil {
+			utils.LogError("unable to publish API", err, logData)
+			errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
+			if errDel != nil {
+				utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
+			}
+			return spec, err
+		}
+	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+		//TODO
+	} else {
+		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
+		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+			http.StatusBadRequest, "provisioning")
 	}
 	return spec, nil
 }
@@ -135,7 +132,7 @@ func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string
 			LogKeyInstanceID: instanceID,
 		},
 	}
-	if !isOrgFlow(details.ServiceID, details.PlanID) {
+	if !isAPIPlan(details.ServiceID, details.PlanID) {
 		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
 		return brokerapi.DeprovisionServiceSpec{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "Deprovisioning")
@@ -178,7 +175,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		},
 	}
 	utils.LogDebug("Binding", logData)
-	if !isOrgFlow(details.ServiceID, details.PlanID) {
+	if !isAPIPlan(details.ServiceID, details.PlanID) {
 		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
 		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "Binding")
@@ -317,7 +314,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 		utils.LogError("unable to create subscription", err, logData)
 		return brokerapi.Binding{}, err
 	}
-	// Construct Bind struct & store
+	// Construct Bind struct and store
 	bind.SubscriptionID = subscriptionID
 	bind.AppName = cfAppName
 	bind.InstanceID = instanceID
@@ -343,6 +340,7 @@ func credentialsMap(app *dbutil.Application) map[string]interface{} {
 		"AccessToken":    app.Token,
 	}
 }
+
 func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.UnbindDetails, asyncAllowed bool) (brokerapi.UnbindSpec, error) {
 	var logData = &utils.LogData{
@@ -352,7 +350,7 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 			LogKeyInstanceID: instanceID,
 		},
 	}
-	if !isOrgFlow(details.ServiceID, details.PlanID) {
+	if !isAPIPlan(details.ServiceID, details.PlanID) {
 		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
 		return brokerapi.UnbindSpec{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "Unbinding")
@@ -426,7 +424,7 @@ func (apimServiceBroker *APIMServiceBroker) Update(cxt context.Context, instance
 }
 
 func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
-	bindingID string) (brokerapi.GetBindingSpec, error) {
+bindingID string) (brokerapi.GetBindingSpec, error) {
 	return brokerapi.GetBindingSpec{}, errors.New("not implemented")
 }
 
@@ -436,15 +434,17 @@ func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
 }
 
 func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
-	bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
+bindingID string, details brokerapi.PollDetails) (brokerapi.LastOperation, error) {
 	return brokerapi.LastOperation{}, errors.New("not implemented")
 }
 
 // Plan returns an array of services offered by this service broker
 func Plan() []brokerapi.Service {
+	apiPlanBindable := false
+	applicationPlanBindable := true
 	return []brokerapi.Service{
 		{
-			ID:                   constants.OrgServiceId,
+			ID:                   constants.ServiceId,
 			Name:                 constants.ServiceName,
 			Description:          constants.ServiceDescription,
 			Bindable:             true,
@@ -452,17 +452,28 @@ func Plan() []brokerapi.Service {
 			PlanUpdatable:        false,
 			Plans: []brokerapi.ServicePlan{
 				{
-					ID:          constants.OrgPlanID,
-					Name:        constants.PlanName,
-					Description: constants.PlanDescription,
+					ID:          constants.APIPlanID,
+					Name:        constants.APIPlanName,
+					Description: constants.APIPlanDescription,
+					Bindable:    &apiPlanBindable,
+				},
+				{
+					ID:          constants.ApplicationPlanID,
+					Name:        constants.ApplicationPlanName,
+					Description: constants.ApplicationPlanDescription,
+					Bindable:    &applicationPlanBindable,
 				},
 			},
 		},
 	}
 }
 
-func isOrgFlow(serviceID, planID string) bool {
-	return (serviceID == constants.OrgServiceId) && (planID == constants.OrgPlanID)
+func isAPIPlan(serviceID, planID string) bool {
+	return (serviceID == constants.ServiceId) && (planID == constants.APIPlanID)
+}
+
+func isApplicationPlan(serviceID, planID string) bool {
+	return (serviceID == constants.ServiceId) && (planID == constants.ApplicationPlanID)
 }
 
 // toApplicationParam parses application parameters
@@ -495,54 +506,4 @@ func isInstanceExists(instanceID string) (bool, error) {
 		return false, err
 	}
 	return exists, nil
-}
-
-// toAPICreateReq function returns API create request body from the given broker.APIParam
-func toAPICreateReq(source APIParam) (*APIReqBody, error) {
-	apiDef, err := utils.RawMSGToString(&source.APISpec.ApiDefinition)
-	if err != nil {
-		return nil, err
-	}
-	endpointConfig, err := utils.RawMSGToString(&source.APISpec.EndpointConfig)
-	if err != nil {
-		return nil, err
-	}
-	req := &APIReqBody{
-		Name:                         source.APISpec.Name,
-		Description:                  source.APISpec.Description,
-		Context:                      source.APISpec.Context,
-		Version:                      source.APISpec.Version,
-		Provider:                     source.APISpec.Provider,
-		IsDefaultVersion:             source.APISpec.IsDefaultVersion,
-		Visibility:                   source.APISpec.Visibility,
-		ThumbnailUri:                 source.APISpec.ThumbnailUri,
-		ApiDefinition:                apiDef,
-		WsdlUri:                      source.APISpec.WsdlUri,
-		ResponseCaching:              source.APISpec.ResponseCaching,
-		CacheTimeout:                 source.APISpec.CacheTimeout,
-		DestinationStatsEnabled:      source.APISpec.DestinationStatsEnabled,
-		Status:                       source.APISpec.Status,
-		Type_:                        source.APISpec.Type_,
-		Transport:                    source.APISpec.Transport,
-		Tiers:                        source.APISpec.Tiers,
-		Tags:                         source.APISpec.Tags,
-		ApiLevelPolicy:               source.APISpec.ApiLevelPolicy,
-		AuthorizationHeader:          source.APISpec.AuthorizationHeader,
-		MaxTps:                       source.APISpec.MaxTps,
-		VisibleRoles:                 source.APISpec.VisibleRoles,
-		VisibleTenants:               source.APISpec.VisibleTenants,
-		EndpointSecurity:             source.APISpec.EndpointSecurity,
-		GatewayEnvironments:          source.APISpec.GatewayEnvironments,
-		Labels:                       source.APISpec.Labels,
-		Sequences:                    source.APISpec.Sequences,
-		SubscriptionAvailability:     source.APISpec.SubscriptionAvailability,
-		SubscriptionAvailableTenants: source.APISpec.SubscriptionAvailableTenants,
-		AdditionalProperties:         source.APISpec.AdditionalProperties,
-		AccessControl:                source.APISpec.AccessControl,
-		AccessControlRoles:           source.APISpec.AccessControlRoles,
-		BusinessInformation:          source.APISpec.BusinessInformation,
-		CorsConfiguration:            source.APISpec.CorsConfiguration,
-		EndpointConfig:               endpointConfig,
-	}
-	return req, nil
 }

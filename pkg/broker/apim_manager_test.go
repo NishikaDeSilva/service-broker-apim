@@ -381,3 +381,74 @@ func testDeleteAPISuccessFunc() func(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchAPI(t *testing.T) {
+	t.Run(successTestCase, testSearchAPInSuccessFunc())
+	t.Run("failure test case 1", testSearchAPIFail1Func())
+	t.Run("failure test case 1", testSearchAPIFail2Func())
+}
+
+func testSearchAPInSuccessFunc() func(t *testing.T) {
+	return func(t *testing.T) {
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &APISearchResp{
+			Count: 1,
+			List: []APISearchInfo{{
+				Id: "111-111",
+			}},
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
+		apiId, err := apiM.SearchAPI("Test", tM)
+		if err != nil {
+			t.Error(err)
+		}
+		if apiId != "111-111" {
+			t.Errorf(constants.ErrMsgTestIncorrectResult, "Test", apiId)
+		}
+	}
+}
+
+func testSearchAPIFail1Func() func(t *testing.T) {
+	return func(t *testing.T) {
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &APISearchResp{
+			Count: 0,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
+		_, err = apiM.SearchAPI("Test", tM)
+		if err == nil {
+			t.Error("Expecting an error")
+		}
+		if err.Error() != "couldn't find the API Test" {
+			t.Error("Expecting the error 'couldn't find the API Test' but got " + err.Error())
+		}
+	}
+}
+func testSearchAPIFail2Func() func(t *testing.T) {
+	return func(t *testing.T) {
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &APISearchResp{
+			Count: 2,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
+		_, err = apiM.SearchAPI("Test", tM)
+		if err == nil {
+			t.Error("Expecting an error")
+		}
+		if err.Error() != "returned more than one API for API Test" {
+			t.Error("Expecting the error 'returned more than one API for API Test' but got " + err.Error())
+		}
+	}
+}

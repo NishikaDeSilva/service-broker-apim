@@ -198,7 +198,6 @@ func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn 
 
 // genToken returns an Access token and a Refresh token from given params,
 func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
-	//req, err := http.NewRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewBufferString(reqBody.Encode()))
 	req, err := client.ToRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewReader([]byte(reqBody.Encode())))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
@@ -215,7 +214,6 @@ func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT str
 
 // DynamicClientReg gets the Client ID and Client Secret
 func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
-	// Encode the resBody
 	r, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToParseRequestBody, DynamicClientRegMSG)

@@ -5,6 +5,7 @@
 package broker
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/constants"
@@ -26,6 +27,7 @@ const (
 	UnSubscribeContext            = "unsubscribe api"
 	ApplicationDeleteContext      = "delete application"
 	APIDeleteContext              = "delete API"
+	APISearchContext              = "search API"
 )
 
 // APIMManager handles the communication with API Manager
@@ -209,6 +211,34 @@ func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
 		return err
 	}
 	return nil
+}
+
+//SearchAPI method returns API ID of the Given API
+func (am *APIMManager) SearchAPI(apiName string, tm *TokenManager) (string, error) {
+	aT, err := tm.Token(ScopeSubscribe)
+	if err != nil {
+		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+	}
+	req, err := client.GetReq(aT, am.PublisherEndpoint+PublisherContext)
+	if err != nil {
+		return "", err
+	}
+	q := url.Values{}
+	q.Add("query", apiName)
+	req.R.URL.RawQuery = q.Encode()
+
+	var resp APISearchResp
+	err = client.Invoke(APISearchContext, req, &resp, http.StatusOK)
+	if err != nil {
+		return "", err
+	}
+	if resp.Count == 0 {
+		return "", errors.New(fmt.Sprintf("couldn't find the API %s", apiName))
+	}
+	if resp.Count > 1 {
+		return "", errors.New(fmt.Sprintf("returned more than one API for API %s", apiName))
+	}
+	return resp.List[0].Id, nil
 }
 
 func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {

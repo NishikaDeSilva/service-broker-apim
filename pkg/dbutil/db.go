@@ -51,13 +51,12 @@ type Bind struct {
 }
 
 const (
-	TableInstance           = "instances"
-	TableBind               = "binds"
-	TableApplication        = "applications"
-	ErrTableExists          = 1050
-	ErrMSGAPPNameMissing    = "Name is missing"
-	ErrMSGInstanceIDMissing = "Id is missing"
-	ErrMSGBindIDMissing     = "Id is missing"
+	TableInstance        = "instances"
+	TableBind            = "binds"
+	TableApplication     = "applications"
+	ErrTableExists       = 1050
+	ErrMSGAPPNameMissing = "Name is missing"
+	ErrMSGIDMissing      = "Id is missing"
 )
 
 var (
@@ -88,10 +87,11 @@ func InitDB(conf *config.DBConfig) {
 func CreateTable(model interface{}, table string) {
 	if err := db.CreateTable(model).Error; err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			// Not throw error if the table already exists
 			if mysqlErr.Number != ErrTableExists {
 				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
 			}
+		} else {
+			utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
 		}
 	}
 }
@@ -143,7 +143,7 @@ func CreateTables() {
 // RetrieveInstance function returns the given Instance from the Database
 func RetrieveInstance(i *Instance) (bool, error) {
 	if i.Id == "" {
-		return false, errors.New(ErrMSGInstanceIDMissing)
+		return false, errors.New(ErrMSGIDMissing)
 	}
 	return retrieve(i, TableInstance)
 }
@@ -151,7 +151,7 @@ func RetrieveInstance(i *Instance) (bool, error) {
 // StoreInstance saves the Instance in the database
 func StoreInstance(i *Instance) error {
 	if i.Id == "" {
-		return errors.New(ErrMSGInstanceIDMissing)
+		return errors.New(ErrMSGIDMissing)
 	}
 	return store(i, TableInstance)
 }
@@ -159,7 +159,7 @@ func StoreInstance(i *Instance) error {
 // DeleteInstance deletes the Instance in the database
 func DeleteInstance(i *Instance) error {
 	if i.Id == "" {
-		return errors.New(ErrMSGInstanceIDMissing)
+		return errors.New(ErrMSGIDMissing)
 	}
 	return deleteEntry(i, TableInstance)
 }
@@ -167,7 +167,7 @@ func DeleteInstance(i *Instance) error {
 // RetrieveBind function returns the given Bind from the Database
 func RetrieveBind(b *Bind) (bool, error) {
 	if b.Id == "" {
-		return false, errors.New(ErrMSGBindIDMissing)
+		return false, errors.New(ErrMSGIDMissing)
 	}
 	return retrieve(b, TableBind)
 }
@@ -175,7 +175,7 @@ func RetrieveBind(b *Bind) (bool, error) {
 // StoreBind saves the Bind in the database
 func StoreBind(b *Bind) error {
 	if b.Id == "" {
-		return errors.New(ErrMSGBindIDMissing)
+		return errors.New(ErrMSGIDMissing)
 	}
 	return store(b, TableBind)
 }
@@ -183,7 +183,7 @@ func StoreBind(b *Bind) error {
 // DeleteBind deletes the Bind in the database
 func DeleteBind(b *Bind) error {
 	if b.Id == "" {
-		return errors.New(ErrMSGBindIDMissing)
+		return errors.New(ErrMSGIDMissing)
 	}
 	return deleteEntry(b, TableBind)
 }

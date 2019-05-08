@@ -144,6 +144,16 @@ func PostReq(token, url string, body io.ReadSeeker) (*Request, error) {
 	return req, nil
 }
 
+// GetReq function creates a GET HTTP request with an Authorization header
+func GetReq(token, url string) (*Request, error) {
+	req, err := ToRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+	}
+	req.R.Header.Add(HeaderAuth, HeaderBear+token)
+	return req, nil
+}
+
 // DeleteReq function creates a DELETE HTTP request with an Authorization header
 func DeleteReq(token, url string) (*Request, error) {
 	req, err := ToRequest(http.MethodDelete, url, nil)
@@ -164,7 +174,7 @@ func BodyReader(v interface{}) (io.ReadSeeker, error) {
 	return bytes.NewReader(buf.Bytes()), nil
 }
 
-// ToRequest function returns client.Request struct which wraps the http.request and therequest Body
+// ToRequest function returns client.Request struct which wraps the http.request and the request Body
 func ToRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	var rcBody io.ReadCloser
 	if body != nil {
