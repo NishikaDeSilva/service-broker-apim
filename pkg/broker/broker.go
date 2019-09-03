@@ -38,7 +38,7 @@ const (
 // APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
 type APIMServiceBroker struct {
 	BrokerConfig *config.BrokerConfig
-	TokenManager *TokenManager
+	//TokenManager *TokenManager
 	APIMManager  *APIMManager
 }
 
@@ -77,7 +77,7 @@ func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 
 		logData.AddData(LogKeyAPIName, apiParam.APISpec.Name)
 
-		apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec, asb.TokenManager)
+		apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec)
 		if err != nil {
 			utils.LogError("unable to create API", err, logData)
 			e, ok := err.(*client.InvokeError)
@@ -98,16 +98,16 @@ func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 		err = dbutil.StoreInstance(i)
 		if err != nil {
 			utils.LogError("unable to store instance", err, logData)
-			errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
+			errDel := asb.APIMManager.DeleteAPI(apiID)
 			if errDel != nil {
 				utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
 			}
 			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
 				instanceID, apiID)
 		}
-		if err = asb.APIMManager.PublishAPI(apiID, asb.TokenManager); err != nil {
+		if err = asb.APIMManager.PublishAPI(apiID); err != nil {
 			utils.LogError("unable to publish API", err, logData)
-			errDel := asb.APIMManager.DeleteAPI(apiID, asb.TokenManager)
+			errDel := asb.APIMManager.DeleteAPI(apiID)
 			if errDel != nil {
 				utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
 			}
@@ -150,7 +150,7 @@ func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string
 	}
 
 	logData.AddData(LogKeyAPIName, instance.APIName).AddData(LogKeyAPIId, instance.ApiID)
-	err = asb.APIMManager.DeleteAPI(instance.ApiID, asb.TokenManager)
+	err = asb.APIMManager.DeleteAPI(instance.ApiID)
 	if err != nil {
 		utils.LogError("unable to delete the API", err, logData)
 		return brokerapi.DeprovisionServiceSpec{}, err
@@ -263,7 +263,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			AddData("description", appCreateReq.Description).
 			AddData("callbackUrl", appCreateReq.CallbackUrl)
 		utils.LogDebug("creating a new application...", logData)
-		appID, err := asb.APIMManager.CreateApplication(appCreateReq, asb.TokenManager)
+		appID, err := asb.APIMManager.CreateApplication(appCreateReq)
 		if err != nil {
 			e, ok := err.(*client.InvokeError)
 			if ok {
@@ -281,7 +281,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 			return brokerapi.Binding{}, err
 		}
 		// Get the keys
-		appKeyGenResp, err := asb.APIMManager.GenerateKeys(appID, asb.TokenManager)
+		appKeyGenResp, err := asb.APIMManager.GenerateKeys(appID)
 		if err != nil {
 			e, ok := err.(*client.InvokeError)
 			if ok {
@@ -309,7 +309,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	}
 	utils.LogDebug("creating a subscription for application", logData)
 	subscriptionID, err := asb.APIMManager.Subscribe(application.Id, instance.ApiID,
-		applicationParam.AppSpec.SubscriptionTier, asb.TokenManager)
+		applicationParam.AppSpec.SubscriptionTier)
 	if err != nil {
 		utils.LogError("unable to create subscription", err, logData)
 		return brokerapi.Binding{}, err
@@ -384,7 +384,7 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 			utils.LogError("application does not exist", err, logData)
 			return brokerapi.UnbindSpec{}, err
 		}
-		err = asb.APIMManager.DeleteApplication(application.Id, asb.TokenManager)
+		err = asb.APIMManager.DeleteApplication(application.Id)
 		if err != nil {
 			utils.LogError("unable to delete the application", err, logData)
 			return brokerapi.UnbindSpec{}, err
@@ -396,7 +396,7 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 		}
 	} else { // Deletes subscription
 		logData.AddData("subscription-id", bind.SubscriptionID)
-		err := asb.APIMManager.UnSubscribe(bind.SubscriptionID, asb.TokenManager)
+		err := asb.APIMManager.UnSubscribe(bind.SubscriptionID)
 		if err != nil {
 			utils.LogError("unable to remove the subscription", err, logData)
 			return brokerapi.UnbindSpec{}, err

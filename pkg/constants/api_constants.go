@@ -24,6 +24,7 @@ const ErrMSGUnsuccessfulAPICall = "unsuccessful API call: %s response Code: %s U
 const ErrMSGUnableToCloseBody = "unable to close the body"
 const ErrMSGAPIIDEmpty = "API ID is empty"
 const ErrMSGAPPIDEmpty = "application id is empty"
+
 const HTTPContentType = "Content-Type"
 const ContentTypeApplicationJson = "application/json"
 const ContentTypeUrlEncoded = "application/x-www-form-urlencoded; param=value"

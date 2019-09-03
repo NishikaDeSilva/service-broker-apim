@@ -36,16 +36,17 @@ const (
 type APIMManager struct {
 	PublisherEndpoint string
 	StoreEndpoint     string
+	TokenManager *TokenManager
 }
 
 // CreateAPI function creates an API
-func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string, error) {
+func (am *APIMManager) CreateAPI(reqBody *APIReqBody) (string, error) {
 	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
 
-	aT, err := tm.Token(ScopeAPICreate)
+	aT, err := am.TokenManager.Token(ScopeAPICreate)
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
@@ -68,11 +69,11 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 }
 
 // Publish an API in state "Created"
-func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
+func (am *APIMManager) PublishAPI(apiId string) error {
 	if apiId == "" {
 		return errors.New(constants.ErrMSGAPIIDEmpty)
 	}
-	aT, err := tm.Token(ScopeAPIPublish)
+	aT, err := am.TokenManager.Token(ScopeAPIPublish)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPIPublish)
 	}
@@ -94,12 +95,12 @@ func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
 }
 
 // CreateApplication creates an application
-func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *TokenManager) (string, error) {
+func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq) (string, error) {
 	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
-	aT, err := tm.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
@@ -120,7 +121,7 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 }
 
 // GenerateKeys method generate keys for the given application
-func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*ApplicationKey, error) {
+func (am *APIMManager) GenerateKeys(appID string) (*ApplicationKey, error) {
 	if appID == "" {
 		return nil, errors.New(constants.ErrMSGAPPIDEmpty)
 	}
@@ -129,7 +130,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	if err != nil {
 		return nil, err
 	}
-	aT, err := tm.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return nil, errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
@@ -154,7 +155,7 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 }
 
 // Subscribe method subscribes an application to a an API
-func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (string, error) {
+func (am *APIMManager) Subscribe(appID, apiID, tier string) (string, error) {
 	reqBody := &SubscriptionReq{
 		ApplicationId: appID,
 		ApiIdentifier: apiID,
@@ -164,7 +165,7 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 	if err != nil {
 		return "", err
 	}
-	aT, err := tm.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
@@ -185,8 +186,8 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 }
 
 // UnSubscribe method removes the given subscription
-func (am *APIMManager) UnSubscribe(subscriptionID string, tm *TokenManager) error {
-	aT, err := tm.Token(ScopeSubscribe)
+func (am *APIMManager) UnSubscribe(subscriptionID string) error {
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
@@ -207,8 +208,8 @@ func (am *APIMManager) UnSubscribe(subscriptionID string, tm *TokenManager) erro
 }
 
 // DeleteApplication method deletes the given application
-func (am *APIMManager) DeleteApplication(applicationID string, tm *TokenManager) error {
-	aT, err := tm.Token(ScopeSubscribe)
+func (am *APIMManager) DeleteApplication(applicationID string) error {
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
@@ -228,8 +229,8 @@ func (am *APIMManager) DeleteApplication(applicationID string, tm *TokenManager)
 }
 
 // DeleteApplication method deletes the given API
-func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
-	aT, err := tm.Token(ScopeAPICreate)
+func (am *APIMManager) DeleteAPI(apiID string) error {
+	aT, err := am.TokenManager.Token(ScopeAPICreate)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
@@ -249,8 +250,8 @@ func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
 }
 
 //SearchAPI method returns API ID of the Given API
-func (am *APIMManager) SearchAPI(apiName string, tm *TokenManager) (string, error) {
-	aT, err := tm.Token(ScopeSubscribe)
+func (am *APIMManager) SearchAPI(apiName string) (string, error) {
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
@@ -281,8 +282,8 @@ func (am *APIMManager) SearchAPI(apiName string, tm *TokenManager) (string, erro
 }
 
 //SearchApplication method returns Application ID of the Given Application
-func (am *APIMManager) SearchApplication(appName string, tm *TokenManager) (string, error) {
-	aT, err := tm.Token(ScopeSubscribe)
+func (am *APIMManager) SearchApplication(appName string) (string, error) {
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}

@@ -37,6 +37,7 @@ var (
 	apiM = &APIMManager{
 		PublisherEndpoint: publisherTestEndpoint,
 		StoreEndpoint:     storeTestEndpoint,
+		TokenManager:tM,
 	}
 )
 
@@ -60,7 +61,7 @@ func testCreateAPISuccessFunc() func(t *testing.T) {
 
 		apiID, err := apiM.CreateAPI(&APIReqBody{
 			Name: "test API",
-		}, tM)
+		})
 		if err != nil {
 			t.Error(err)
 		}
@@ -82,7 +83,7 @@ func testCreateAPIFailFunc() func(t *testing.T) {
 
 		_, err = apiM.CreateAPI(&APIReqBody{
 			Name: "test API",
-		}, tM)
+		})
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusConflict))
 		}
@@ -104,11 +105,11 @@ func testPublishAPIFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, publisherTestEndpoint+PublisherChangeAPIContext, responder)
 
-		err = apiM.PublishAPI("", tM)
+		err = apiM.PublishAPI("")
 		if err.Error() != constants.ErrMSGAPIIDEmpty {
 			t.Error("Expecting an error : " + constants.ErrMSGAPIIDEmpty + " got: " + err.Error())
 		}
-		err = apiM.PublishAPI("123", tM)
+		err = apiM.PublishAPI("123")
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusNotFound))
 		}
@@ -125,7 +126,7 @@ func testPublishAPISuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, publisherTestEndpoint+PublisherChangeAPIContext, responder)
 
-		err = apiM.PublishAPI("123", tM)
+		err = apiM.PublishAPI("123")
 		if err != nil {
 			t.Error(err)
 		}
@@ -147,7 +148,7 @@ func testCreateApplicationFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreApplicationContext, responder)
 
-		_, err = apiM.CreateApplication(&ApplicationCreateReq{}, tM)
+		_, err = apiM.CreateApplication(&ApplicationCreateReq{})
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
@@ -166,7 +167,7 @@ func testCreateApplicationSuccessFunc() func(t *testing.T) {
 
 		id, err := apiM.CreateApplication(&ApplicationCreateReq{
 			Name: "test",
-		}, tM)
+		})
 		if id != "1" {
 			t.Errorf(constants.ErrMsgTestIncorrectResult, "1", id)
 		}
@@ -188,11 +189,11 @@ func testGenerateKeysFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+GenerateApplicationKeyContext, responder)
 
-		_, err = apiM.GenerateKeys("", tM)
+		_, err = apiM.GenerateKeys("")
 		if err.Error() != constants.ErrMSGAPPIDEmpty {
 			t.Error("Expecting an error : " + constants.ErrMSGAPPIDEmpty + " got: " + err.Error())
 		}
-		_, err = apiM.GenerateKeys("", tM)
+		_, err = apiM.GenerateKeys("")
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
@@ -211,7 +212,7 @@ func testGenerateKeysSuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+GenerateApplicationKeyContext, responder)
 
-		got, err := apiM.GenerateKeys("123", tM)
+		got, err := apiM.GenerateKeys("123")
 		if err != nil {
 			t.Error(err)
 		}
@@ -236,7 +237,7 @@ func testSubscribeFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreSubscriptionContext, responder)
 
-		_, err = apiM.Subscribe("123", "123", "gold", tM)
+		_, err = apiM.Subscribe("123", "123", "gold")
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
@@ -255,7 +256,7 @@ func testSubscribeSuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreSubscriptionContext, responder)
 
-		got, err := apiM.Subscribe("123", "123", "gold", tM)
+		got, err := apiM.Subscribe("123", "123", "gold")
 		if err != nil {
 			t.Error(err)
 		}
@@ -280,7 +281,7 @@ func testUnSubscribeFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreSubscriptionContext+"/abc", responder)
 
-		err = apiM.UnSubscribe("abc", tM)
+		err = apiM.UnSubscribe("abc")
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
@@ -297,7 +298,7 @@ func testUnSubscribeSuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreSubscriptionContext+"/abc", responder)
 
-		err = apiM.UnSubscribe("abc", tM)
+		err = apiM.UnSubscribe("abc")
 		if err != nil {
 			t.Error(err)
 		}
@@ -319,7 +320,7 @@ func testDeleteApplicationFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreApplicationContext+"/abc", responder)
 
-		err = apiM.DeleteApplication("abc", tM)
+		err = apiM.DeleteApplication("abc")
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
@@ -336,7 +337,7 @@ func testDeleteApplicationSuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreApplicationContext+"/abc", responder)
 
-		err = apiM.DeleteApplication("abc", tM)
+		err = apiM.DeleteApplication("abc")
 		if err != nil {
 			t.Error(err)
 		}
@@ -358,7 +359,7 @@ func testDeleteAPIFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodDelete, publisherTestEndpoint+PublisherContext+"/abc", responder)
 
-		err = apiM.DeleteAPI("abc", tM)
+		err = apiM.DeleteAPI("abc")
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
@@ -375,7 +376,7 @@ func testDeleteAPISuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodDelete, publisherTestEndpoint+PublisherContext+"/abc", responder)
 
-		err = apiM.DeleteAPI("abc", tM)
+		err = apiM.DeleteAPI("abc")
 		if err != nil {
 			t.Error(err)
 		}
@@ -402,7 +403,7 @@ func testSearchAPInSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		apiId, err := apiM.SearchAPI("Test", tM)
+		apiId, err := apiM.SearchAPI("Test")
 		if err != nil {
 			t.Error(err)
 		}
@@ -423,7 +424,7 @@ func testSearchAPIFail1Func() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		_, err = apiM.SearchAPI("Test", tM)
+		_, err = apiM.SearchAPI("Test")
 		if err == nil {
 			t.Error("Expecting an error")
 		}
@@ -443,7 +444,7 @@ func testSearchAPIFail2Func() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		_, err = apiM.SearchAPI("Test", tM)
+		_, err = apiM.SearchAPI("Test")
 		if err == nil {
 			t.Error("Expecting an error")
 		}
@@ -476,7 +477,7 @@ func testSearchApplicationSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
-		apiId, err := apiM.SearchApplication("Test", tM)
+		apiId, err := apiM.SearchApplication("Test")
 		if err != nil {
 			t.Error(err)
 		}
@@ -497,7 +498,7 @@ func testSearchApplicationFail1Func() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
-		_, err = apiM.SearchApplication("Test", tM)
+		_, err = apiM.SearchApplication("Test")
 		if err == nil {
 			t.Error("Expecting an error")
 		}
@@ -518,7 +519,7 @@ func testSearchApplicationFail2Func() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
-		_, err = apiM.SearchApplication("Test", tM)
+		_, err = apiM.SearchApplication("Test")
 		if err == nil {
 			t.Error("Expecting an error")
 		}

@@ -119,6 +119,7 @@ func (l *LogData) AddData(key string, val interface{}) *LogData {
 }
 
 // ConstructURL construct URL by joining the paths provided
+// first param will be treated as the base and the rest of params configured as paths
 func ConstructURL(paths ...string) (string, error) {
 	if len(paths) == 0 {
 		return "", errors.New("no paths found")

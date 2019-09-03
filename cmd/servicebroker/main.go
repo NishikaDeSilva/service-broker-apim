@@ -59,6 +59,7 @@ func main() {
 	apimManager := &broker.APIMManager{
 		PublisherEndpoint: brokerConfig.APIM.PublisherEndpoint,
 		StoreEndpoint:     brokerConfig.APIM.StoreEndpoint,
+		TokenManager: tManager,
 	}
 
 	// Handling terminating signal
@@ -76,7 +77,6 @@ func main() {
 	}
 	apimServiceBroker := &broker.APIMServiceBroker{
 		BrokerConfig: brokerConfig,
-		TokenManager: tManager,
 		APIMManager:  apimManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
