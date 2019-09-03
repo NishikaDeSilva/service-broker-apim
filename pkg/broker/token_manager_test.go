@@ -169,6 +169,11 @@ func TestAccessTokenReqBody(t *testing.T) {
 	}
 }
 
+func TestToken(t *testing.T) {
+	testTokenSuccessFunc(t)
+	testTokenRefreshFunc(t)
+}
+
 func testTokenSuccessFunc(t *testing.T) {
 	aT, err := tmTest.Token(scope)
 	if err != nil {
@@ -215,7 +220,3 @@ func testTokenRefreshFunc(t *testing.T) {
 	}
 }
 
-func TestToken(t *testing.T) {
-	testTokenSuccessFunc(t)
-	testTokenRefreshFunc(t)
-}

@@ -385,7 +385,7 @@ func testDeleteAPISuccessFunc() func(t *testing.T) {
 func TestSearchAPI(t *testing.T) {
 	t.Run(successTestCase, testSearchAPInSuccessFunc())
 	t.Run("failure test case 1", testSearchAPIFail1Func())
-	t.Run("failure test case 1", testSearchAPIFail2Func())
+	t.Run("failure test case 2", testSearchAPIFail2Func())
 }
 
 func testSearchAPInSuccessFunc() func(t *testing.T) {
@@ -449,6 +449,81 @@ func testSearchAPIFail2Func() func(t *testing.T) {
 		}
 		if err.Error() != "returned more than one API for API Test" {
 			t.Error("Expecting the error 'returned more than one API for API Test' but got " + err.Error())
+		}
+	}
+}
+
+
+
+
+func TestSearchApplication(t *testing.T) {
+	t.Run(successTestCase, testSearchApplicationSuccessFunc())
+	t.Run("failure test case 1", testSearchApplicationFail1Func())
+	t.Run("failure test case 2", testSearchApplicationFail2Func())
+}
+
+func testSearchApplicationSuccessFunc() func(t *testing.T) {
+	return func(t *testing.T) {
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &ApplicationSearchResp{
+			Count: 1,
+			List: []ApplicationSearchInfo{{
+				ApplicationId: "111-111",
+			}},
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
+		apiId, err := apiM.SearchApplication("Test", tM)
+		if err != nil {
+			t.Error(err)
+		}
+		if apiId != "111-111" {
+			t.Errorf(constants.ErrMsgTestIncorrectResult, "Test", apiId)
+		}
+	}
+}
+
+func testSearchApplicationFail1Func() func(t *testing.T) {
+	return func(t *testing.T) {
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &APISearchResp{
+			Count: 0,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
+		_, err = apiM.SearchApplication("Test", tM)
+		if err == nil {
+			t.Error("Expecting an error")
+		}
+		if err.Error() != "couldn't find the Application Test" {
+			t.Error("Expecting the error 'couldn't find the Application Test' but got " + err.Error())
+		}
+	}
+}
+
+func testSearchApplicationFail2Func() func(t *testing.T) {
+	return func(t *testing.T) {
+		httpmock.Activate()
+		defer httpmock.DeactivateAndReset()
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &ApplicationSearchResp{
+			Count: 2,
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
+		_, err = apiM.SearchApplication("Test", tM)
+		if err == nil {
+			t.Error("Expecting an error")
+		}
+		if err.Error() != "returned more than one Application for Test" {
+			t.Error("Expecting the error 'returned more than one Application for Test' but got " + err.Error())
 		}
 	}
 }

@@ -12,7 +12,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/constants"
 	"io"
+	"net/url"
 	"os"
+	"path"
+)
+
+const (
+	ErrMSGCannotParseURL = "unable to parse URL"
 )
 
 var logger = lager.NewLogger(constants.LoggerName)
@@ -106,7 +112,23 @@ func RawMSGToString(msg *json.RawMessage) (string, error) {
 	return string(j), nil
 }
 
+// AddData adds data to Log data obj
 func (l *LogData) AddData(key string, val interface{}) *LogData {
 	l.Data[key] = val
 	return l
+}
+
+// ConstructURL construct URL by joining the paths provided
+func ConstructURL(paths ...string) (string, error) {
+	if len(paths) == 0 {
+		return "", errors.New("no paths found")
+	}
+	u, err := url.Parse(paths[0])
+	if err != nil {
+		return "", errors.New(ErrMSGCannotParseURL)
+	}
+	for i := 1; i< len(paths); i++ {
+		u.Path = path.Join(u.Path, paths[i])
+	}
+	return u.String(), nil;
 }

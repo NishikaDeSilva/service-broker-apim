@@ -59,7 +59,6 @@ func main() {
 	apimManager := &broker.APIMManager{
 		PublisherEndpoint: brokerConfig.APIM.PublisherEndpoint,
 		StoreEndpoint:     brokerConfig.APIM.StoreEndpoint,
-		InsecureCon:       brokerConfig.APIM.InsecureCon,
 	}
 
 	// Handling terminating signal

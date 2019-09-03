@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/constants"
+	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 	"net/url"
 )
@@ -28,13 +29,13 @@ const (
 	ApplicationDeleteContext      = "delete application"
 	APIDeleteContext              = "delete API"
 	APISearchContext              = "search API"
+	ApplicationSearchContext      = "search Application"
 )
 
 // APIMManager handles the communication with API Manager
 type APIMManager struct {
 	PublisherEndpoint string
 	StoreEndpoint     string
-	InsecureCon       bool
 }
 
 // CreateAPI function creates an API
@@ -49,7 +50,11 @@ func (am *APIMManager) CreateAPI(reqBody *APIReqBody, tm *TokenManager) (string,
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
 
-	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherContext, buf)
+	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot construct, creation endpoint")
+	}
+	req, err := client.PostReq(aT, u, buf)
 	if err != nil {
 		return "", err
 	}
@@ -71,7 +76,12 @@ func (am *APIMManager) PublishAPI(apiId string, tm *TokenManager) error {
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPIPublish)
 	}
-	req, err := client.PostReq(aT, am.PublisherEndpoint+PublisherChangeAPIContext, nil)
+
+	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherChangeAPIContext)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, publish API endpoint")
+	}
+	req, err := client.PostReq(aT, u, nil)
 	if err != nil {
 		return err
 	}
@@ -93,7 +103,11 @@ func (am *APIMManager) CreateApplication(reqBody *ApplicationCreateReq, tm *Toke
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.PostReq(aT, am.StoreEndpoint+StoreApplicationContext, buf)
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot construct, create Application endpoint")
+	}
+	req, err := client.PostReq(aT, u, buf)
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +133,11 @@ func (am *APIMManager) GenerateKeys(appID string, tm *TokenManager) (*Applicatio
 	if err != nil {
 		return nil, errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.PostReq(aT, am.StoreEndpoint+GenerateApplicationKeyContext, buf)
+	u, err := utils.ConstructURL(am.StoreEndpoint, GenerateApplicationKeyContext)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot construct, generate Application endpoint")
+	}
+	req, err := client.PostReq(aT, u, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +168,11 @@ func (am *APIMManager) Subscribe(appID, apiID, tier string, tm *TokenManager) (s
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.PostReq(aT, am.StoreEndpoint+StoreSubscriptionContext, bodyReader)
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreSubscriptionContext)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot construct, create subscribe endpoint")
+	}
+	req, err := client.PostReq(aT, u, bodyReader)
 	if err != nil {
 		return "", err
 	}
@@ -168,7 +190,12 @@ func (am *APIMManager) UnSubscribe(subscriptionID string, tm *TokenManager) erro
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.DeleteReq(aT, am.StoreEndpoint+StoreSubscriptionContext+"/"+subscriptionID)
+
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreSubscriptionContext, subscriptionID)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, create unsubscribe endpoint")
+	}
+	req, err := client.DeleteReq(aT, u)
 	if err != nil {
 		return err
 	}
@@ -185,7 +212,11 @@ func (am *APIMManager) DeleteApplication(applicationID string, tm *TokenManager)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.DeleteReq(aT, am.StoreEndpoint+StoreApplicationContext+"/"+applicationID)
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext, applicationID)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, delete Application endpoint")
+	}
+	req, err := client.DeleteReq(aT, u)
 	if err != nil {
 		return err
 	}
@@ -202,7 +233,11 @@ func (am *APIMManager) DeleteAPI(apiID string, tm *TokenManager) error {
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
 	}
-	req, err := client.DeleteReq(aT, am.PublisherEndpoint+PublisherContext+"/"+apiID)
+	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext, apiID)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, delete API endpoint")
+	}
+	req, err := client.DeleteReq(aT, u)
 	if err != nil {
 		return err
 	}
@@ -219,7 +254,11 @@ func (am *APIMManager) SearchAPI(apiName string, tm *TokenManager) (string, erro
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	req, err := client.GetReq(aT, am.PublisherEndpoint+PublisherContext)
+	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot construct, search API endpoint")
+	}
+	req, err := client.GetReq(aT, u)
 	if err != nil {
 		return "", err
 	}
@@ -239,6 +278,38 @@ func (am *APIMManager) SearchAPI(apiName string, tm *TokenManager) (string, erro
 		return "", errors.New(fmt.Sprintf("returned more than one API for API %s", apiName))
 	}
 	return resp.List[0].Id, nil
+}
+
+//SearchApplication method returns Application ID of the Given Application
+func (am *APIMManager) SearchApplication(appName string, tm *TokenManager) (string, error) {
+	aT, err := tm.Token(ScopeSubscribe)
+	if err != nil {
+		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+	}
+	u, err := utils.ConstructURL(am.StoreEndpoint,StoreApplicationContext)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot construct, search Application endpoint")
+	}
+	req, err := client.GetReq(aT, u)
+	if err != nil {
+		return "", err
+	}
+	q := url.Values{}
+	q.Add("query", appName)
+	req.R.URL.RawQuery = q.Encode()
+
+	var resp ApplicationSearchResp
+	err = client.Invoke(ApplicationSearchContext, req, &resp, http.StatusOK)
+	if err != nil {
+		return "", err
+	}
+	if resp.Count == 0 {
+		return "", errors.New(fmt.Sprintf("couldn't find the Application %s", appName))
+	}
+	if resp.Count > 1 {
+		return "", errors.New(fmt.Sprintf("returned more than one Application for %s", appName))
+	}
+	return resp.List[0].ApplicationId, nil
 }
 
 func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {

@@ -11,7 +11,7 @@ type APIMaxTps struct {
 type ApiEndpointSecurity struct {
 	Type_    string `json:"type,omitempty"`
 	Username string `json:"username,omitempty"`
-	Password string `json:"Password,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type Sequence struct {
@@ -63,7 +63,7 @@ type APIReqBody struct {
 	WsdlUri                 string `json:"wsdlUri,omitempty"`
 	ResponseCaching         string `json:"responseCaching,omitempty"`
 	CacheTimeout            int32  `json:"cacheTimeout,omitempty"`
-	DestinationStatsEnabled string `json:"destinationStatsEnabled,omitempty"`
+	DestinationStatsEnabled bool `json:"destinationStatsEnabled,omitempty"`
 	IsDefaultVersion        bool   `json:"isDefaultVersion"`
 	// The transport to be set. Accepted values are HTTP, WS
 	Type_ string `json:"type"`
@@ -216,4 +216,21 @@ type APISearchResp struct {
 	List     []APISearchInfo `json:"list"`
 	Count    int             `json:"count"`
 	Next     string          `json:"next"`
+}
+
+type ApplicationSearchInfo struct {
+	GroupId        string `json:"groupId"`
+	Subscriber     string `json:"subscriber"`
+	ThrottlingTier string `json:"throttlingTier"`
+	ApplicationId  string `json:"applicationId"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Status         string `json:"status"`
+}
+
+type ApplicationSearchResp struct {
+	Previous string                  `json:"previous"`
+	List     []ApplicationSearchInfo `json:"list"`
+	Count    int                     `json:"count"`
+	Next     string                  `json:"next"`
 }

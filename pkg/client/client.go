@@ -2,7 +2,7 @@
  *  Copyright (httpClient) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  */
 
-// utils package contains all function required to make API calls
+// client package contains all function required to make API calls
 package client
 
 import (
@@ -28,7 +28,7 @@ const (
 )
 
 // Request wraps the http.request and the Body
-// Body is wrapped with io.ReadSeeker which allows to reset the body buffer to initial state in retires
+// Body is wrapped with io.ReadSeeker which allows to reset the body buffer reader to initial state in retires
 type Request struct {
 	body io.ReadSeeker
 	R    *http.Request
@@ -187,7 +187,7 @@ func ToRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	return &Request{R: req, body: body}, nil
 }
 
-// Do method invokes the request and returns the response and an error if exists
+// Do method invokes the request and returns the response and, an error if exists
 // If the request is failed it will retry according to the registered Retry policy and Back off policy
 func (c *Client) Do(req *Request) (resp *http.Response, err error) {
 	for i := 1; i <= c.maxRetry; i++ {

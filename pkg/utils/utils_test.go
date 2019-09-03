@@ -53,3 +53,40 @@ func TestRawMSGToString(t *testing.T) {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, msg, result)
 	}
 }
+
+func TestConstructURL(t *testing.T) {
+	result, err := ConstructURL("https://localhost:9443", "carbon")
+	if err != nil {
+		t.Error(err)
+	}
+	expected := "https://localhost:9443/carbon"
+	if result != expected {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, expected, result)
+	}
+
+	result, err = ConstructURL("https://localhost:9443", "carbon", "publisher")
+	if err != nil {
+		t.Error(err)
+	}
+	expected = "https://localhost:9443/carbon/publisher"
+	if result != expected {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, expected, result)
+	}
+
+	result, err = ConstructURL("https://localhost:9443")
+	if err != nil {
+		t.Error(err)
+	}
+	expected = "https://localhost:9443"
+	if result != expected {
+		t.Errorf(constants.ErrMsgTestIncorrectResult, expected, result)
+	}
+
+	result, err = ConstructURL()
+	if err == nil {
+		t.Error("Expecting an error \"no paths found\"")
+	}
+	if err.Error() != "no paths found" {
+		t.Error("Expecting the error 'no paths found' but got " + err.Error())
+	}
+}

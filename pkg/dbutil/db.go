@@ -111,7 +111,7 @@ func deleteEntry(model interface{}, table string) error {
 	return db.Table(table).Delete(model).Error
 }
 
-// retrieve function returns the given Instance from the Database ix exists
+// retrieve function returns the given Instance from the Database if exists
 func retrieve(model interface{}, table string) (bool, error) {
 	result := db.Table(table).Where(model).Find(model)
 	if result.RecordNotFound() {

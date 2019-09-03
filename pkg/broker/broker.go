@@ -447,7 +447,7 @@ func Plan() []brokerapi.Service {
 			ID:                   constants.ServiceId,
 			Name:                 constants.ServiceName,
 			Description:          constants.ServiceDescription,
-			Bindable:             true,
+			Bindable:             false,
 			InstancesRetrievable: false,
 			PlanUpdatable:        false,
 			Plans: []brokerapi.ServicePlan{

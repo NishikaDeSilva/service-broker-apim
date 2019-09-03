@@ -121,7 +121,7 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 	})
 }
 
-// accessTokenReqBody functions returns Token request body
+// accessTokenReqBody functions returns access token request body
 func (tm *TokenManager) accessTokenReqBody(scope string) url.Values {
 	data := url.Values{}
 	data.Set(constants.UserName, tm.UserName)
@@ -131,7 +131,7 @@ func (tm *TokenManager) accessTokenReqBody(scope string) url.Values {
 	return data
 }
 
-// refreshTokenReqBody functions returns Token request body
+// refreshTokenReqBody functions returns refresh token request body
 func refreshTokenReqBody(rT string) url.Values {
 	data := url.Values{}
 	data.Add(constants.RefreshToken, rT)
@@ -139,9 +139,9 @@ func refreshTokenReqBody(rT string) url.Values {
 	return data
 }
 
-// isExpired function returns true if the difference between the current time and given time is positive
+// isExpired function returns true if the difference between the current time and given time is 10s
 func isExpired(expiresIn time.Time) bool {
-	if time.Now().Sub(expiresIn) > (0 * time.Second) {
+	if time.Now().Sub(expiresIn) > (10 * time.Second) {
 		return true
 	}
 	return false
@@ -198,7 +198,11 @@ func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn 
 
 // genToken returns an Access token and a Refresh token from given params,
 func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
-	req, err := client.ToRequest(http.MethodPost, tm.TokenEndpoint+TokenContext, bytes.NewReader([]byte(reqBody.Encode())))
+	u, err := utils.ConstructURL(tm.TokenEndpoint, TokenContext)
+	if err != nil {
+		return "", "", 0, errors.Wrap(err, "cannot construct, token endpoint")
+	}
+	req, err := client.ToRequest(http.MethodPost, u, bytes.NewReader([]byte(reqBody.Encode())))
 	if err != nil {
 		return "", "", 0, errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody,
 			context)
@@ -218,10 +222,13 @@ func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clie
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToParseRequestBody, DynamicClientRegMSG)
 	}
-
+	u, err := utils.ConstructURL(tm.DynamicClientEndpoint, DynamicClientContext)
+	if err != nil {
+		return "", "", errors.Wrap(err, "cannot construct, Dynamic client registration endpoint")
+	}
 	// construct the request
 	// Not using n=client.PostReq() method since here custom headers are added
-	req, err := client.ToRequest(http.MethodPost, tm.DynamicClientEndpoint+DynamicClientContext, r)
+	req, err := client.ToRequest(http.MethodPost, u, r)
 	if err != nil {
 		return "", "", errors.Wrapf(err, constants.ErrMSGUnableToCreateRequestBody, DynamicClientRegMSG)
 	}

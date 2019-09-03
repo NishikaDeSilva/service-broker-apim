@@ -37,4 +37,4 @@ db:
   username: "root"
   password: "root123"
   database: "broker"
-  logMode:  true
+  logMode:  false

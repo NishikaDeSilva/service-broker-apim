@@ -31,10 +31,6 @@
 						"type": "text"
 					}
 				],
-				"body": {
-					"mode": "raw",
-					"raw": ""
-				},
 				"url": {
 					"raw": "http://{{host}}:{{port}}/v2/catalog",
 					"protocol": "http",
@@ -84,7 +80,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"api\": {\n    \"name\": \"Test-Demo\",\n    \"description\": \"Sample API.\\r\\n\",\n    \"context\": \"/demo\",\n    \"version\": \"1.0.0\",\n    \"isDefaultVersion\": false,\n    \"visibility\": \"PUBLIC\",\n    \"apiDefinition\": {\n      \"swagger\": \"2.0\",\n      \"paths\": {\n        \"/get\": {\n          \"get\": {\n            \"responses\": {\n              \"200\": {\n                \"description\": \"\"\n              }\n            },\n            \"x-auth-type\": \"Application & Application User\",\n            \"x-throttling-tier\": \"Unlimited\"\n          }\n        }\n      },\n      \"info\": {\n        \"title\": \"Test\",\n        \"version\": \"v1\"\n      }\n    },\n    \"status\": \"PUBLISHED\",\n    \"type\": \"HTTP\",\n    \"transport\": [\n      \"http\",\n      \"https\"\n    ],\n    \"tiers\": [\n      \"Unlimited\"\n    ],\n    \"endpointConfig\": {\n      \"production_endpoints\": {\n        \"url\": \"http://sample.cf.app.backend/\",\n        \"config\": null,\n        \"template_not_supported\": false\n      },\n      \"sandbox_endpoints\": {\n        \"url\": \"http://sample.cf.app.backend/\",\n        \"config\": null,\n        \"template_not_supported\": false\n      },\n      \"endpoint_type\": \"http\"\n    }\n  }\n    }\n}"
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"api\": {\n   \"name\": \"PizzaShackAPI\",\n   \"description\": \"This document describe a RESTFul API for Pizza Shack online pizza delivery store.\\r\\n\",\n   \"context\": \"/pizzashack\",\n   \"version\": \"1.0.0\",\n   \"provider\": \"admin\",\n   \"apiDefinition\": \"{\\\"paths\\\":{\\\"/order\\\":{\\\"post\\\":{\\\"x-auth-type\\\":\\\"Application & Application User\\\",\\\"x-throttling-tier\\\":\\\"Unlimited\\\",\\\"description\\\":\\\"Create a new Order\\\",\\\"parameters\\\":[{\\\"schema\\\":{\\\"$ref\\\":\\\"#/definitions/Order\\\"},\\\"description\\\":\\\"Order object that needs to be added\\\",\\\"name\\\":\\\"body\\\",\\\"required\\\":true,\\\"in\\\":\\\"body\\\"}],\\\"responses\\\":{\\\"201\\\":{\\\"headers\\\":{\\\"Location\\\":{\\\"description\\\":\\\"The URL of the newly created resource.\\\",\\\"type\\\":\\\"string\\\"}},\\\"schema\\\":{\\\"$ref\\\":\\\"#/definitions/Order\\\"},\\\"description\\\":\\\"Created.\\\"}}}},\\\"/menu\\\":{\\\"get\\\":{\\\"x-auth-type\\\":\\\"Application & Application User\\\",\\\"x-throttling-tier\\\":\\\"Unlimited\\\",\\\"description\\\":\\\"Return a list of available menu items\\\",\\\"parameters\\\":[],\\\"responses\\\":{\\\"200\\\":{\\\"headers\\\":{},\\\"schema\\\":{\\\"title\\\":\\\"Menu\\\",\\\"properties\\\":{\\\"list\\\":{\\\"items\\\":{\\\"$ref\\\":\\\"#/definitions/MenuItem\\\"},\\\"type\\\":\\\"array\\\"}},\\\"type\\\":\\\"object\\\"},\\\"description\\\":\\\"OK.\\\"}}}}},\\\"schemes\\\":[\\\"https\\\"],\\\"produces\\\":[\\\"application/json\\\"],\\\"swagger\\\":\\\"2.0\\\",\\\"definitions\\\":{\\\"MenuItem\\\":{\\\"title\\\":\\\"Pizza menu Item\\\",\\\"properties\\\":{\\\"price\\\":{\\\"type\\\":\\\"string\\\"},\\\"description\\\":{\\\"type\\\":\\\"string\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"},\\\"image\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"name\\\"]},\\\"Order\\\":{\\\"title\\\":\\\"Pizza Order\\\",\\\"properties\\\":{\\\"customerName\\\":{\\\"type\\\":\\\"string\\\"},\\\"delivered\\\":{\\\"type\\\":\\\"boolean\\\"},\\\"address\\\":{\\\"type\\\":\\\"string\\\"},\\\"pizzaType\\\":{\\\"type\\\":\\\"string\\\"},\\\"creditCardNumber\\\":{\\\"type\\\":\\\"string\\\"},\\\"quantity\\\":{\\\"type\\\":\\\"number\\\"},\\\"orderId\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"orderId\\\"]}},\\\"consumes\\\":[\\\"application/json\\\"],\\\"info\\\":{\\\"title\\\":\\\"PizzaShackAPI\\\",\\\"description\\\":\\\"This document describe a RESTFul API for Pizza Shack online pizza delivery store.\\\\n\\\",\\\"license\\\":{\\\"name\\\":\\\"Apache 2.0\\\",\\\"url\\\":\\\"http://www.apache.org/licenses/LICENSE-2.0.html\\\"},\\\"contact\\\":{\\\"email\\\":\\\"architecture@pizzashack.com\\\",\\\"name\\\":\\\"John Doe\\\",\\\"url\\\":\\\"http://www.pizzashack.com\\\"},\\\"version\\\":\\\"1.0.0\\\"}}\",\n   \"wsdlUri\": null,\n   \"status\": \"CREATED\",\n   \"responseCaching\": \"Disabled\",\n   \"cacheTimeout\": 300,\n   \"destinationStatsEnabled\": false,\n   \"isDefaultVersion\": false,\n   \"type\": \"HTTP\",\n   \"transport\":    [\n      \"http\",\n      \"https\"\n   ],\n   \"tags\": [\"pizza\"],\n   \"tiers\": [\"Unlimited\"],\n   \"maxTps\":    {\n      \"sandbox\": 5000,\n      \"production\": 1000\n   },\n   \"visibility\": \"PUBLIC\",\n   \"visibleRoles\": [],\n   \"endpointConfig\": \"{\\\"production_endpoints\\\":{\\\"url\\\":\\\"https://localhost:9443/am/sample/pizzashack/v1/api/\\\",\\\"config\\\":null},\\\"sandbox_endpoints\\\":{\\\"url\\\":\\\"https://localhost:9443/am/sample/pizzashack/v1/api/\\\",\\\"config\\\":null},\\\"endpoint_type\\\":\\\"http\\\"}\",\n   \"endpointSecurity\":    {\n      \"username\": \"user\",\n      \"type\": \"basic\",\n      \"password\": \"pass\"\n   },\n   \"gatewayEnvironments\": \"Production and Sandbox\",\n   \"sequences\": [{\"name\":\"json_validator\",\"type\": \"in\"},{\"name\":\"log_out_message\",\"type\": \"out\"}],\n   \"subscriptionAvailability\": null,\n   \"subscriptionAvailableTenants\": [],\n   \"businessInformation\":    {\n      \"businessOwnerEmail\": \"marketing@pizzashack.com\",\n      \"technicalOwnerEmail\": \"architecture@pizzashack.com\",\n      \"technicalOwner\": \"John Doe\",\n      \"businessOwner\": \"Jane Roe\"\n   },\n   \"corsConfiguration\":    {\n      \"accessControlAllowOrigins\": [\"*\"],\n      \"accessControlAllowHeaders\":       [\n         \"authorization\",\n         \"Access-Control-Allow-Origin\",\n         \"Content-Type\",\n         \"SOAPAction\"\n      ],\n      \"accessControlAllowMethods\":       [\n         \"GET\",\n         \"PUT\",\n         \"POST\",\n         \"DELETE\",\n         \"PATCH\",\n         \"OPTIONS\"\n      ],\n      \"accessControlAllowCredentials\": false,\n      \"corsConfigurationEnabled\": false\n   }\n}\n    }\n}"
 				},
 				"url": {
 					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}",
@@ -236,10 +232,6 @@
 						"type": "text"
 					}
 				],
-				"body": {
-					"mode": "raw",
-					"raw": ""
-				},
 				"url": {
 					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{bind-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
 					"protocol": "http",
@@ -294,10 +286,6 @@
 						"type": "text"
 					}
 				],
-				"body": {
-					"mode": "raw",
-					"raw": ""
-				},
 				"url": {
 					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{service-key-bind-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
 					"protocol": "http",
@@ -352,10 +340,6 @@
 						"value": "2.14"
 					}
 				],
-				"body": {
-					"mode": "raw",
-					"raw": ""
-				},
 				"url": {
 					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
 					"protocol": "http",
