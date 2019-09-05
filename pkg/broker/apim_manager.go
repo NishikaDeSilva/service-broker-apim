@@ -17,6 +17,7 @@ import (
 const (
 	CreateAPIContext              = "create API"
 	CreateApplicationContext      = "create application"
+	CreateSubscriptionContext     = "create subscription"
 	GenerateKeyContext            = "Generate application keys"
 	StoreApplicationContext       = "/api/am/store/v0.14/applications"
 	StoreSubscriptionContext      = "/api/am/store/v0.14/subscriptions"
@@ -36,7 +37,7 @@ const (
 type APIMManager struct {
 	PublisherEndpoint string
 	StoreEndpoint     string
-	TokenManager *TokenManager
+	TokenManager      *TokenManager
 }
 
 // CreateAPI function creates an API
@@ -287,7 +288,7 @@ func (am *APIMManager) SearchApplication(appName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
 	}
-	u, err := utils.ConstructURL(am.StoreEndpoint,StoreApplicationContext)
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext)
 	if err != nil {
 		return "", errors.Wrap(err, "cannot construct, search Application endpoint")
 	}

@@ -63,7 +63,7 @@ type APIReqBody struct {
 	WsdlUri                 string `json:"wsdlUri,omitempty"`
 	ResponseCaching         string `json:"responseCaching,omitempty"`
 	CacheTimeout            int32  `json:"cacheTimeout,omitempty"`
-	DestinationStatsEnabled bool `json:"destinationStatsEnabled,omitempty"`
+	DestinationStatsEnabled bool   `json:"destinationStatsEnabled,omitempty"`
 	IsDefaultVersion        bool   `json:"isDefaultVersion"`
 	// The transport to be set. Accepted values are HTTP, WS
 	Type_ string `json:"type"`
@@ -118,12 +118,17 @@ type APIParam struct {
 }
 
 type ApplicationConfig struct {
-	SubscriptionTier string `json:"subscriptionTier"`
 	ApplicationCreateReq
 }
 
 type ApplicationParam struct {
 	AppSpec ApplicationConfig `json:"app"`
+}
+
+type SubscriptionParam struct {
+	APIName          string `json:"apiName"`
+	AppName          string `json:"appName"`
+	SubscriptionTier string `json:"tier"`
 }
 
 type SubscriptionReq struct {

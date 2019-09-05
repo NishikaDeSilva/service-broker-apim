@@ -7,6 +7,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
@@ -28,6 +29,7 @@ const (
 	// Logging data keys
 	LogKeyAPIName         = "api-name"
 	LogKeyAPIId           = "api-id"
+	LogKeyAPPID           = "app-id"
 	LogKeyServiceID       = "service-id"
 	LogKeyPlanID          = "plan-id"
 	LogKeyInstanceID      = "instance-id"
@@ -39,7 +41,7 @@ const (
 type APIMServiceBroker struct {
 	BrokerConfig *config.BrokerConfig
 	//TokenManager *TokenManager
-	APIMManager  *APIMManager
+	APIMManager *APIMManager
 }
 
 func (asb *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
@@ -56,278 +58,223 @@ func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 		},
 	}
 	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		// Verifying whether the instance is already exists
-		exists, err := isInstanceExists(instanceID)
-		// Handling DB connection error
-		if err != nil {
-			utils.LogError("unable to get instance from DB", err, logData)
-			return spec, err
-		}
-		if exists {
-			utils.LogError(CreateAPIContext, brokerapi.ErrInstanceAlreadyExists, logData)
-			return spec, brokerapi.ErrInstanceAlreadyExists
-		}
-		// Parse API JSON Spec
-		apiParam, err := toAPIParam(serviceDetails.RawParameters)
-		if err != nil {
-			utils.LogError("unable to parse API parameters", err, logData)
-			return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-				http.StatusBadRequest, "Parsing API JSON Spec parameter")
-		}
-
-		logData.AddData(LogKeyAPIName, apiParam.APISpec.Name)
-
-		apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec)
-		if err != nil {
-			utils.LogError("unable to create API", err, logData)
-			e, ok := err.(*client.InvokeError)
-			if ok && e.StatusCode == http.StatusConflict {
-				return spec, brokerapi.ErrInstanceAlreadyExists
-			}
-			return spec, err
-		}
-		i := &dbutil.Instance{
-			ServiceID: serviceDetails.ServiceID,
-			PlanID:    serviceDetails.PlanID,
-			Id:        instanceID,
-			ApiID:     apiID,
-			APIName:   apiParam.APISpec.Name,
-		}
-		logData.AddData(LogKeyAPIId, apiID)
-		// Store instance in the database
-		err = dbutil.StoreInstance(i)
-		if err != nil {
-			utils.LogError("unable to store instance", err, logData)
-			errDel := asb.APIMManager.DeleteAPI(apiID)
-			if errDel != nil {
-				utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
-			}
-			return spec, errors.Wrapf(err, "couldn't store instance in the Database instanceId: %s API ID: %s",
-				instanceID, apiID)
-		}
-		if err = asb.APIMManager.PublishAPI(apiID); err != nil {
-			utils.LogError("unable to publish API", err, logData)
-			errDel := asb.APIMManager.DeleteAPI(apiID)
-			if errDel != nil {
-				utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
-			}
-			return spec, err
-		}
+		return asb.createAPIService(instanceID, serviceDetails)
 	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		//TODO
+		return asb.createAppService(instanceID, serviceDetails)
+	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+		return asb.createSubscriptionService(instanceID, serviceDetails)
 	} else {
 		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
 		return spec, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
 			http.StatusBadRequest, "provisioning")
 	}
-	return spec, nil
 }
 
 func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,
 	details brokerapi.DeprovisionDetails, asyncAllowed bool) (brokerapi.DeprovisionServiceSpec, error) {
-	var logData = &utils.LogData{
-		Data: lager.Data{
-			LogKeyServiceID:  details.ServiceID,
-			LogKeyPlanID:     details.PlanID,
-			LogKeyInstanceID: instanceID,
-		},
-	}
-	if !isAPIPlan(details.ServiceID, details.PlanID) {
-		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
-		return brokerapi.DeprovisionServiceSpec{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
-			http.StatusBadRequest, "Deprovisioning")
-	}
-	instance := &dbutil.Instance{
-		Id: instanceID,
-	}
-	exists, err := dbutil.RetrieveInstance(instance)
-	if err != nil {
-		utils.LogError("unable to get instance from DB", err, logData)
-		return brokerapi.DeprovisionServiceSpec{}, err
-	}
-	if !exists {
-		return brokerapi.DeprovisionServiceSpec{}, brokerapi.ErrInstanceDoesNotExist
-	}
-
-	logData.AddData(LogKeyAPIName, instance.APIName).AddData(LogKeyAPIId, instance.ApiID)
-	err = asb.APIMManager.DeleteAPI(instance.ApiID)
-	if err != nil {
-		utils.LogError("unable to delete the API", err, logData)
-		return brokerapi.DeprovisionServiceSpec{}, err
-	}
-	err = dbutil.DeleteInstance(instance)
-	if err != nil {
-		utils.LogError("unable to delete the instance from the database", err, logData)
-		return brokerapi.DeprovisionServiceSpec{}, err
-	}
+	//var logData = &utils.LogData{
+	//	Data: lager.Data{
+	//		LogKeyServiceID:  details.ServiceID,
+	//		LogKeyPlanID:     details.PlanID,
+	//		LogKeyInstanceID: instanceID,
+	//	},
+	//}
+	//if !isAPIPlan(details.ServiceID, details.PlanID) {
+	//	utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
+	//	return brokerapi.DeprovisionServiceSpec{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+	//		http.StatusBadRequest, "Deprovisioning")
+	//}
+	//instance := &dbutil.Instance{
+	//	Id: instanceID,
+	//}
+	//exists, err := dbutil.RetrieveInstance(instance)
+	//if err != nil {
+	//	utils.LogError("unable to get instance from DB", err, logData)
+	//	return brokerapi.DeprovisionServiceSpec{}, err
+	//}
+	//if !exists {
+	//	return brokerapi.DeprovisionServiceSpec{}, brokerapi.ErrInstanceDoesNotExist
+	//}
+	//
+	//logData.AddData(LogKeyAPIName, instance.APIName).AddData(LogKeyAPIId, instance.ApiID)
+	//err = asb.APIMManager.DeleteAPI(instance.ApiID)
+	//if err != nil {
+	//	utils.LogError("unable to delete the API", err, logData)
+	//	return brokerapi.DeprovisionServiceSpec{}, err
+	//}
+	//err = dbutil.DeleteInstance(instance)
+	//if err != nil {
+	//	utils.LogError("unable to delete the instance from the database", err, logData)
+	//	return brokerapi.DeprovisionServiceSpec{}, err
+	//}
 
 	return brokerapi.DeprovisionServiceSpec{}, nil
 }
 
 func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
 	details brokerapi.BindDetails, asyncAllowed bool) (brokerapi.Binding, error) {
-	var logData = &utils.LogData{
-		Data: lager.Data{
-			LogKeyServiceID:  details.ServiceID,
-			LogKeyPlanID:     details.PlanID,
-			LogKeyInstanceID: instanceID,
-			LogKeyBindID:     bindingID,
-		},
-	}
-	utils.LogDebug("Binding", logData)
-	if !isAPIPlan(details.ServiceID, details.PlanID) {
-		utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
-		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
-			http.StatusBadRequest, "Binding")
-	}
-	// Validates the parameters before moving forward
-	applicationParam, err := toApplicationParam(details.RawParameters)
-	if err != nil {
-		utils.LogError("invalid parameter in application json", err, logData)
-		return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
-			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
-	}
+	//var logData = &utils.LogData{
+	//	Data: lager.Data{
+	//		LogKeyServiceID:  details.ServiceID,
+	//		LogKeyPlanID:     details.PlanID,
+	//		LogKeyInstanceID: instanceID,
+	//		LogKeyBindID:     bindingID,
+	//	},
+	//}
+	//utils.LogDebug("Binding", logData)
+	//if !isAPIPlan(details.ServiceID, details.PlanID) {
+	//	utils.LogError("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
+	//	return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid Plan or Service"),
+	//		http.StatusBadRequest, "Binding")
+	//}
+	//// Validates the parameters before moving forward
+	//applicationParam, err := toApplicationParam(details.RawParameters)
+	//if err != nil {
+	//	utils.LogError("invalid parameter in application json", err, logData)
+	//	return brokerapi.Binding{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+	//		http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
+	//}
+	//
+	//// construct the bind object
+	//bind := &dbutil.Bind{
+	//	Id: bindingID,
+	//}
+	//exists, err := dbutil.RetrieveBind(bind)
+	//if err != nil {
+	//	utils.LogError("unable to retrieve Bind from the database", err, logData)
+	//	return brokerapi.Binding{}, err
+	//}
+	//// Bind exists
+	//if exists {
+	//	return brokerapi.Binding{}, brokerapi.ErrBindingAlreadyExists
+	//}
+	//
+	//instance := &dbutil.Instance{
+	//	Id: instanceID,
+	//}
+	//exists, err = dbutil.RetrieveInstance(instance)
+	//if err != nil {
+	//	utils.LogError("unable to get instance from DB", err, logData)
+	//	return brokerapi.Binding{}, err
+	//}
+	//if !exists {
+	//	utils.LogError("instance does not not exists", err, logData)
+	//	return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
+	//}
+	//
+	//var (
+	//	// Is the create service key flow
+	//	isCreateService = false
+	//	// Application name
+	//	cfAppName string
+	//	// Application instance
+	//	application *dbutil.Application
+	//	// Whether the application exists or not
+	//	applicationExists = false
+	//)
+	//if details.BindResource != nil && details.BindResource.AppGuid != "" {
+	//	cfAppName = details.BindResource.AppGuid
+	//} else { //create service key command
+	//	isCreateService = true
+	//	if !utils.IsValidParams(applicationParam.AppSpec.Name) {
+	//		return brokerapi.Binding{}, errors.New(`invalid value for "Name" parameter`)
+	//	}
+	//	cfAppName = applicationParam.AppSpec.Name
+	//}
+	//
+	//logData.AddData(LogKeyApplicationName, cfAppName).AddData("create-service-key command", isCreateService)
+	//application = &dbutil.Application{
+	//	Name: cfAppName,
+	//}
+	//// Avoid creating new application in, Bind-service command and service-key command which failed in Generating keys
+	//applicationExists, err = dbutil.RetrieveApp(application)
+	//if err != nil {
+	//	utils.LogError("unable to retrieve application from the database", err, logData)
+	//	return brokerapi.Binding{}, err
+	//}
+	//// Creates a new application
+	//if !applicationExists {
+	//	if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
+	//		applicationParam.AppSpec.CallbackUrl) {
+	//		return brokerapi.Binding{}, errors.New("Invalid parameters")
+	//	}
+	//	appCreateReq := &ApplicationCreateReq{
+	//		ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
+	//		Description:    applicationParam.AppSpec.Description,
+	//		Name:           cfAppName,
+	//		CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
+	//	}
+	//
+	//	logData.
+	//		AddData("throttlingTier", appCreateReq.ThrottlingTier).
+	//		AddData("description", appCreateReq.Description).
+	//		AddData("callbackUrl", appCreateReq.CallbackUrl)
+	//	utils.LogDebug("creating a new application...", logData)
+	//	appID, err := asb.APIMManager.CreateApplication(appCreateReq)
+	//	if err != nil {
+	//		e, ok := err.(*client.InvokeError)
+	//		if ok {
+	//			logData.AddData("response code", strconv.Itoa(e.StatusCode))
+	//		}
+	//		utils.LogError("unable to create application", err, logData)
+	//		return brokerapi.Binding{}, err
+	//	}
+	//
+	//	application.Id = appID
+	//	// Store application before doing further API calls
+	//	err = dbutil.StoreApp(application)
+	//	if err != nil {
+	//		utils.LogError("unable to store application", err, logData)
+	//		return brokerapi.Binding{}, err
+	//	}
+	//	// Get the keys
+	//	appKeyGenResp, err := asb.APIMManager.GenerateKeys(appID)
+	//	if err != nil {
+	//		e, ok := err.(*client.InvokeError)
+	//		if ok {
+	//			logData.AddData("response code", strconv.Itoa(e.StatusCode))
+	//		}
+	//		utils.LogError("unable to generate keys for application", err, logData)
+	//		return brokerapi.Binding{}, err
+	//	}
+	//	application.Token = appKeyGenResp.Token.AccessToken
+	//	application.ConsumerKey = appKeyGenResp.ConsumerKey
+	//	application.ConsumerSecret = appKeyGenResp.ConsumerSecret
+	//	application.SubscriptionTier = applicationParam.AppSpec.SubscriptionTier
+	//	// Update ApplicationConfig state
+	//	err = dbutil.UpdateApp(application)
+	//	if err != nil {
+	//		utils.LogError("unable to store application: ", err, logData)
+	//		return brokerapi.Binding{}, err
+	//	}
+	//}
+	//logData.AddData(LogKeyAPIName, instance.APIName)
+	//if !utils.IsValidParams(applicationParam.AppSpec.SubscriptionTier) {
+	//	nErr := errors.New(`invalid value for the SubscriptionTier "parameter"`)
+	//	utils.LogError(`invalid value for the SubscriptionTier "parameter"`, nErr, logData)
+	//	return brokerapi.Binding{}, nErr
+	//}
+	//utils.LogDebug("creating a subscription for application", logData)
+	//subscriptionID, err := asb.APIMManager.Subscribe(application.Id, instance.ApiID,
+	//	applicationParam.AppSpec.SubscriptionTier)
+	//if err != nil {
+	//	utils.LogError("unable to create subscription", err, logData)
+	//	return brokerapi.Binding{}, err
+	//}
+	//// Construct Bind struct and store
+	//bind.SubscriptionID = subscriptionID
+	//bind.AppName = cfAppName
+	//bind.InstanceID = instanceID
+	//bind.ServiceID = details.ServiceID
+	//bind.PlanID = details.PlanID
+	//bind.IsCreateService = isCreateService
+	//err = dbutil.StoreBind(bind)
+	//if err != nil {
+	//	utils.LogError("unable to store bind", err, logData)
+	//	return brokerapi.Binding{}, err
+	//}
 
-	// construct the bind object
-	bind := &dbutil.Bind{
-		Id: bindingID,
-	}
-	exists, err := dbutil.RetrieveBind(bind)
-	if err != nil {
-		utils.LogError("unable to retrieve Bind from the database", err, logData)
-		return brokerapi.Binding{}, err
-	}
-	// Bind exists
-	if exists {
-		return brokerapi.Binding{}, brokerapi.ErrBindingAlreadyExists
-	}
-
-	instance := &dbutil.Instance{
-		Id: instanceID,
-	}
-	exists, err = dbutil.RetrieveInstance(instance)
-	if err != nil {
-		utils.LogError("unable to get instance from DB", err, logData)
-		return brokerapi.Binding{}, err
-	}
-	if !exists {
-		utils.LogError("instance does not not exists", err, logData)
-		return brokerapi.Binding{}, errors.Wrapf(err, ErrMSGInstanceNotExist, instanceID)
-	}
-
-	var (
-		// Is the create service key flow
-		isCreateService = false
-		// Application name
-		cfAppName string
-		// Application instance
-		application *dbutil.Application
-		// Whether the application exists or not
-		applicationExists = false
-	)
-	if details.BindResource != nil && details.BindResource.AppGuid != "" {
-		cfAppName = details.BindResource.AppGuid
-	} else { //create service key command
-		isCreateService = true
-		if !utils.IsValidParams(applicationParam.AppSpec.Name) {
-			return brokerapi.Binding{}, errors.New(`invalid value for "Name" parameter`)
-		}
-		cfAppName = applicationParam.AppSpec.Name
-	}
-
-	logData.AddData(LogKeyApplicationName, cfAppName).AddData("create-service-key command", isCreateService)
-	application = &dbutil.Application{
-		Name: cfAppName,
-	}
-	// Avoid creating new application in, Bind-service command and service-key command which failed in Generating keys
-	applicationExists, err = dbutil.RetrieveApp(application)
-	if err != nil {
-		utils.LogError("unable to retrieve application from the database", err, logData)
-		return brokerapi.Binding{}, err
-	}
-	// Creates a new application
-	if !applicationExists {
-		if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
-			applicationParam.AppSpec.CallbackUrl) {
-			return brokerapi.Binding{}, errors.New("Invalid parameters")
-		}
-		appCreateReq := &ApplicationCreateReq{
-			ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
-			Description:    applicationParam.AppSpec.Description,
-			Name:           cfAppName,
-			CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
-		}
-
-		logData.
-			AddData("throttlingTier", appCreateReq.ThrottlingTier).
-			AddData("description", appCreateReq.Description).
-			AddData("callbackUrl", appCreateReq.CallbackUrl)
-		utils.LogDebug("creating a new application...", logData)
-		appID, err := asb.APIMManager.CreateApplication(appCreateReq)
-		if err != nil {
-			e, ok := err.(*client.InvokeError)
-			if ok {
-				logData.AddData("response code", strconv.Itoa(e.StatusCode))
-			}
-			utils.LogError("unable to create application", err, logData)
-			return brokerapi.Binding{}, err
-		}
-
-		application.Id = appID
-		// Store application before doing further API calls
-		err = dbutil.StoreApp(application)
-		if err != nil {
-			utils.LogError("unable to store application", err, logData)
-			return brokerapi.Binding{}, err
-		}
-		// Get the keys
-		appKeyGenResp, err := asb.APIMManager.GenerateKeys(appID)
-		if err != nil {
-			e, ok := err.(*client.InvokeError)
-			if ok {
-				logData.AddData("response code", strconv.Itoa(e.StatusCode))
-			}
-			utils.LogError("unable to generate keys for application", err, logData)
-			return brokerapi.Binding{}, err
-		}
-		application.Token = appKeyGenResp.Token.AccessToken
-		application.ConsumerKey = appKeyGenResp.ConsumerKey
-		application.ConsumerSecret = appKeyGenResp.ConsumerSecret
-		application.SubscriptionTier = applicationParam.AppSpec.SubscriptionTier
-		// Update ApplicationConfig state
-		err = dbutil.UpdateApp(application)
-		if err != nil {
-			utils.LogError("unable to store application: ", err, logData)
-			return brokerapi.Binding{}, err
-		}
-	}
-	logData.AddData(LogKeyAPIName, instance.APIName)
-	if !utils.IsValidParams(applicationParam.AppSpec.SubscriptionTier) {
-		nErr := errors.New(`invalid value for the SubscriptionTier "parameter"`)
-		utils.LogError(`invalid value for the SubscriptionTier "parameter"`, nErr, logData)
-		return brokerapi.Binding{}, nErr
-	}
-	utils.LogDebug("creating a subscription for application", logData)
-	subscriptionID, err := asb.APIMManager.Subscribe(application.Id, instance.ApiID,
-		applicationParam.AppSpec.SubscriptionTier)
-	if err != nil {
-		utils.LogError("unable to create subscription", err, logData)
-		return brokerapi.Binding{}, err
-	}
-	// Construct Bind struct and store
-	bind.SubscriptionID = subscriptionID
-	bind.AppName = cfAppName
-	bind.InstanceID = instanceID
-	bind.ServiceID = details.ServiceID
-	bind.PlanID = details.PlanID
-	bind.IsCreateService = isCreateService
-	err = dbutil.StoreBind(bind)
-	if err != nil {
-		utils.LogError("unable to store bind", err, logData)
-		return brokerapi.Binding{}, err
-	}
-
-	credentialsMap := credentialsMap(application)
+	credentialsMap := credentialsMap(nil)
 	return brokerapi.Binding{
 		Credentials: credentialsMap,
 	}, nil
@@ -468,6 +415,229 @@ func Plan() []brokerapi.Service {
 	}
 }
 
+func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails brokerapi.ProvisionDetails, ) (spec brokerapi.ProvisionedServiceSpec, err error) {
+	var logData = &utils.LogData{
+		Data: lager.Data{
+			LogKeyServiceID:  serviceDetails.ServiceID,
+			LogKeyPlanID:     serviceDetails.PlanID,
+			LogKeyInstanceID: instanceID,
+		},
+	}
+	utils.LogDebug("creating API service instance", logData)
+	// Verifying whether the instance is already exists
+	exists, err := isInstanceExists(instanceID)
+	// Handling DB connection error
+	if err != nil {
+		utils.LogError("unable to get instance from DB", err, logData)
+		return spec, brokerapi.NewFailureResponse(errors.New("unable to query database"),
+			http.StatusInternalServerError, "getting the instance information from DB")
+	}
+	if exists {
+		utils.LogError(CreateAPIContext, brokerapi.ErrInstanceAlreadyExists, logData)
+		return spec, brokerapi.ErrInstanceAlreadyExists
+	}
+	// Parse API JSON Spec
+	apiParam, err := toAPIParam(serviceDetails.RawParameters)
+	if err != nil {
+		utils.LogError("unable to parse API parameters", err, logData)
+		return spec, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+			http.StatusBadRequest, "Parsing API JSON Spec parameter")
+	}
+
+	apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec)
+	if err != nil {
+		utils.LogError("unable to create API", err, logData)
+		e, ok := err.(*client.InvokeError)
+		if ok && e.StatusCode == http.StatusConflict {
+			return spec, brokerapi.ErrInstanceAlreadyExists
+		}
+		return spec, brokerapi.NewFailureResponse(errors.New("unable to create the API"),
+			http.StatusInternalServerError, "unable to create the API")
+	}
+	logData.AddData(LogKeyAPIName, apiParam.APISpec.Name)
+	logData.AddData(LogKeyAPIId, apiID)
+	utils.LogDebug("created API in APIM", logData)
+
+	i := &dbutil.Instance{
+		ServiceID:        serviceDetails.ServiceID,
+		PlanID:           serviceDetails.PlanID,
+		Id:               instanceID,
+		APIMResourceID:   apiID,
+		APIMResourceName: apiParam.APISpec.Name,
+	}
+
+	// Store instance in the database
+	err = dbutil.StoreInstance(i)
+	if err != nil {
+		utils.LogError("unable to store instance", err, logData)
+		errDel := asb.APIMManager.DeleteAPI(apiID)
+		if errDel != nil {
+			utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
+		}
+		return spec, brokerapi.NewFailureResponse(errors.New("unable store information in the database"),
+			http.StatusInternalServerError, "unable to store instance in database")
+	}
+	if err = asb.APIMManager.PublishAPI(apiID); err != nil {
+		utils.LogError("unable to publish API", err, logData)
+		errDel := asb.APIMManager.DeleteAPI(apiID)
+		if errDel != nil {
+			utils.LogError("failed to cleanup, unable to delete the API", errDel, logData)
+		}
+		return spec, brokerapi.NewFailureResponse(errors.New("unable to publish the API"),
+			http.StatusInternalServerError, "unable to publish the API")
+	}
+	utils.LogDebug("published API in APIM", logData)
+	return spec, nil
+}
+
+func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails brokerapi.ProvisionDetails) (brokerapi.ProvisionedServiceSpec, error) {
+	var logData = &utils.LogData{
+		Data: lager.Data{
+			LogKeyServiceID:  serviceDetails.ServiceID,
+			LogKeyPlanID:     serviceDetails.PlanID,
+			LogKeyInstanceID: instanceID,
+		},
+	}
+	// Verifying whether the instance is already exists
+	exists, err := isInstanceExists(instanceID)
+	// Handling DB connection error
+	if err != nil {
+		utils.LogError("unable to get instance from DB", err, logData)
+		return brokerapi.ProvisionedServiceSpec{}, err
+	}
+	if exists {
+		utils.LogError(CreateApplicationContext, brokerapi.ErrInstanceAlreadyExists, logData)
+		return brokerapi.ProvisionedServiceSpec{}, brokerapi.ErrInstanceAlreadyExists
+	}
+	// Validates the parameters before moving forward
+	applicationParam, err := toApplicationParam(serviceDetails.RawParameters)
+	if err != nil {
+		utils.LogError("invalid parameter in application json", err, logData)
+		return brokerapi.ProvisionedServiceSpec{}, brokerapi.NewFailureResponse(errors.New("invalid parameter"),
+			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
+	}
+	if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
+		applicationParam.AppSpec.CallbackUrl, applicationParam.AppSpec.Name) {
+		return brokerapi.ProvisionedServiceSpec{}, brokerapi.NewFailureResponse(errors.New("invalid parameters"),
+			http.StatusBadRequest, "Parsing Subscription parameters")
+	}
+	appCreateReq := &ApplicationCreateReq{
+		ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
+		Description:    applicationParam.AppSpec.Description,
+		Name:           applicationParam.AppSpec.Name,
+		CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
+	}
+
+	logData.
+		AddData("throttlingTier", appCreateReq.ThrottlingTier).
+		AddData("description", appCreateReq.Description).
+		AddData("callbackUrl", appCreateReq.CallbackUrl)
+	utils.LogDebug("creating a new application...", logData)
+	appID, err := asb.APIMManager.CreateApplication(appCreateReq)
+	if err != nil {
+		e, ok := err.(*client.InvokeError)
+		if ok {
+			logData.AddData("response code", strconv.Itoa(e.StatusCode))
+		}
+		utils.LogError("unable to create application", err, logData)
+		return brokerapi.ProvisionedServiceSpec{}, err
+	}
+	i := &dbutil.Instance{
+		ServiceID:        serviceDetails.ServiceID,
+		PlanID:           serviceDetails.PlanID,
+		Id:               instanceID,
+		APIMResourceID:   appID,
+		APIMResourceName: applicationParam.AppSpec.Name,
+	}
+	logData.AddData(LogKeyAPPID, appID)
+	// Store instance in the database
+	err = dbutil.StoreInstance(i)
+	if err != nil {
+		utils.LogError("unable to store instance", err, logData)
+		errDel := asb.APIMManager.DeleteApplication(appID)
+		if errDel != nil {
+			utils.LogError("failed to cleanup, unable to delete the application", errDel, logData)
+		}
+		return brokerapi.ProvisionedServiceSpec{}, errors.Wrapf(err, "couldn't store service instance in the Database instanceId: %s Application ID: %s",
+			instanceID, appID)
+	}
+	return brokerapi.ProvisionedServiceSpec{}, nil
+}
+
+func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, serviceDetails brokerapi.ProvisionDetails) (spec brokerapi.ProvisionedServiceSpec, err error) {
+	var logData = &utils.LogData{
+		Data: lager.Data{
+			LogKeyServiceID:  serviceDetails.ServiceID,
+			LogKeyPlanID:     serviceDetails.PlanID,
+			LogKeyInstanceID: instanceID,
+		},
+	}
+	// Verifying whether the instance is already exists
+	exists, err := isInstanceExists(instanceID)
+	// Handling DB connection error
+	if err != nil {
+		utils.LogError("unable to get instance from DB", err, logData)
+		return brokerapi.ProvisionedServiceSpec{}, failureResponse500("unable to query database", "getting the instance information from DB")
+	}
+	if exists {
+		utils.LogError(CreateSubscriptionContext, brokerapi.ErrInstanceAlreadyExists, logData)
+		return brokerapi.ProvisionedServiceSpec{}, brokerapi.ErrInstanceAlreadyExists
+	}
+	subsInfo, err := toSubscriptionParam(serviceDetails.RawParameters)
+	if err != nil {
+		utils.LogError("unable to parse Subscription parameters", err, logData)
+		return spec, invalidParamFailureResponse("parsing Subscription parameters")
+	}
+	if !utils.IsValidParams(subsInfo.APIName, subsInfo.AppName) {
+		return brokerapi.ProvisionedServiceSpec{}, invalidParamFailureResponse("parsing Subscription parameters")
+	}
+	logData.AddData("API name", subsInfo.APIName).AddData("Application Name", subsInfo.AppName)
+	apiID, err := asb.APIMManager.SearchAPI(subsInfo.APIName);
+	if err != nil {
+		utils.LogError("unable to search API", err, logData)
+		return spec, failureResponse500(fmt.Sprintf("couldn't find the API: %s", subsInfo.APIName), "searching API")
+	}
+	appID, err := asb.APIMManager.SearchApplication(subsInfo.AppName);
+	if err != nil {
+		utils.LogError("unable to search Application", err, logData)
+		return spec, failureResponse500(fmt.Sprintf("couldn't find the Application: %s", subsInfo.AppName), "searching application")
+	}
+
+	subsID, err := asb.APIMManager.Subscribe(appID, apiID, subsInfo.SubscriptionTier)
+	if err != nil {
+		utils.LogError("unable to create the subscription", err, logData)
+		return spec, failureResponse500("unable to create the subscription", "creating subscription")
+	}
+	i := &dbutil.Instance{
+		ServiceID:        serviceDetails.ServiceID,
+		PlanID:           serviceDetails.PlanID,
+		Id:               instanceID,
+		APIMResourceID:   subsID,
+		APIMResourceName: "",
+	}
+
+	// Store instance in the database
+	err = dbutil.StoreInstance(i)
+	if err != nil {
+		utils.LogError("unable to store instance", err, logData)
+		errDel := asb.APIMManager.UnSubscribe(subsID)
+		if errDel != nil {
+			utils.LogError("failed to cleanup, unable to delete the subscription", errDel, logData)
+		}
+		return spec, failureResponse500("unable to store instance in database", "unable to store instance in database")
+	}
+	return brokerapi.ProvisionedServiceSpec{}, nil
+}
+
+func failureResponse500(m, a string) *brokerapi.FailureResponse {
+	return brokerapi.NewFailureResponse(errors.New(m), http.StatusInternalServerError, a)
+}
+
+func invalidParamFailureResponse( a string) *brokerapi.FailureResponse {
+	return brokerapi.NewFailureResponse(errors.New("invalid parameters"),
+		http.StatusBadRequest, a)
+}
+
 func isAPIPlan(serviceID, planID string) bool {
 	return (serviceID == constants.ServiceId) && (planID == constants.APIPlanID)
 }
@@ -476,24 +646,38 @@ func isApplicationPlan(serviceID, planID string) bool {
 	return (serviceID == constants.ServiceId) && (planID == constants.ApplicationPlanID)
 }
 
+func isSubscriptionPlan(serviceID, planID string) bool {
+	return (serviceID == constants.ServiceId) && (planID == constants.SubscriptionPlanID)
+}
+
 // toApplicationParam parses application parameters
 func toApplicationParam(params json.RawMessage) (ApplicationParam, error) {
-	var applicationParam ApplicationParam
-	err := json.Unmarshal(params, &applicationParam)
+	var a ApplicationParam
+	err := json.Unmarshal(params, &a)
 	if err != nil {
-		return applicationParam, errors.Wrap(err, "unable to parse application parameters")
+		return a, errors.Wrap(err, "unable to parse application parameters")
 	}
-	return applicationParam, nil
+	return a, nil
+}
+
+// toSubscriptionParam parses subscription parameters
+func toSubscriptionParam(params json.RawMessage) (SubscriptionParam, error) {
+	var s SubscriptionParam
+	err := json.Unmarshal(params, &s)
+	if err != nil {
+		return s, errors.Wrap(err, "unable to parse subscription parameters")
+	}
+	return s, nil
 }
 
 // toAPIParam parses API spec parameter
 func toAPIParam(params json.RawMessage) (APIParam, error) {
-	var apiParam APIParam
-	err := json.Unmarshal(params, &apiParam)
+	var a APIParam
+	err := json.Unmarshal(params, &a)
 	if err != nil {
-		return apiParam, errors.Wrap(err, "unable to parse API parameters")
+		return a, errors.Wrap(err, "unable to parse API parameters")
 	}
-	return apiParam, nil
+	return a, nil
 }
 
 // isInstanceExists returns true if the given instanceID already exists in the DB

@@ -22,11 +22,11 @@ const MySQL = "mysql"
 
 // Instance represents the Instance model in the Database
 type Instance struct {
-	Id        string `gorm:"primary_key;type:varchar(100)"`
-	ServiceID string `gorm:"type:varchar(100);not null"`
-	PlanID    string `gorm:"type:varchar(100);not null"`
-	ApiID     string `gorm:"type:varchar(100);not null;unique"`
-	APIName   string `gorm:"type:varchar(100);not null;unique"`
+	Id               string `gorm:"primary_key;type:varchar(100)"`
+	ServiceID        string `gorm:"type:varchar(100);not null"`
+	PlanID           string `gorm:"type:varchar(100);not null"`
+	APIMResourceID   string `gorm:"type:varchar(100);not null;unique"`
+	APIMResourceName string `gorm:"type:varchar(100);not null;unique"`
 }
 
 // Application represents the Application model in the database
