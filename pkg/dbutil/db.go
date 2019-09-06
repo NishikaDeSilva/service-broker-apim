@@ -32,22 +32,20 @@ type Instance struct {
 // Application represents the Application model in the database
 type Application struct {
 	Name             string `gorm:"primary_key;type:varchar(100)"`
-	Id               string `gorm:"type:varchar(100);not null;unique"`
+	InstanceID       string `gorm:"type:varchar(100);not null;unique"`
 	Token            string `gorm:"type:varchar(100)"`
 	ConsumerKey      string `gorm:"type:varchar(100)"`
 	ConsumerSecret   string `gorm:"type:varchar(100)"`
-	SubscriptionTier string `gorm:"type:varchar(100);not null"`
 }
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	Id              string `gorm:"primary_key;type:varchar(100)"`
-	SubscriptionID  string `gorm:"type:varchar(100);not null;unique"`
-	InstanceID      string `gorm:"type:varchar(100);not null"`
-	AppName         string `gorm:"type:varchar(100);not null"`
-	ServiceID       string `gorm:"type:varchar(100);not null"`
-	PlanID          string `gorm:"type:varchar(100);not null"`
-	IsCreateService bool   `gorm:"type:BOOLEAN;not null;default:false"`
+	Id                 string `gorm:"primary_key;type:varchar(100)"`
+	InstanceID         string `gorm:"type:varchar(100);not null"`
+	AppName            string `gorm:"type:varchar(100);not null"`
+	ServiceID          string `gorm:"type:varchar(100);not null"`
+	PlanID             string `gorm:"type:varchar(100);not null"`
+	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
 }
 
 const (
@@ -123,8 +121,12 @@ func retrieve(model interface{}, table string) (bool, error) {
 // addForeignKeys configures foreign keys
 func addForeignKeys() {
 	err := db.Model(&Bind{}).
-		AddForeignKey("app_name", TableApplication+"(name)", "CASCADE",
-			"CASCADE").
+		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
+			"CASCADE").Error
+	if err != nil {
+		utils.HandleErrorWithLoggerAndExit("unable to add foreign keys", err)
+	}
+	err = db.Model(&Application{}).
 		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {

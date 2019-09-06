@@ -32,9 +32,11 @@ var (
 			ScopeAPICreate:  dummyToken,
 			ScopeAPIPublish: dummyToken,
 			ScopeSubscribe:  dummyToken,
+			ScopeAPIView:  dummyToken,
+
 		},
 	}
-	apiM = &APIMManager{
+	apiM = &APIMClient{
 		PublisherEndpoint: publisherTestEndpoint,
 		StoreEndpoint:     storeTestEndpoint,
 		TokenManager:tM,

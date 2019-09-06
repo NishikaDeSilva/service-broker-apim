@@ -53,13 +53,13 @@ func main() {
 		UserName:              brokerConfig.APIM.Username,
 		Password:              brokerConfig.APIM.Password,
 	}
-	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeSubscribe, broker.ScopeAPIPublish)
+	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeSubscribe, broker.ScopeAPIPublish, broker.ScopeAPIView)
 
 	// Initialize APIM Manager
-	apimManager := &broker.APIMManager{
+	apimManager := &broker.APIMClient{
 		PublisherEndpoint: brokerConfig.APIM.PublisherEndpoint,
 		StoreEndpoint:     brokerConfig.APIM.StoreEndpoint,
-		TokenManager: tManager,
+		TokenManager:      tManager,
 	}
 
 	// Handling terminating signal
