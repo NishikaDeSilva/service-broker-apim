@@ -1,0 +1,18 @@
+cf m
+cf create-service wso2apim-service api api-svc -c create-service-api.json
+cf create-service wso2apim-service app app-svc -c create-service-app.json
+cf create-service wso2apim-service subs subs-svc -c create-service-subs.json
+
+cf bind-service spring-music app-svc
+cf restart spring-music
+cf env spring-music
+
+cf service-key app-svc app-service-key
+cf delete-service-key app-svc app-service-key
+
+
+cf unbind-service spring-music app-svc
+cf restart spring-music
+cf env spring-music
+
+cf delete-service api-svc app-svc subs-svc

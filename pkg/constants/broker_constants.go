@@ -24,6 +24,6 @@ const ApplicationPlanDescription = "Create an Application in WSO2 API Manager"
 
 const SubscriptionPlanID = "00e851cd-ce8b-43eb-bc27-ac4d4fbb3298"
 
-const SubscriptionPlanName = "subscription"
+const SubscriptionPlanName = "subs"
 
 const SubscriptionPlanDescription = "Create a Subscription in WSO2 API Manager"
