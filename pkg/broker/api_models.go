@@ -117,18 +117,18 @@ type APIParam struct {
 	APISpec APIReqBody `json:"api"`
 }
 
-type ApplicationConfig struct {
-	ApplicationCreateReq
-}
-
 type ApplicationParam struct {
-	AppSpec ApplicationConfig `json:"app"`
+	AppSpec ApplicationCreateReq `json:"app"`
 }
 
-type SubscriptionParam struct {
+type SubscriptionSpec struct {
 	APIName          string `json:"apiName"`
 	AppName          string `json:"appName"`
 	SubscriptionTier string `json:"tier"`
+}
+
+type SubscriptionParam struct {
+	SubsSpec SubscriptionSpec `json:"subs"`
 }
 
 type SubscriptionReq struct {

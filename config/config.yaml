@@ -2,8 +2,8 @@
 
 # Logging configuration
 log:
-  logFile: "server.log"
-  logLevel: "debug"
+  logFilePath: "server.log"
+  level: "info"
 
 # HTTP server configuration
 http:

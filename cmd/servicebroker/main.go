@@ -30,7 +30,7 @@ func main() {
 		utils.HandleErrorAndExit(err)
 	}
 	// Initialize the logs
-	logger, err := utils.InitLogger(brokerConfig.Log.LogFile, brokerConfig.Log.LogLevel)
+	logger, err := utils.InitLogger(brokerConfig.Log.LogFilePath, brokerConfig.Log.Level)
 	if err != nil {
 		utils.HandleErrorAndExit(err)
 	}

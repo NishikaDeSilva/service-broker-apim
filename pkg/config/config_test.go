@@ -27,18 +27,6 @@ func tearDownEnv(t *testing.T) {
 	}
 }
 
-func TestLoadConfig(t *testing.T) {
-	setUpEnv(t)
-	config, err := LoadConfig()
-	if err != nil {
-		t.Error(err)
-	}
-	if config.HTTP.Host != defaultConf().HTTP.Host {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, defaultConf().HTTP.Host, config.HTTP.Host)
-	}
-	tearDownEnv(t)
-}
-
 func TestLoadConfigFile(t *testing.T) {
 	t.Run("success test case", testLoadConfigFileSuccessFunc())
 	t.Run("fail test case", testLoadConfigFileFailFunc())

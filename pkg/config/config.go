@@ -50,8 +50,8 @@ type TLSConf struct {
 
 // LogConf represents the configuration related to logging
 type LogConf struct {
-	LogFile  string `mapstructure:"logFile"`
-	LogLevel string `mapstructure:"logLevel"`
+	LogFilePath string `mapstructure:"logFilePath"`
+	Level       string `mapstructure:"level"`
 }
 
 // HTTPConf represents configuration needed for HTTP server
@@ -77,17 +77,18 @@ func LoadConfig() (*BrokerConfig, error) {
 	viper.SetEnvPrefix(constants.EnvPrefix)
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
+	setDefaultConf()
 	if err := loadConfigFile(); err != nil {
 		return nil, err
 	}
 
-	var brokerConfig = defaultConf()
-	err := viper.Unmarshal(brokerConfig)
+	var brokerConfig BrokerConfig
+	viper.SetDefault("log.level", "info")
+	err := viper.Unmarshal(&brokerConfig)
 	if err != nil {
 		return nil, errors.Wrapf(err, constants.ErrMsgUnableToParseConf)
 	}
-	return brokerConfig, nil
+	return &brokerConfig, nil
 }
 
 // loadConfigFile loads the configuration file
@@ -100,46 +101,35 @@ func loadConfigFile() error {
 		if err := viper.ReadInConfig(); err != nil {
 			return errors.Wrapf(err, constants.ErrMsgUnableToReadConf, err)
 		}
-		return nil
 	}
-	return errors.New(fmt.Sprintf(constants.ErrMsgNoConfFile, constants.ConfFileEnv))
+	return nil
 }
 
-// defaultConf returns a BrokerConfig object with default values
-func defaultConf() *BrokerConfig {
-	return &BrokerConfig{
-		Log: LogConf{
-			LogFile:  "server.log",
-			LogLevel: "info",
-		},
-		HTTP: HTTPConf{
-			Auth: AuthConf{
-				Username: "admin",
-				Password: "admin",
-			},
-			TLS: TLSConf{
-				Enabled: false,
-				Key:     "",
-				Cert:    "",
-			},
-			Host: "0.0.0.0",
-			Port: "8443",
-		},
-		APIM: APIMConf{
-			Username:              "admin",
-			Password:              "admin",
-			TokenEndpoint:         "https://localhost:8243",
-			DynamicClientEndpoint: "https://localhost:9443",
-			PublisherEndpoint:     "https://localhost:9443",
-			StoreEndpoint:         "https://localhost:9443",
-		},
-		DB: DBConfig{
-			Host:     "localhost",
-			Port:     3306,
-			Username: "root",
-			Password: "root",
-			Database: "broker",
-			LogMode:  false,
-		},
-	}
+// setDefaultConf sets the default configurations
+func setDefaultConf() {
+	viper.SetDefault("log.logFilePath", "server.log")
+	viper.SetDefault("log.level", "info")
+
+	viper.SetDefault("http.auth.username", "admin")
+	viper.SetDefault("http.auth.password", "admin")
+	viper.SetDefault("http.tls.enabled", false)
+	viper.SetDefault("http.tls.key", "key.pem")
+	viper.SetDefault("http.tls.cert", "cert.pem")
+	viper.SetDefault("http.host", "0.0.0.0")
+	viper.SetDefault("http.port", "8444")
+
+	viper.SetDefault("apim.username", "admin")
+	viper.SetDefault("apim.password", "admin")
+	viper.SetDefault("apim.insecureCon", true)
+	viper.SetDefault("apim.tokenEndpoint", "https://localhost:8243")
+	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.publisherEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.storeEndpoint", "https://localhost:9443")
+
+	viper.SetDefault("db.host", "localhost")
+	viper.SetDefault("db.port", "3306")
+	viper.SetDefault("db.username", "root")
+	viper.SetDefault("db.password", "root123")
+	viper.SetDefault("db.database", "broker")
+	viper.SetDefault("db.logMode", false)
 }
