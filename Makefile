@@ -7,7 +7,7 @@ test: ## Runs the tests
 	go test -v ./pkg/broker/*
 
 integration-test-start:
-	docker-compose -f ./test/docker-compose.yaml up --build
+	./test/run-tests.sh
 
 integration-test-stop:
 	docker-compose -f ./test/docker-compose.yaml down

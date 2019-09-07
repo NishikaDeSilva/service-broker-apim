@@ -391,7 +391,7 @@
 					}
 				],
 				"url": {
-					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{instance-id}}/service_bindings/{{service-key-bind-id}}?service_id={{service-id}}&plan_id={{plan-id}}",
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{service-key-bind-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
 					"protocol": "http",
 					"host": [
 						"{{host}}"
@@ -400,7 +400,7 @@
 					"path": [
 						"v2",
 						"service_instances",
-						"{{instance-id}}",
+						"{{app-plan-instance-id}}",
 						"service_bindings",
 						"{{service-key-bind-id}}"
 					],
@@ -411,7 +411,7 @@
 						},
 						{
 							"key": "plan_id",
-							"value": "{{plan-id}}"
+							"value": "{{app-plan-id}}"
 						}
 					]
 				}

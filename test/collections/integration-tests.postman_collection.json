@@ -1,0 +1,1375 @@
+{
+	"info": {
+		"_postman_id": "c70a2ed1-245b-4d67-8eea-57432909b753",
+		"name": "integration-tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "catalog-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "637bcc20-0b02-4ca5-81f8-a809ac6346e6",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"var expectedBody= {",
+							"    \"services\": [",
+							"        {",
+							"            \"id\": \"460F28F9-4D05-4889-970A-6BF5FB7D3CF8\",",
+							"            \"name\": \"wso2apim-service\",",
+							"            \"description\": \"WSO2 API Manager Services\",",
+							"            \"bindable\": false,",
+							"            \"plan_updateable\": false,",
+							"            \"plans\": [",
+							"                {",
+							"                    \"id\": \"4CA4F2AF-EADF-4E76-A5CA-732FBC625593\",",
+							"                    \"name\": \"api\",",
+							"                    \"description\": \"Create an API in WSO2 API Manager\",",
+							"                    \"bindable\": false",
+							"                },",
+							"                {",
+							"                    \"id\": \"00e851cd-ce8b-43eb-bc27-ac4d4fbb3204\",",
+							"                    \"name\": \"app\",",
+							"                    \"description\": \"Create an Application in WSO2 API Manager\",",
+							"                    \"bindable\": true",
+							"                },",
+							"                {",
+							"                    \"id\": \"00e851cd-ce8b-43eb-bc27-ac4d4fbb3298\",",
+							"                    \"name\": \"subs\",",
+							"                    \"description\": \"Create a Subscription in WSO2 API Manager\",",
+							"                    \"bindable\": false",
+							"                }",
+							"            ]",
+							"        }",
+							"    ]",
+							"}",
+							"pm.test(\"Validate response body\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.eql(expectedBody);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/catalog",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"catalog"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service(plan: API)-201",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "09ef76e0-ccda-47b1-a0e2-e79c9324f33c",
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{api-plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"api\": {\n   \"name\": \"PizzaShackAPI\",\n   \"description\": \"This document describe a RESTFul API for Pizza Shack online pizza delivery store.\\r\\n\",\n   \"context\": \"/pizzashack\",\n   \"version\": \"1.0.0\",\n   \"provider\": \"admin\",\n   \"apiDefinition\": \"{\\\"paths\\\":{\\\"/order\\\":{\\\"post\\\":{\\\"x-auth-type\\\":\\\"Application & Application User\\\",\\\"x-throttling-tier\\\":\\\"Unlimited\\\",\\\"description\\\":\\\"Create a new Order\\\",\\\"parameters\\\":[{\\\"schema\\\":{\\\"$ref\\\":\\\"#/definitions/Order\\\"},\\\"description\\\":\\\"Order object that needs to be added\\\",\\\"name\\\":\\\"body\\\",\\\"required\\\":true,\\\"in\\\":\\\"body\\\"}],\\\"responses\\\":{\\\"201\\\":{\\\"headers\\\":{\\\"Location\\\":{\\\"description\\\":\\\"The URL of the newly created resource.\\\",\\\"type\\\":\\\"string\\\"}},\\\"schema\\\":{\\\"$ref\\\":\\\"#/definitions/Order\\\"},\\\"description\\\":\\\"Created.\\\"}}}},\\\"/menu\\\":{\\\"get\\\":{\\\"x-auth-type\\\":\\\"Application & Application User\\\",\\\"x-throttling-tier\\\":\\\"Unlimited\\\",\\\"description\\\":\\\"Return a list of available menu items\\\",\\\"parameters\\\":[],\\\"responses\\\":{\\\"200\\\":{\\\"headers\\\":{},\\\"schema\\\":{\\\"title\\\":\\\"Menu\\\",\\\"properties\\\":{\\\"list\\\":{\\\"items\\\":{\\\"$ref\\\":\\\"#/definitions/MenuItem\\\"},\\\"type\\\":\\\"array\\\"}},\\\"type\\\":\\\"object\\\"},\\\"description\\\":\\\"OK.\\\"}}}}},\\\"schemes\\\":[\\\"https\\\"],\\\"produces\\\":[\\\"application/json\\\"],\\\"swagger\\\":\\\"2.0\\\",\\\"definitions\\\":{\\\"MenuItem\\\":{\\\"title\\\":\\\"Pizza menu Item\\\",\\\"properties\\\":{\\\"price\\\":{\\\"type\\\":\\\"string\\\"},\\\"description\\\":{\\\"type\\\":\\\"string\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"},\\\"image\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"name\\\"]},\\\"Order\\\":{\\\"title\\\":\\\"Pizza Order\\\",\\\"properties\\\":{\\\"customerName\\\":{\\\"type\\\":\\\"string\\\"},\\\"delivered\\\":{\\\"type\\\":\\\"boolean\\\"},\\\"address\\\":{\\\"type\\\":\\\"string\\\"},\\\"pizzaType\\\":{\\\"type\\\":\\\"string\\\"},\\\"creditCardNumber\\\":{\\\"type\\\":\\\"string\\\"},\\\"quantity\\\":{\\\"type\\\":\\\"number\\\"},\\\"orderId\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"orderId\\\"]}},\\\"consumes\\\":[\\\"application/json\\\"],\\\"info\\\":{\\\"title\\\":\\\"PizzaShackAPI\\\",\\\"description\\\":\\\"This document describe a RESTFul API for Pizza Shack online pizza delivery store.\\\\n\\\",\\\"license\\\":{\\\"name\\\":\\\"Apache 2.0\\\",\\\"url\\\":\\\"http://www.apache.org/licenses/LICENSE-2.0.html\\\"},\\\"contact\\\":{\\\"email\\\":\\\"architecture@pizzashack.com\\\",\\\"name\\\":\\\"John Doe\\\",\\\"url\\\":\\\"http://www.pizzashack.com\\\"},\\\"version\\\":\\\"1.0.0\\\"}}\",\n   \"wsdlUri\": null,\n   \"status\": \"CREATED\",\n   \"responseCaching\": \"Disabled\",\n   \"cacheTimeout\": 300,\n   \"destinationStatsEnabled\": false,\n   \"isDefaultVersion\": false,\n   \"type\": \"HTTP\",\n   \"transport\":    [\n      \"http\",\n      \"https\"\n   ],\n   \"tags\": [\"pizza\"],\n   \"tiers\": [\"Unlimited\"],\n   \"maxTps\":    {\n      \"sandbox\": 5000,\n      \"production\": 1000\n   },\n   \"visibility\": \"PUBLIC\",\n   \"visibleRoles\": [],\n   \"endpointConfig\": \"{\\\"production_endpoints\\\":{\\\"url\\\":\\\"https://localhost:9443/am/sample/pizzashack/v1/api/\\\",\\\"config\\\":null},\\\"sandbox_endpoints\\\":{\\\"url\\\":\\\"https://localhost:9443/am/sample/pizzashack/v1/api/\\\",\\\"config\\\":null},\\\"endpoint_type\\\":\\\"http\\\"}\",\n   \"endpointSecurity\":    {\n      \"username\": \"user\",\n      \"type\": \"basic\",\n      \"password\": \"pass\"\n   },\n   \"gatewayEnvironments\": \"Production and Sandbox\",\n   \"sequences\": [{\"name\":\"json_validator\",\"type\": \"in\"},{\"name\":\"log_out_message\",\"type\": \"out\"}],\n   \"subscriptionAvailability\": null,\n   \"subscriptionAvailableTenants\": [],\n   \"businessInformation\":    {\n      \"businessOwnerEmail\": \"marketing@pizzashack.com\",\n      \"technicalOwnerEmail\": \"architecture@pizzashack.com\",\n      \"technicalOwner\": \"John Doe\",\n      \"businessOwner\": \"Jane Roe\"\n   },\n   \"corsConfiguration\":    {\n      \"accessControlAllowOrigins\": [\"*\"],\n      \"accessControlAllowHeaders\":       [\n         \"authorization\",\n         \"Access-Control-Allow-Origin\",\n         \"Content-Type\",\n         \"SOAPAction\"\n      ],\n      \"accessControlAllowMethods\":       [\n         \"GET\",\n         \"PUT\",\n         \"POST\",\n         \"DELETE\",\n         \"PATCH\",\n         \"OPTIONS\"\n      ],\n      \"accessControlAllowCredentials\": false,\n      \"corsConfigurationEnabled\": false\n   }\n}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{api-plan-instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{api-plan-instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service(plan: API)-409",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "09ef76e0-ccda-47b1-a0e2-e79c9324f33c",
+						"exec": [
+							"pm.test(\"Status code is 409\", function () {",
+							"    pm.response.to.have.status(409);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{api-plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"api\": {\n   \"name\": \"PizzaShackAPI\",\n   \"description\": \"This document describe a RESTFul API for Pizza Shack online pizza delivery store.\\r\\n\",\n   \"context\": \"/pizzashack\",\n   \"version\": \"1.0.0\",\n   \"provider\": \"admin\",\n   \"apiDefinition\": \"{\\\"paths\\\":{\\\"/order\\\":{\\\"post\\\":{\\\"x-auth-type\\\":\\\"Application & Application User\\\",\\\"x-throttling-tier\\\":\\\"Unlimited\\\",\\\"description\\\":\\\"Create a new Order\\\",\\\"parameters\\\":[{\\\"schema\\\":{\\\"$ref\\\":\\\"#/definitions/Order\\\"},\\\"description\\\":\\\"Order object that needs to be added\\\",\\\"name\\\":\\\"body\\\",\\\"required\\\":true,\\\"in\\\":\\\"body\\\"}],\\\"responses\\\":{\\\"201\\\":{\\\"headers\\\":{\\\"Location\\\":{\\\"description\\\":\\\"The URL of the newly created resource.\\\",\\\"type\\\":\\\"string\\\"}},\\\"schema\\\":{\\\"$ref\\\":\\\"#/definitions/Order\\\"},\\\"description\\\":\\\"Created.\\\"}}}},\\\"/menu\\\":{\\\"get\\\":{\\\"x-auth-type\\\":\\\"Application & Application User\\\",\\\"x-throttling-tier\\\":\\\"Unlimited\\\",\\\"description\\\":\\\"Return a list of available menu items\\\",\\\"parameters\\\":[],\\\"responses\\\":{\\\"200\\\":{\\\"headers\\\":{},\\\"schema\\\":{\\\"title\\\":\\\"Menu\\\",\\\"properties\\\":{\\\"list\\\":{\\\"items\\\":{\\\"$ref\\\":\\\"#/definitions/MenuItem\\\"},\\\"type\\\":\\\"array\\\"}},\\\"type\\\":\\\"object\\\"},\\\"description\\\":\\\"OK.\\\"}}}}},\\\"schemes\\\":[\\\"https\\\"],\\\"produces\\\":[\\\"application/json\\\"],\\\"swagger\\\":\\\"2.0\\\",\\\"definitions\\\":{\\\"MenuItem\\\":{\\\"title\\\":\\\"Pizza menu Item\\\",\\\"properties\\\":{\\\"price\\\":{\\\"type\\\":\\\"string\\\"},\\\"description\\\":{\\\"type\\\":\\\"string\\\"},\\\"name\\\":{\\\"type\\\":\\\"string\\\"},\\\"image\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"name\\\"]},\\\"Order\\\":{\\\"title\\\":\\\"Pizza Order\\\",\\\"properties\\\":{\\\"customerName\\\":{\\\"type\\\":\\\"string\\\"},\\\"delivered\\\":{\\\"type\\\":\\\"boolean\\\"},\\\"address\\\":{\\\"type\\\":\\\"string\\\"},\\\"pizzaType\\\":{\\\"type\\\":\\\"string\\\"},\\\"creditCardNumber\\\":{\\\"type\\\":\\\"string\\\"},\\\"quantity\\\":{\\\"type\\\":\\\"number\\\"},\\\"orderId\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"orderId\\\"]}},\\\"consumes\\\":[\\\"application/json\\\"],\\\"info\\\":{\\\"title\\\":\\\"PizzaShackAPI\\\",\\\"description\\\":\\\"This document describe a RESTFul API for Pizza Shack online pizza delivery store.\\\\n\\\",\\\"license\\\":{\\\"name\\\":\\\"Apache 2.0\\\",\\\"url\\\":\\\"http://www.apache.org/licenses/LICENSE-2.0.html\\\"},\\\"contact\\\":{\\\"email\\\":\\\"architecture@pizzashack.com\\\",\\\"name\\\":\\\"John Doe\\\",\\\"url\\\":\\\"http://www.pizzashack.com\\\"},\\\"version\\\":\\\"1.0.0\\\"}}\",\n   \"wsdlUri\": null,\n   \"status\": \"CREATED\",\n   \"responseCaching\": \"Disabled\",\n   \"cacheTimeout\": 300,\n   \"destinationStatsEnabled\": false,\n   \"isDefaultVersion\": false,\n   \"type\": \"HTTP\",\n   \"transport\":    [\n      \"http\",\n      \"https\"\n   ],\n   \"tags\": [\"pizza\"],\n   \"tiers\": [\"Unlimited\"],\n   \"maxTps\":    {\n      \"sandbox\": 5000,\n      \"production\": 1000\n   },\n   \"visibility\": \"PUBLIC\",\n   \"visibleRoles\": [],\n   \"endpointConfig\": \"{\\\"production_endpoints\\\":{\\\"url\\\":\\\"https://localhost:9443/am/sample/pizzashack/v1/api/\\\",\\\"config\\\":null},\\\"sandbox_endpoints\\\":{\\\"url\\\":\\\"https://localhost:9443/am/sample/pizzashack/v1/api/\\\",\\\"config\\\":null},\\\"endpoint_type\\\":\\\"http\\\"}\",\n   \"endpointSecurity\":    {\n      \"username\": \"user\",\n      \"type\": \"basic\",\n      \"password\": \"pass\"\n   },\n   \"gatewayEnvironments\": \"Production and Sandbox\",\n   \"sequences\": [{\"name\":\"json_validator\",\"type\": \"in\"},{\"name\":\"log_out_message\",\"type\": \"out\"}],\n   \"subscriptionAvailability\": null,\n   \"subscriptionAvailableTenants\": [],\n   \"businessInformation\":    {\n      \"businessOwnerEmail\": \"marketing@pizzashack.com\",\n      \"technicalOwnerEmail\": \"architecture@pizzashack.com\",\n      \"technicalOwner\": \"John Doe\",\n      \"businessOwner\": \"Jane Roe\"\n   },\n   \"corsConfiguration\":    {\n      \"accessControlAllowOrigins\": [\"*\"],\n      \"accessControlAllowHeaders\":       [\n         \"authorization\",\n         \"Access-Control-Allow-Origin\",\n         \"Content-Type\",\n         \"SOAPAction\"\n      ],\n      \"accessControlAllowMethods\":       [\n         \"GET\",\n         \"PUT\",\n         \"POST\",\n         \"DELETE\",\n         \"PATCH\",\n         \"OPTIONS\"\n      ],\n      \"accessControlAllowCredentials\": false,\n      \"corsConfigurationEnabled\": false\n   }\n}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{api-plan-instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{api-plan-instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service(plan: App)-201",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "334109fb-3c69-473e-9a79-7634b52ddaef",
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{app-plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"app\": {\n            \"throttlingTier\": \"Unlimited\",\n            \"description\": \"sample app description\",\n            \"callbackUrl\": \"http://my.server.com/callback\",\n            \"name\": \"sampleApp\"\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service(plan: App)-409",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "7cee1e7a-10a4-427d-9859-09ab35f118be",
+						"exec": [
+							"pm.test(\"Status code is 409\", function () {",
+							"    pm.response.to.have.status(409);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{app-plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"app\": {\n            \"throttlingTier\": \"Unlimited\",\n            \"description\": \"sample app description\",\n            \"callbackUrl\": \"http://my.server.com/callback\",\n            \"name\": \"sampleApp\"\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service(plan: subs)-201",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "8e108677-dcbb-46cb-abb6-460549c2a528",
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{subs-plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"subs\":{\n        \t\"apiName\": \"PizzaShackAPI\",\n        \t\"appName\": \"sampleApp\",\n        \t\"tier\": \"Unlimited\"\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{subs-plan-instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{subs-plan-instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service(plan: subs)-409",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "8e108677-dcbb-46cb-abb6-460549c2a528",
+						"exec": [
+							"pm.test(\"Status code is 409\", function () {",
+							"    pm.response.to.have.status(409);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{subs-plan-id}}\",\n    \"context\": {\n        \"platform\": \"cloudfoundry\",\n        \"some_field\": \"some-contextual-data\"\n    },\n    \"organization_guid\": \"org-guid-here\",\n    \"space_guid\": \"space-guid-here\",\n    \"parameters\": {\n        \"subs\":{\n        \t\"apiName\": \"PizzaShackAPI\",\n        \t\"appName\": \"sampleApp\",\n        \t\"tier\": \"Unlimited\"\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{subs-plan-instance-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{subs-plan-instance-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "bind-service-201",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "cf124958-05c3-4ac6-a8ab-2b50dd98c5f9",
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"context\": {\n    \"platform\": \"cloudfoundry\",\n    \"some_field\": \"some-contextual-data\"\n  },\n\"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{app-plan-id}}\",\n  \"bind_resource\": {\n    \"app_guid\": \"{{app-guid}}\"\n  },\n  \"parameters\": {\n   \n   \n  }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{bind-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{bind-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "unbind-service-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "b3affc02-cb9b-4d3e-af9e-6684e286ecb8",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{bind-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{bind-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{app-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "unbind-service-410",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "df7ca4bb-211c-452f-bedd-fc3e7d0f9f20",
+						"exec": [
+							"pm.test(\"Status code is 410\", function () {",
+							"    pm.response.to.have.status(410);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{bind-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{bind-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{app-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service-key-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "f42c5996-feab-4440-bf89-ece644090b8e",
+						"exec": [
+							"pm.test(\"Create a Bind(Status code 201)\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"",
+							"pm.test(\"Validate reposponse body\", function () {",
+							"    pm.expect(pm.response.text()).to.include(\"credentials\");",
+							"    pm.expect(pm.response.text()).to.include(\"AccessToken\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"context\": {\n    \"platform\": \"cloudfoundry\",\n    \"some_field\": \"some-contextual-data\"\n  },\n\"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{app-plan-id}}\",\n  \"parameters\": {\n\n  }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{service-key-bind-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{service-key-bind-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create-service-key-409",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "f42c5996-feab-4440-bf89-ece644090b8e",
+						"exec": [
+							"pm.test(\"Duplicate Bind(Status code 409)\", function () {",
+							"    pm.response.to.have.status(409);",
+							"});",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"context\": {\n    \"platform\": \"cloudfoundry\",\n    \"some_field\": \"some-contextual-data\"\n  },\n\"service_id\": \"{{service-id}}\",\n    \"plan_id\": \"{{app-plan-id}}\",\n  \"parameters\": {\n\n  }\n}"
+				},
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{service-key-bind-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{service-key-bind-id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service-key-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "96a66987-3aad-45b4-a57b-16db762cdb36",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"value": "2.14",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{service-key-bind-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{service-key-bind-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{app-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service-key-410",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "96a66987-3aad-45b4-a57b-16db762cdb36",
+						"exec": [
+							"pm.test(\"Status code is 410\", function () {",
+							"    pm.response.to.have.status(410);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}/service_bindings/{{service-key-bind-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}",
+						"service_bindings",
+						"{{service-key-bind-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{app-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service(Plan: Subs)-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "12f27993-4867-4f2b-b077-a32541cadc63",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{subs-plan-instance-id}}?service_id={{service-id}}&plan_id={{subs-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{subs-plan-instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{subs-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service(Plan: Subs)-410",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "1cfa9e72-9317-4cc3-b73d-406656f1f403",
+						"exec": [
+							"pm.test(\"Status code is 410\", function () {",
+							"    pm.response.to.have.status(410);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{subs-plan-instance-id}}?service_id={{service-id}}&plan_id={{subs-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{subs-plan-instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{subs-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service(Plan: App)-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "a15832d0-0b63-4ce6-8b68-3cc7f9260836",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{app-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service(Plan: App)-410",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "a15832d0-0b63-4ce6-8b68-3cc7f9260836",
+						"exec": [
+							"pm.test(\"Status code is 410\", function () {",
+							"    pm.response.to.have.status(410);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{app-plan-instance-id}}?service_id={{service-id}}&plan_id={{app-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{app-plan-instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{app-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service(Plan: API)-200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "26eb4ee4-74e1-44c9-a65b-d23c7c0cf083",
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{api-plan-instance-id}}?service_id={{service-id}}&plan_id={{api-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{api-plan-instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{api-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "delete-service(Plan: API)-410",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "26eb4ee4-74e1-44c9-a65b-d23c7c0cf083",
+						"exec": [
+							"pm.test(\"Status code is 410\", function () {",
+							"    pm.response.to.have.status(410);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{password}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{username}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "X-Broker-API-Version",
+						"type": "text",
+						"value": "2.14"
+					}
+				],
+				"url": {
+					"raw": "http://{{host}}:{{port}}/v2/service_instances/{{api-plan-instance-id}}?service_id={{service-id}}&plan_id={{api-plan-id}}",
+					"protocol": "http",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{port}}",
+					"path": [
+						"v2",
+						"service_instances",
+						"{{api-plan-instance-id}}"
+					],
+					"query": [
+						{
+							"key": "service_id",
+							"value": "{{service-id}}"
+						},
+						{
+							"key": "plan_id",
+							"value": "{{api-plan-id}}"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

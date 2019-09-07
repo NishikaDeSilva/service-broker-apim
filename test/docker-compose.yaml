@@ -5,7 +5,7 @@ services:
       context: ./../
       dockerfile: ./test/Dockerfile
     ports:
-      - "8444"
+      - "8444:8444"
     depends_on:
       - "mysql"
       - "wso2apim"
