@@ -83,7 +83,6 @@ func LoadConfig() (*BrokerConfig, error) {
 	}
 
 	var brokerConfig BrokerConfig
-	viper.SetDefault("log.level", "info")
 	err := viper.Unmarshal(&brokerConfig)
 	if err != nil {
 		return nil, errors.Wrapf(err, constants.ErrMsgUnableToParseConf)

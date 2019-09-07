@@ -6,6 +6,12 @@ test: ## Runs the tests
 	go test -v ./pkg/client/*
 	go test -v ./pkg/broker/*
 
+integration-test-start:
+	docker-compose -f ./test/docker-compose.yaml up --build
+
+integration-test-stop:
+	docker-compose -f ./test/docker-compose.yaml down
+
 linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 	go build -o servicebroker-linux github.com/wso2/service-broker-apim/cmd/servicebroker

@@ -1,0 +1,31 @@
+version: '3'
+services:
+  broker:
+    build:
+      context: ./../
+      dockerfile: ./test/Dockerfile
+    ports:
+      - "8444"
+    depends_on:
+      - "mysql"
+      - "wso2apim"
+    links:
+      - mysql
+    environment:
+      BROKER_APIM_LOG_LEVEL: "debug"
+      BROKER_APIM_DB_HOST: "mysql"
+      BROKER_APIM_APIM_DYNAMICCLIENTENDPOINT: "https://wso2apim:9443"
+      BROKER_APIM_APIM_TOKENENDPOINT: "https://wso2apim:8243"
+      BROKER_APIM_APIM_PUBLISHERENDPOINT: "https://wso2apim:9443"
+      BROKER_APIM_APIM_STOREENDPOINT: "https://wso2apim:9443"
+  mysql:
+    image: "mysql:5.7.14"
+    restart: always
+    volumes:
+      - ./dbscripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+  wso2apim:
+    image: "wso2/wso2am:2.6.0"
+    restart: always
+
