@@ -31,11 +31,11 @@ type Instance struct {
 
 // Application represents the Application model in the database
 type Application struct {
-	Name             string `gorm:"primary_key;type:varchar(100)"`
-	InstanceID       string `gorm:"type:varchar(100);not null;unique"`
-	Token            string `gorm:"type:varchar(100)"`
-	ConsumerKey      string `gorm:"type:varchar(100)"`
-	ConsumerSecret   string `gorm:"type:varchar(100)"`
+	Name           string `gorm:"primary_key;type:varchar(100)"`
+	InstanceID     string `gorm:"type:varchar(100);not null;unique"`
+	Token          string `gorm:"type:varchar(100)"`
+	ConsumerKey    string `gorm:"type:varchar(100)"`
+	ConsumerSecret string `gorm:"type:varchar(100)"`
 }
 
 // Bind represents the Bind model in the Database

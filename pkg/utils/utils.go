@@ -128,8 +128,8 @@ func ConstructURL(paths ...string) (string, error) {
 	if err != nil {
 		return "", errors.New(ErrMSGCannotParseURL)
 	}
-	for i := 1; i< len(paths); i++ {
+	for i := 1; i < len(paths); i++ {
 		u.Path = path.Join(u.Path, paths[i])
 	}
-	return u.String(), nil;
+	return u.String(), nil
 }

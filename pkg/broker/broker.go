@@ -23,23 +23,23 @@ import (
 )
 
 const (
-	ScopeAPICreate         = "apim:api_create"
-	ScopeSubscribe         = "apim:subscribe"
-	ScopeAPIPublish        = "apim:api_publish"
-	ScopeAPIView           = "apim:api_view"
-	ErrMSGInvalidSVCPlan   = "Invalid service or Plan"
+	ScopeAPICreate       = "apim:api_create"
+	ScopeSubscribe       = "apim:subscribe"
+	ScopeAPIPublish      = "apim:api_publish"
+	ScopeAPIView         = "apim:api_view"
+	ErrMSGInvalidSVCPlan = "Invalid service or Plan"
 
 	// Logging data keys
-	LogKeyAPIName               = "api-name"
-	LogKeyAPIID                 = "api-id"
-	LogKeyAPPID                 = "app-id"
-	LogKeyAPPName               = "app-name"
-	LogKeySubsID                = "subs-id"
-	LogKeyServiceID             = "service-id"
-	LogKeyPlanID                = "plan-id"
-	LogKeyInstanceID            = "instance-id"
-	LogKeyBindID                = "bind-id"
-	LogKeyApplicationName       = "application-name"
+	LogKeyAPIName         = "api-name"
+	LogKeyAPIID           = "api-id"
+	LogKeyAPPID           = "app-id"
+	LogKeyAPPName         = "app-name"
+	LogKeySubsID          = "subs-id"
+	LogKeyServiceID       = "service-id"
+	LogKeyPlanID          = "plan-id"
+	LogKeyInstanceID      = "instance-id"
+	LogKeyBindID          = "bind-id"
+	LogKeyApplicationName = "application-name"
 
 	ErrMSGUnableToStoreInstance = "unable to store instance in DB"
 	ErrActionStoreInstance      = "store instance in DB"
@@ -176,7 +176,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	}
 
 	if !hasBind {
-		appKeys, err:=asb.APIMManager.GenerateKeys(instance.APIMResourceID)
+		appKeys, err := asb.APIMManager.GenerateKeys(instance.APIMResourceID)
 		if err != nil {
 			utils.LogError("unable generate keys for application", err, logData)
 			return domain.Binding{}, failureResponse500("unable generate keys for application",
@@ -327,7 +327,7 @@ func Plan() []domain.Service {
 	}
 }
 
-func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails domain.ProvisionDetails, ) (spec domain.ProvisionedServiceSpec, err error) {
+func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails domain.ProvisionDetails) (spec domain.ProvisionedServiceSpec, err error) {
 	var logData = &utils.LogData{
 		Data: lager.Data{
 			LogKeyServiceID:  serviceDetails.ServiceID,
@@ -352,9 +352,18 @@ func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails
 	apiParam, err := toAPIParam(serviceDetails.RawParameters)
 	if err != nil {
 		utils.LogError("unable to parse API parameters", err, logData)
-		return spec, apiresponses.NewFailureResponse(errors.New("invalid parameter"),
-			http.StatusBadRequest, "Parsing API JSON Spec parameter")
+		return spec, invalidParamFailureResponse("parse API JSON Spec parameter")
 	}
+	if has, err := hasValidParameters(&serviceDetails.RawParameters); err!=nil {
+		utils.LogError("couldn't validate API parameters", err, logData)
+		return spec, failureResponse500("couldn't validate API parameters", "validate API parameters")
+	} else {
+		if !has {
+			utils.LogError("empty API parameters", err, logData)
+			return spec, invalidParamFailureResponse("validate API parameters")
+		}
+	}
+
 	logData.AddData(LogKeyAPIName, apiParam.APISpec.Name)
 
 	apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec)
@@ -362,10 +371,9 @@ func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails
 		utils.LogError("unable to create API", err, logData)
 		e, ok := err.(*client.InvokeError)
 		if ok && e.StatusCode == http.StatusConflict {
-			return spec, apiresponses.ErrInstanceAlreadyExists
+			return spec, failureResponse500(fmt.Sprintf("API %s already exist !", apiParam.APISpec.Name), "create API")
 		}
-		return spec, apiresponses.NewFailureResponse(errors.New("unable to create the API"),
-			http.StatusInternalServerError, "unable to create the API")
+		return spec, failureResponse500("unable to create the API", "create API")
 	}
 
 	logData.AddData(LogKeyAPIID, apiID)
@@ -400,6 +408,17 @@ func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails
 	}
 	utils.LogDebug("published API in APIM", logData)
 	return spec, nil
+}
+
+func hasValidParameters(m *json.RawMessage) (bool, error) {
+	s, err := utils.RawMSGToString(m)
+	if err != nil {
+		return false, errors.Wrap(err, "unable to get string value")
+	}
+	if s == "{}" {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails domain.ProvisionDetails) (domain.ProvisionedServiceSpec, error) {
@@ -504,13 +523,13 @@ func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, servi
 		return domain.ProvisionedServiceSpec{}, invalidParamFailureResponse("parsing Subscription parameters")
 	}
 	logData.AddData("API name", subsInfo.SubsSpec.APIName).AddData("Application Name", subsInfo.SubsSpec.AppName)
-	apiID, err := asb.APIMManager.SearchAPI(subsInfo.SubsSpec.APIName);
+	apiID, err := asb.APIMManager.SearchAPI(subsInfo.SubsSpec.APIName)
 	if err != nil {
 		utils.LogError("unable to search API", err, logData)
 		return spec, failureResponse500(fmt.Sprintf("couldn't find the API: %s", subsInfo.SubsSpec.APIName), "searching API")
 	}
 	logData.AddData(LogKeyAPIID, apiID)
-	appID, err := asb.APIMManager.SearchApplication(subsInfo.SubsSpec.AppName);
+	appID, err := asb.APIMManager.SearchApplication(subsInfo.SubsSpec.AppName)
 	if err != nil {
 		utils.LogError("unable to search Application", err, logData)
 		return spec, failureResponse500(fmt.Sprintf("couldn't find the Application: %s", subsInfo.SubsSpec.AppName), "searching application")

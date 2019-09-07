@@ -1,16 +1,23 @@
+
+all: deps tests build
+
 build: ## Builds the service broker
 	go build -i github.com/wso2/service-broker-apim/cmd/servicebroker
 
-test: ## Runs the tests
-	go test -v ./pkg/utils/*
-	go test -v ./pkg/client/*
-	go test -v ./pkg/broker/*
+tests: ## Runs the tests
+	go test -v ./pkg/...
 
 integration-test-start:
 	./test/run-tests.sh
 
-integration-test-stop:
-	docker-compose -f ./test/docker-compose.yaml down
+integration-test-setup-down:
+	docker-compose -f ./test/integration-test-setup.yaml down
+
+debug-setup-up:
+	docker-compose -f ./test/debug-setup.yaml up -d
+
+debug-setup-down:
+	docker-compose -f ./test/debug-setup.yaml down
 
 linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
@@ -25,7 +32,10 @@ clean: ## Cleans up build artifacts
 	rm -f servicebroker-linux
 	rm -f servicebroker-darwin
 
-setup: ## Install golint
+deps:
+	dep ensure
+
+setup-lint: ## Install golint
 	go get -u golang.org/x/lint/golint
 
 lint: ## Run golint on the code

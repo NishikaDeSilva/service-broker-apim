@@ -15,5 +15,21 @@
 # limitations under the License
 #
 # ------------------------------------------------------------------------
-DROP DATABASE IF EXISTS broker;
-create database broker;
+version: '3'
+services:
+  mysql:
+    image: "mysql:5.7.14"
+    restart: always
+    volumes:
+      - ./dbscripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+    ports:
+      - "3306:3306"
+  wso2apim:
+    image: "wso2/wso2am:2.6.0"
+    restart: always
+    ports:
+      - "9443:9443"
+      - "8243:8243"
+

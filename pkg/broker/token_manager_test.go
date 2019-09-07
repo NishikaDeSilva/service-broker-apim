@@ -219,4 +219,3 @@ func testTokenRefreshFunc(t *testing.T) {
 		t.Errorf(constants.ErrMsgTestIncorrectResult, "newToken", aT)
 	}
 }
-

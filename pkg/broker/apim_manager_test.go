@@ -32,14 +32,13 @@ var (
 			ScopeAPICreate:  dummyToken,
 			ScopeAPIPublish: dummyToken,
 			ScopeSubscribe:  dummyToken,
-			ScopeAPIView:  dummyToken,
-
+			ScopeAPIView:    dummyToken,
 		},
 	}
 	apiM = &APIMClient{
 		PublisherEndpoint: publisherTestEndpoint,
 		StoreEndpoint:     storeTestEndpoint,
-		TokenManager:tM,
+		TokenManager:      tM,
 	}
 )
 
@@ -455,9 +454,6 @@ func testSearchAPIFail2Func() func(t *testing.T) {
 		}
 	}
 }
-
-
-
 
 func TestSearchApplication(t *testing.T) {
 	t.Run(successTestCase, testSearchApplicationSuccessFunc())

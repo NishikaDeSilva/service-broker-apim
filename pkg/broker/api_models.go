@@ -8,6 +8,7 @@ type APIMaxTps struct {
 	Production int64 `json:"production,omitempty"`
 	Sandbox    int64 `json:"sandbox,omitempty"`
 }
+
 type ApiEndpointSecurity struct {
 	Type_    string `json:"type,omitempty"`
 	Username string `json:"username,omitempty"`
@@ -43,7 +44,6 @@ type ApiCorsConfiguration struct {
 }
 
 type APIReqBody struct {
-	//Id string `json:"id,omitempty"`
 	// Name of the API
 	Name string `json:"name"`
 	// A brief description about the API
