@@ -1,5 +1,19 @@
 /*
- *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019 WSO2 Inc. (http:www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http:www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 // dbutil package handles the DB connections and ORM
@@ -13,12 +27,16 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"log"
+	"net/http"
 	"strconv"
-	"sync"
+	"time"
 )
 import "github.com/jinzhu/gorm"
 
-const MySQL = "mysql"
+const (
+	MySQL                    = "mysql"
+	ErrMsgUnableToCloseDBCon = "unable to open a DB connection"
+)
 
 // Instance represents the Instance model in the Database
 type Instance struct {
@@ -57,32 +75,32 @@ const (
 	ErrMSGIDMissing      = "Id is missing"
 )
 
+// RetryPolicy defines a function which validate the response and apply desired policy
+// to determine whether to retry the particular request or not
+type RetryPolicy func(resp *http.Response) bool
+
+// BackOffPolicy policy determines the duration between two retires
+type BackOffPolicy func(min, max time.Duration, attempt int) time.Duration
+
 var (
-	onceInit sync.Once
-	db       *gorm.DB
+	url     string
+	logMode bool
 )
 
-// Initialize database ORM
+// Initialize database ORM parameters
 func InitDB(conf *config.DBConfig) {
-	onceInit.Do(func() {
-		url := conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
-			conf.Database + "?charset=utf8"
-		var err error
-		db, err = gorm.Open(MySQL, url)
-		if err != nil {
-			utils.HandleErrorWithLoggerAndExit("cannot initiate ORM", err)
-		}
-		db.LogMode(conf.LogMode)
-		ioWriter := utils.IoWriterLog()
-		if ioWriter == nil {
-			utils.HandleErrorWithLoggerAndExit("cannot setup logger for DB", errors.New("IoWriter for logging is not initialized"))
-		}
-		db.SetLogger(gorm.Logger{LogWriter: log.New(ioWriter, "database", 0)})
-	})
+	url = conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
+		conf.Database + "?charset=utf8"
+	logMode = conf.LogMode
 }
 
 // Creates a table for the given model only if table already not exists
 func CreateTable(model interface{}, table string) {
+	db, err := dbCon()
+	if err != nil {
+		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToCloseDBCon, err)
+	}
+	defer closeDBCon(db)
 	if err := db.CreateTable(model).Error; err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number != ErrTableExists {
@@ -94,23 +112,67 @@ func CreateTable(model interface{}, table string) {
 	}
 }
 
+// dbCon returns a DB connection and any error occurred
+func dbCon() (*gorm.DB, error) {
+	var ld = &utils.LogData{}
+	ld.AddData("dbURL", url).
+		AddData("logMode", logMode)
+	db, err := gorm.Open(MySQL, url)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot initiate ORM")
+	}
+	db.LogMode(logMode)
+	ioWriter := utils.IoWriterLog()
+	if ioWriter == nil {
+		return nil, errors.New("IoWriter for logging is not initialized")
+	}
+	db.SetLogger(gorm.Logger{LogWriter: log.New(ioWriter, "database", 0)})
+	return db, nil
+}
+
+func closeDBCon(d *gorm.DB) {
+	if err := d.Close(); err != nil {
+		utils.LogError("unable to close DB connection", err, nil)
+	}
+}
+
 // store save the given Instance in the Database
 func store(model interface{}, table string) error {
+	db, err := dbCon()
+	if err != nil {
+		return errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+	}
+	defer closeDBCon(db)
 	return db.Table(table).Create(model).Error
 }
 
 // update updates the given Instance in the Database
 func update(model interface{}, table string) error {
+	db, err := dbCon()
+	if err != nil {
+		return errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+	}
+	defer closeDBCon(db)
 	return db.Table(table).Save(model).Error
 }
 
 // deleteEntry deletes the given Instance in the Database
 func deleteEntry(model interface{}, table string) error {
+	db, err := dbCon()
+	if err != nil {
+		return errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+	}
+	defer closeDBCon(db)
 	return db.Table(table).Delete(model).Error
 }
 
-// retrieve function returns the given Instance from the Database if exists
+// retrieve function returns the given Instance from the Database if exists and any error occurred
 func retrieve(model interface{}, table string) (bool, error) {
+	db, err := dbCon()
+	if err != nil {
+		return false, errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+	}
+	defer closeDBCon(db)
 	result := db.Table(table).Where(model).Find(model)
 	if result.RecordNotFound() {
 		return false, nil
@@ -120,7 +182,12 @@ func retrieve(model interface{}, table string) (bool, error) {
 
 // addForeignKeys configures foreign keys
 func addForeignKeys() {
-	err := db.Model(&Bind{}).
+	db, err := dbCon()
+	if err != nil {
+		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToCloseDBCon, err)
+	}
+	defer closeDBCon(db)
+	err = db.Model(&Bind{}).
 		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {

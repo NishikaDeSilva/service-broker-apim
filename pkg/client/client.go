@@ -1,5 +1,19 @@
 /*
- *  Copyright (httpClient) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019 WSO2 Inc. (http:www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http:www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 // client package contains all function required to make API calls
@@ -88,6 +102,7 @@ func B64BasicAuth(u, p string) (string, error) {
 
 // ParseBody parse response body into the given struct
 // Must send the pointer to the response body
+// Returns any error occurred
 func ParseBody(res *http.Response, v interface{}) error {
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
@@ -100,6 +115,9 @@ func ParseBody(res *http.Response, v interface{}) error {
 }
 
 // Invoke the request and parse the response body to the given struct
+// context parameter is used to maintain the request context in the log
+// resCode parameter is used to determine the desired response code
+// Returns any error occurred
 func Invoke(context string, req *Request, body interface{}, resCode int) error {
 	var resp *http.Response
 	var err error

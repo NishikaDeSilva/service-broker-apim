@@ -1,5 +1,19 @@
 /*
- *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019 WSO2 Inc. (http:www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http:www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 // config package responsible for loading, parsing the configuration
@@ -71,7 +85,7 @@ type BrokerConfig struct {
 }
 
 // LoadConfig load configuration into BrokerConfig object
-// Returns a pointer to the created BrokerConfig object
+// Returns a pointer to the created BrokerConfig object or any error encountered
 func LoadConfig() (*BrokerConfig, error) {
 	viper.SetConfigType(constants.ConfigFileType)
 	viper.SetEnvPrefix(constants.EnvPrefix)
@@ -90,8 +104,8 @@ func LoadConfig() (*BrokerConfig, error) {
 	return &brokerConfig, nil
 }
 
-// loadConfigFile loads the configuration file
-// Must set the "BROKER_APIM_CONF_FILE" env to the configuration file
+// loadConfigFile loads the configuration into the Viper file only if the configuration file is pointed with "BROKER_APIM_CONF_FILE" environment variable
+// Returns an error if it is unable to read the config into Viper
 func loadConfigFile() error {
 	confFile, exists := os.LookupEnv(constants.ConfFileEnv)
 	if exists {
@@ -104,7 +118,7 @@ func loadConfigFile() error {
 	return nil
 }
 
-// setDefaultConf sets the default configurations
+// setDefaultConf sets the default configurations for Viper
 func setDefaultConf() {
 	viper.SetDefault("log.logFilePath", "server.log")
 	viper.SetDefault("log.level", "info")

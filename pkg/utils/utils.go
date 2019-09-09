@@ -1,5 +1,19 @@
 /*
- *  Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2019 WSO2 Inc. (http:www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http:www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 // Package utils holds a common set of Util functions
@@ -66,7 +80,7 @@ func LogInfo(msg string, data *LogData) {
 	logger.Info(msg, data.Data)
 }
 
-// LogError logs Info level messages using configured lager.Logger
+// LogError logs Info level messages using configured lager.Logger.
 func LogError(msg string, err error, data *LogData) {
 	logger.Error(msg, err, data.Data)
 }
@@ -90,7 +104,7 @@ func HandleErrorWithLoggerAndExit(errMsg string, err error) {
 	os.Exit(constants.ExitCode1)
 }
 
-// IsValidParams returns false if one of the arguments are empty or argument is nil
+// IsValidParams returns false if one of the arguments are empty or argument array is nil
 func IsValidParams(vals ...string) bool {
 	if vals == nil {
 		return false
@@ -104,6 +118,7 @@ func IsValidParams(vals ...string) bool {
 }
 
 // RawMSGToString converts json.RawMessage into String
+// Returns the string representation of json.RawMessage and any error occurred
 func RawMSGToString(msg *json.RawMessage) (string, error) {
 	j, err := json.Marshal(msg)
 	if err != nil {
@@ -112,14 +127,22 @@ func RawMSGToString(msg *json.RawMessage) (string, error) {
 	return string(j), nil
 }
 
-// AddData adds data to Log data obj
+// AddData adds data to current Log data obj
+// Returns a reference to the current Log data obj
 func (l *LogData) AddData(key string, val interface{}) *LogData {
-	l.Data[key] = val
+	if l.Data == nil || len(l.Data) == 0 {
+		l.Data = lager.Data{}
+	}
+	if key != "" && val != nil {
+		l.Data[key] = val
+	}
 	return l
 }
 
 // ConstructURL construct URL by joining the paths provided
 // first param will be treated as the base and the rest of params configured as paths
+// An error will be thrown if the number of paths is equal to zero
+// Returns constructed path and any error occurred
 func ConstructURL(paths ...string) (string, error) {
 	if len(paths) == 0 {
 		return "", errors.New("no paths found")
