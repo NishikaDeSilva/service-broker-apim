@@ -7,7 +7,7 @@ cf bind-service spring-music app-svc
 cf restart spring-music
 cf env spring-music
 
-cf service-key app-svc app-service-key
+cf create-service-key app-svc app-service-key
 cf delete-service-key app-svc app-service-key
 
 

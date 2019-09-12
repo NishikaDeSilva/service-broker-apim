@@ -30,12 +30,13 @@ import (
 
 // DBConfig represent the ORM configuration
 type DBConfig struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	Database string
-	LogMode  bool
+	Host       string `mapstructure:"host"`
+	Port       int    `mapstructure:"port"`
+	Username   string `mapstructure:"username"`
+	Password   string `mapstructure:"password"`
+	Database   string `mapstructure:"database"`
+	LogMode    bool   `mapstructure:"logMode"`
+	MaxRetries int    `mapstructure:"maxRetries"`
 }
 
 // APIMConf represents the information required to interact with the APIM
@@ -145,4 +146,5 @@ func setDefaultConf() {
 	viper.SetDefault("db.password", "root123")
 	viper.SetDefault("db.database", "broker")
 	viper.SetDefault("db.logMode", false)
+	viper.SetDefault("db.maxRetries", 3)
 }

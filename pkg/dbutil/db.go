@@ -21,21 +21,26 @@ package dbutil
 
 import (
 	"fmt"
-	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"log"
-	"net/http"
+	"math"
 	"strconv"
 	"time"
 )
 import "github.com/jinzhu/gorm"
 
 const (
-	MySQL                    = "mysql"
-	ErrMsgUnableToCloseDBCon = "unable to open a DB connection"
+	MySQL                   = "mysql"
+	ErrMsgUnableToOpenDBCon = "unable to open a DB connection"
+	ErrMsgUnableToAddForeignKeys = "unable to add foreign keys"
+	TableInstance        = "instances"
+	TableBind            = "binds"
+	TableApplication     = "applications"
+	ErrMSGAPPNameMissing = "Name is missing"
+	ErrMSGIDMissing      = "Id is missing"
 )
 
 // Instance represents the Instance model in the Database
@@ -66,49 +71,63 @@ type Bind struct {
 	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
 }
 
-const (
-	TableInstance        = "instances"
-	TableBind            = "binds"
-	TableApplication     = "applications"
-	ErrTableExists       = 1050
-	ErrMSGAPPNameMissing = "Name is missing"
-	ErrMSGIDMissing      = "Id is missing"
-)
-
-// RetryPolicy defines a function which validate the response and apply desired policy
-// to determine whether to retry the particular request or not
-type RetryPolicy func(resp *http.Response) bool
-
-// BackOffPolicy policy determines the duration between two retires
-type BackOffPolicy func(min, max time.Duration, attempt int) time.Duration
-
 var (
-	url     string
-	logMode bool
+	url        string
+	logMode    bool
+	maxRetries int
 )
+
+func (Instance) TableName() string {
+	return TableInstance
+}
+
+func (Bind) TableName() string {
+	return TableBind
+}
+
+func (Application) TableName() string {
+	return TableApplication
+}
+
+// backOff waits until attempt^2 or (min,max)
+func backOff(min, max time.Duration, attempt int) time.Duration {
+	du := math.Pow(2, float64(attempt))
+	sleep := time.Duration(du) * time.Second
+	if sleep < min {
+		return min
+	}
+	if sleep > max {
+		return max
+	}
+	return sleep
+}
 
 // Initialize database ORM parameters
 func InitDB(conf *config.DBConfig) {
 	url = conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
 		conf.Database + "?charset=utf8"
 	logMode = conf.LogMode
+	maxRetries = conf.MaxRetries
 }
 
 // Creates a table for the given model only if table already not exists
 func CreateTable(model interface{}, table string) {
 	db, err := dbCon()
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToCloseDBCon, err)
+		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
 	}
 	defer closeDBCon(db)
-	if err := db.CreateTable(model).Error; err != nil {
-		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			if mysqlErr.Number != ErrTableExists {
-				utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
-			}
-		} else {
+
+	var ld = &utils.LogData{}
+	ld.AddData("table", table)
+
+	if ! db.HasTable(table) {
+		utils.LogDebug("creating a table in the DB", ld)
+		if err := db.CreateTable(model).Error; err != nil {
 			utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
 		}
+	} else {
+		utils.LogDebug("database already has the table", ld)
 	}
 }
 
@@ -117,16 +136,31 @@ func dbCon() (*gorm.DB, error) {
 	var ld = &utils.LogData{}
 	ld.AddData("dbURL", url).
 		AddData("logMode", logMode)
-	db, err := gorm.Open(MySQL, url)
+	var db *gorm.DB
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		db, err = gorm.Open(MySQL, url)
+		if err == nil {
+			break
+		}
+		bt := backOff(1*time.Second, 10*time.Second, i)
+		ld.AddData("attempt", i).
+			AddData("back-off time(seconds)", bt/time.Second)
+		utils.LogDebug(fmt.Sprintf("retrying the DB connection err: %v", err), ld)
+		time.Sleep(bt)
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot initiate ORM")
 	}
-	db.LogMode(logMode)
-	ioWriter := utils.IoWriterLog()
-	if ioWriter == nil {
-		return nil, errors.New("IoWriter for logging is not initialized")
+	if logMode {
+		db.LogMode(logMode)
+		ioWriter := utils.IoWriterLog()
+		if ioWriter == nil {
+			return nil, errors.New("IoWriter for logging is not initialized")
+		}
+		db.SetLogger(gorm.Logger{LogWriter: log.New(ioWriter, "database", 0)})
 	}
-	db.SetLogger(gorm.Logger{LogWriter: log.New(ioWriter, "database", 0)})
 	return db, nil
 }
 
@@ -140,7 +174,7 @@ func closeDBCon(d *gorm.DB) {
 func store(model interface{}, table string) error {
 	db, err := dbCon()
 	if err != nil {
-		return errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
 	return db.Table(table).Create(model).Error
@@ -150,27 +184,29 @@ func store(model interface{}, table string) error {
 func update(model interface{}, table string) error {
 	db, err := dbCon()
 	if err != nil {
-		return errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
 	return db.Table(table).Save(model).Error
 }
 
 // deleteEntry deletes the given Instance in the Database
+// returns an error occurred
 func deleteEntry(model interface{}, table string) error {
 	db, err := dbCon()
 	if err != nil {
-		return errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
 	return db.Table(table).Delete(model).Error
 }
 
 // retrieve function returns the given Instance from the Database if exists and any error occurred
+// returns true if the instance exists and an error if occurred
 func retrieve(model interface{}, table string) (bool, error) {
 	db, err := dbCon()
 	if err != nil {
-		return false, errors.Wrap(err, ErrMsgUnableToCloseDBCon)
+		return false, errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
 	result := db.Table(table).Where(model).Find(model)
@@ -180,28 +216,28 @@ func retrieve(model interface{}, table string) (bool, error) {
 	return true, result.Error
 }
 
-// addForeignKeys configures foreign keys
+// addForeignKeys configures foreign keys for Bind and Application tables
 func addForeignKeys() {
 	db, err := dbCon()
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToCloseDBCon, err)
+		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
 	}
 	defer closeDBCon(db)
 	err = db.Model(&Bind{}).
 		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit("unable to add foreign keys", err)
+		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToAddForeignKeys, err)
 	}
 	err = db.Model(&Application{}).
 		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit("unable to add foreign keys", err)
+		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToAddForeignKeys, err)
 	}
 }
 
-// CreateInstanceTable creates the Instance tables
+// CreateInstanceTable creates the tables and add foreign keys
 func CreateTables() {
 	CreateTable(&Instance{}, TableInstance)
 	CreateTable(&Application{}, TableApplication)
@@ -210,11 +246,12 @@ func CreateTables() {
 }
 
 // RetrieveInstance function returns the given Instance from the Database
+// returns true if the instance exists and an error occurred
 func RetrieveInstance(i *Instance) (bool, error) {
 	if i.Id == "" {
 		return false, errors.New(ErrMSGIDMissing)
 	}
-	return retrieve(i, TableInstance)
+	return retrieve(i, i.TableName())
 }
 
 // StoreInstance saves the Instance in the database
@@ -222,7 +259,7 @@ func StoreInstance(i *Instance) error {
 	if i.Id == "" {
 		return errors.New(ErrMSGIDMissing)
 	}
-	return store(i, TableInstance)
+	return store(i, i.TableName())
 }
 
 // DeleteInstance deletes the Instance in the database
@@ -230,7 +267,7 @@ func DeleteInstance(i *Instance) error {
 	if i.Id == "" {
 		return errors.New(ErrMSGIDMissing)
 	}
-	return deleteEntry(i, TableInstance)
+	return deleteEntry(i, i.TableName())
 }
 
 // RetrieveBind function returns the given Bind from the Database
@@ -238,7 +275,7 @@ func RetrieveBind(b *Bind) (bool, error) {
 	if b.Id == "" {
 		return false, errors.New(ErrMSGIDMissing)
 	}
-	return retrieve(b, TableBind)
+	return retrieve(b, b.TableName())
 }
 
 // StoreBind saves the Bind in the database
@@ -246,7 +283,7 @@ func StoreBind(b *Bind) error {
 	if b.Id == "" {
 		return errors.New(ErrMSGIDMissing)
 	}
-	return store(b, TableBind)
+	return store(b, b.TableName())
 }
 
 // DeleteBind deletes the Bind in the database
@@ -254,7 +291,7 @@ func DeleteBind(b *Bind) error {
 	if b.Id == "" {
 		return errors.New(ErrMSGIDMissing)
 	}
-	return deleteEntry(b, TableBind)
+	return deleteEntry(b, b.TableName())
 }
 
 // RetrieveApp function returns the given Application from the Database
@@ -262,29 +299,29 @@ func RetrieveApp(a *Application) (bool, error) {
 	if a.Name == "" {
 		return false, errors.New(ErrMSGAPPNameMissing)
 	}
-	return retrieve(a, TableApplication)
+	return retrieve(a, a.TableName())
 }
 
 // StoreApp saves the Application in the database
-func StoreApp(b *Application) error {
-	if b.Name == "" {
+func StoreApp(a *Application) error {
+	if a.Name == "" {
 		return errors.New(ErrMSGAPPNameMissing)
 	}
-	return store(b, TableApplication)
+	return store(a, a.TableName())
 }
 
 // UpdateApp updates the application entry
-func UpdateApp(b *Application) error {
-	if b.Name == "" {
+func UpdateApp(a *Application) error {
+	if a.Name == "" {
 		return errors.New(ErrMSGAPPNameMissing)
 	}
-	return update(b, TableApplication)
+	return update(a, a.TableName())
 }
 
 // DeleteApp deletes the application entry
-func DeleteApp(b *Application) error {
-	if b.Name == "" {
+func DeleteApp(a *Application) error {
+	if a.Name == "" {
 		return errors.New(ErrMSGAPPNameMissing)
 	}
-	return deleteEntry(b, TableApplication)
+	return deleteEntry(a, a.TableName())
 }
