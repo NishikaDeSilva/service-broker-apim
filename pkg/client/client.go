@@ -21,12 +21,10 @@ package client
 
 import (
 	"bytes"
-	"code.cloudfoundry.org/lager"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/pkg/errors"
-	"github.com/wso2/service-broker-apim/pkg/constants"
-	"github.com/wso2/service-broker-apim/pkg/utils"
+	"github.com/wso2/service-broker-apim/pkg/log"
 	"io"
 	"io/ioutil"
 	"math"
@@ -35,18 +33,20 @@ import (
 )
 
 const (
-	HeaderAuth                 = "Authorization"
-	HeaderBear                 = "Bearer "
-	ErrMSGUnableToCreateReq    = "unable to create request"
-	ErrMSGUnableToParseReqBody = "unable to parse request body"
+	HeaderAuth                  = "Authorization"
+	HeaderBear                  = "Bearer "
+	ErrMSGUnableToCreateReq     = "unable to create request"
+	ErrMSGUnableToParseReqBody  = "unable to parse request body"
+	ErrMSGUnableToParseRespBody = "unable to parse response body: %s "
+	ErrMSGUnableInitiateReq     = "unable to initiate request: %s"
+	ErrMSGUnsuccessfulAPICall   = "unsuccessful API call: %s response Code: %s URL: %s"
+	ErrMSGUnableToCloseBody     = "unable to close the body"
+	HTTPContentType             = "Content-Type"
+	ContentTypeApplicationJson  = "application/json"
+	ContentTypeUrlEncoded       = "application/x-www-form-urlencoded; param=value"
 )
 
-// Request wraps the http.request and the Body
-// Body is wrapped with io.ReadSeeker which allows to reset the body buffer reader to initial state in retires
-type Request struct {
-	body io.ReadSeeker
-	R    *http.Request
-}
+var ErrInvalidParameters = errors.New("invalid parameters")
 
 // RetryPolicy defines a function which validate the response and apply desired policy
 // to determine whether to retry the particular request or not
@@ -75,6 +75,21 @@ var client = &Client{
 	maxRetry:      3,
 }
 
+// Request wraps the http.request and the Body
+// Body is wrapped with io.ReadSeeker which allows to reset the body buffer reader to initial state in retires
+type Request struct {
+	body    io.ReadSeeker
+	httpReq *http.Request
+}
+
+func (r *Request) Get() *http.Request {
+	return r.httpReq
+}
+
+func (r *Request) SetHeader(k, v string) {
+	r.httpReq.Header.Set(k, v)
+}
+
 // SetupClient overrides the default HTTP client. This method should be called before calling Invoke function
 func SetupClient(c *http.Client) {
 	client.httpClient = c
@@ -94,7 +109,7 @@ func (e *InvokeError) Error() string {
 // base64Encode("username:password")
 func B64BasicAuth(u, p string) (string, error) {
 	if u == "" || p == "" {
-		return "", errors.Errorf(constants.ErrMSGInvalidParams, u, p)
+		return "", ErrInvalidParameters
 	}
 	d := u + ":" + p
 	return base64.StdEncoding.EncodeToString([]byte(d)), nil
@@ -123,11 +138,11 @@ func Invoke(context string, req *Request, body interface{}, resCode int) error {
 	var err error
 	resp, err = client.Do(req)
 	if err != nil {
-		return errors.Wrapf(err, constants.ErrMSGUnableInitiateReq, context)
+		return errors.Wrapf(err, ErrMSGUnableInitiateReq, context)
 	}
 	if resp.StatusCode != resCode {
 		return &InvokeError{
-			err:        errors.Errorf(constants.ErrMSGUnsuccessfulAPICall, context, resp.Status, req.R.URL),
+			err:        errors.Errorf(ErrMSGUnsuccessfulAPICall, context, resp.Status, req.httpReq.URL),
 			StatusCode: resp.StatusCode,
 		}
 	}
@@ -136,14 +151,14 @@ func Invoke(context string, req *Request, body interface{}, resCode int) error {
 	if body != nil {
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				utils.LogError(constants.ErrMSGUnableToCloseBody, err, &utils.LogData{})
+				log.Error(ErrMSGUnableToCloseBody, err, &log.Data{})
 			}
 		}()
 
 		err = ParseBody(resp, body)
 		if err != nil {
 			return &InvokeError{
-				err:        errors.Wrapf(err, constants.ErrMSGUnableToParseRespBody, context),
+				err:        errors.Wrapf(err, ErrMSGUnableToParseRespBody, context),
 				StatusCode: resp.StatusCode,
 			}
 		}
@@ -157,8 +172,19 @@ func PostReq(token, url string, body io.ReadSeeker) (*Request, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
-	req.R.Header.Add(HeaderAuth, HeaderBear+token)
-	req.R.Header.Set(constants.HTTPContentType, constants.ContentTypeApplicationJson)
+	req.SetHeader(HeaderAuth, HeaderBear+token)
+	req.SetHeader(HTTPContentType, ContentTypeApplicationJson)
+	return req, nil
+}
+
+// PutReq creates a PUT HTTP request with an Authorization header and set the content type to application/json
+func PutReq(token, url string, body io.ReadSeeker) (*Request, error) {
+	req, err := ToRequest(http.MethodPut, url, body)
+	if err != nil {
+		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+	}
+	req.SetHeader(HeaderAuth, HeaderBear+token)
+	req.SetHeader(HTTPContentType, ContentTypeApplicationJson)
 	return req, nil
 }
 
@@ -168,7 +194,7 @@ func GetReq(token, url string) (*Request, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
-	req.R.Header.Add(HeaderAuth, HeaderBear+token)
+	req.SetHeader(HeaderAuth, HeaderBear+token)
 	return req, nil
 }
 
@@ -178,7 +204,7 @@ func DeleteReq(token, url string) (*Request, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
-	req.R.Header.Add(HeaderAuth, HeaderBear+token)
+	req.SetHeader(HeaderAuth, HeaderBear+token)
 	return req, nil
 }
 
@@ -202,14 +228,14 @@ func ToRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Request{R: req, body: body}, nil
+	return &Request{httpReq: req, body: body}, nil
 }
 
 // Do method invokes the request and returns the response and, an error if exists
 // If the request is failed it will retry according to the registered Retry policy and Back off policy
 func (c *Client) Do(req *Request) (resp *http.Response, err error) {
 	for i := 1; i <= c.maxRetry; i++ {
-		resp, err = c.httpClient.Do(req.R)
+		resp, err = c.httpClient.Do(req.httpReq)
 		// This error occurs due to  network connectivity problem and not for Non 2xx responses
 		if err != nil {
 			return nil, err
@@ -217,22 +243,20 @@ func (c *Client) Do(req *Request) (resp *http.Response, err error) {
 		if !c.checkForReTry(resp) {
 			break
 		}
-		var logData = &utils.LogData{
-			Data: lager.Data{
-				"url":           req.R.URL,
-				"response code": resp.StatusCode,
-			},
-		}
+
+		logData := log.NewData().
+			Add("url", req.httpReq.URL).
+			Add("response code", resp.StatusCode)
 		if req.body != nil {
 			// Reset the body reader
 			if _, err := req.body.Seek(0, 0); err != nil {
-				utils.LogError("unable to reset body reader", err, logData)
+				log.Error("unable to reset body reader", err, logData)
 				return nil, err
 			}
 		}
 		bt := c.backOff(c.minBackOff, c.maxBackOff, i)
-		logData.AddData("back off time", bt.Seconds()).AddData("attempt", i)
-		utils.LogDebug("retrying the request", logData)
+		logData.Add("back off time", bt.Seconds()).Add("attempt", i)
+		log.Debug("retrying the request", logData)
 		time.Sleep(bt)
 	}
 	return resp, nil

@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
-	"github.com/wso2/service-broker-apim/pkg/constants"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 	"net/url"
@@ -30,8 +29,10 @@ import (
 
 const (
 	CreateAPIContext              = "create API"
+	UpdateAPIContext              = "update API"
 	CreateApplicationContext      = "create application"
 	CreateSubscriptionContext     = "create subscription"
+	UpdateApplicationContext      = "update application"
 	GenerateKeyContext            = "Generate application keys"
 	StoreApplicationContext       = "/api/am/store/v0.14/applications"
 	StoreSubscriptionContext      = "/api/am/store/v0.14/subscriptions"
@@ -45,6 +46,8 @@ const (
 	APIDeleteContext              = "delete API"
 	APISearchContext              = "search API"
 	ApplicationSearchContext      = "search Application"
+	ErrMSGAPIIDEmpty              = "API ID is empty"
+	ErrMSGAPPIDEmpty              = "application id is empty"
 )
 
 // APIMClient handles the communication with API Manager
@@ -83,10 +86,38 @@ func (am *APIMClient) CreateAPI(reqBody *APIReqBody) (string, error) {
 	return resBody.Id, nil
 }
 
+func (am *APIMClient) UpdateAPI(id string, reqBody *APIReqBody) error {
+	buf, err := client.BodyReader(reqBody)
+	if err != nil {
+		return err
+	}
+
+	aT, err := am.TokenManager.Token(ScopeAPICreate)
+	if err != nil {
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
+	}
+
+	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext, id)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, update endpoint")
+	}
+	req, err := client.PutReq(aT, u, buf)
+	if err != nil {
+		return err
+	}
+
+	var resBody APICreateResp
+	err = client.Invoke(UpdateAPIContext, req, &resBody, http.StatusOK)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Publish an API in state "Created"
 func (am *APIMClient) PublishAPI(apiId string) error {
 	if apiId == "" {
-		return errors.New(constants.ErrMSGAPIIDEmpty)
+		return errors.New(ErrMSGAPIIDEmpty)
 	}
 	aT, err := am.TokenManager.Token(ScopeAPIPublish)
 	if err != nil {
@@ -104,7 +135,7 @@ func (am *APIMClient) PublishAPI(apiId string) error {
 	q := url.Values{}
 	q.Add("apiId", apiId)
 	q.Add("action", "Publish")
-	req.R.URL.RawQuery = q.Encode()
+	req.Get().URL.RawQuery = q.Encode()
 	err = client.Invoke(PublishAPIContext, req, nil, http.StatusOK)
 	return err
 }
@@ -135,10 +166,35 @@ func (am *APIMClient) CreateApplication(reqBody *ApplicationCreateReq) (string, 
 	return resBody.ApplicationId, nil
 }
 
+func (am *APIMClient) UpdateApplication(id string, reqBody *ApplicationCreateReq) error {
+	buf, err := client.BodyReader(reqBody)
+	if err != nil {
+		return err
+	}
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
+	if err != nil {
+		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+	}
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext, id)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, update Application endpoint")
+	}
+	req, err := client.PutReq(aT, u, buf)
+	if err != nil {
+		return err
+	}
+	var resBody AppCreateRes
+	err = client.Invoke(UpdateApplicationContext, req, &resBody, http.StatusOK)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // GenerateKeys method generate keys for the given application
 func (am *APIMClient) GenerateKeys(appID string) (*ApplicationKey, error) {
 	if appID == "" {
-		return nil, errors.New(constants.ErrMSGAPPIDEmpty)
+		return nil, errors.New(ErrMSGAPPIDEmpty)
 	}
 	reqBody := defaultApplicationKeyGenerateReq()
 	buf, err := client.BodyReader(reqBody)
@@ -159,7 +215,7 @@ func (am *APIMClient) GenerateKeys(appID string) (*ApplicationKey, error) {
 	}
 	q := url.Values{}
 	q.Add("applicationId", appID)
-	req.R.URL.RawQuery = q.Encode()
+	req.Get().URL.RawQuery = q.Encode()
 
 	var resBody ApplicationKey
 	err = client.Invoke(GenerateKeyContext, req, &resBody, http.StatusOK)
@@ -171,6 +227,36 @@ func (am *APIMClient) GenerateKeys(appID string) (*ApplicationKey, error) {
 
 // Subscribe method subscribes an application to a an API
 func (am *APIMClient) Subscribe(appID, apiID, tier string) (string, error) {
+	reqBody := &SubscriptionReq{
+		ApplicationId: appID,
+		ApiIdentifier: apiID,
+		Tier:          tier,
+	}
+	bodyReader, err := client.BodyReader(reqBody)
+	if err != nil {
+		return "", err
+	}
+	aT, err := am.TokenManager.Token(ScopeSubscribe)
+	if err != nil {
+		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+	}
+	u, err := utils.ConstructURL(am.StoreEndpoint, StoreSubscriptionContext)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot construct, create subscribe endpoint")
+	}
+	req, err := client.PostReq(aT, u, bodyReader)
+	if err != nil {
+		return "", err
+	}
+	var resBody SubscriptionResp
+	err = client.Invoke(SubscribeContext, req, &resBody, http.StatusCreated)
+	if err != nil {
+		return "", err
+	}
+	return resBody.SubscriptionId, nil
+}
+
+func (am *APIMClient) UpdateSubscription(appID, apiID, tier string) (string, error) {
 	reqBody := &SubscriptionReq{
 		ApplicationId: appID,
 		ApiIdentifier: apiID,
@@ -280,7 +366,7 @@ func (am *APIMClient) SearchAPI(apiName string) (string, error) {
 	}
 	q := url.Values{}
 	q.Add("query", apiName)
-	req.R.URL.RawQuery = q.Encode()
+	req.Get().URL.RawQuery = q.Encode()
 
 	var resp APISearchResp
 	err = client.Invoke(APISearchContext, req, &resp, http.StatusOK)
@@ -312,7 +398,7 @@ func (am *APIMClient) SearchApplication(appName string) (string, error) {
 	}
 	q := url.Values{}
 	q.Add("query", appName)
-	req.R.URL.RawQuery = q.Encode()
+	req.Get().URL.RawQuery = q.Encode()
 
 	var resp ApplicationSearchResp
 	err = client.Invoke(ApplicationSearchContext, req, &resp, http.StatusOK)

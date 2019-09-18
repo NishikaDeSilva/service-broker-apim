@@ -23,9 +23,23 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/wso2/service-broker-apim/pkg/constants"
 	"os"
 	"strings"
+)
+
+const (
+	// FilePathEnv is used as a key to get the configuration file location
+	FilePathEnv = "BROKER_APIM_CONF_FILE"
+
+	// FileType constant is used to specify the Configuration file type(YAML)
+	FileType = "yaml"
+
+	// EnvPrefix is the prefix for configuration parameters ex: BROKER_APIM_LOGCONF_LOGFILE
+	EnvPrefix = "BROKER_APIM"
+
+	InfoMsgSettingUp        = "loading the configuration file: %s "
+	ErrMsgUnableToReadConf  = "unable to read configuration: %s"
+	ErrMsgUnableToParseConf = "unable to parse configuration"
 )
 
 // DBConfig represent the ORM configuration
@@ -88,8 +102,8 @@ type BrokerConfig struct {
 // LoadConfig load configuration into BrokerConfig object
 // Returns a pointer to the created BrokerConfig object or any error encountered
 func LoadConfig() (*BrokerConfig, error) {
-	viper.SetConfigType(constants.ConfigFileType)
-	viper.SetEnvPrefix(constants.EnvPrefix)
+	viper.SetConfigType(FileType)
+	viper.SetEnvPrefix(EnvPrefix)
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	setDefaultConf()
@@ -100,7 +114,7 @@ func LoadConfig() (*BrokerConfig, error) {
 	var brokerConfig BrokerConfig
 	err := viper.Unmarshal(&brokerConfig)
 	if err != nil {
-		return nil, errors.Wrapf(err, constants.ErrMsgUnableToParseConf)
+		return nil, errors.Wrapf(err, ErrMsgUnableToParseConf)
 	}
 	return &brokerConfig, nil
 }
@@ -108,12 +122,12 @@ func LoadConfig() (*BrokerConfig, error) {
 // loadConfigFile loads the configuration into the Viper file only if the configuration file is pointed with "BROKER_APIM_CONF_FILE" environment variable
 // Returns an error if it is unable to read the config into Viper
 func loadConfigFile() error {
-	confFile, exists := os.LookupEnv(constants.ConfFileEnv)
+	confFile, exists := os.LookupEnv(FilePathEnv)
 	if exists {
-		fmt.Println(fmt.Sprintf(constants.InfoMsgSettingUp, confFile))
+		fmt.Println(fmt.Sprintf(InfoMsgSettingUp, confFile))
 		viper.SetConfigFile(confFile)
 		if err := viper.ReadInConfig(); err != nil {
-			return errors.Wrapf(err, constants.ErrMsgUnableToReadConf, err)
+			return errors.Wrapf(err, ErrMsgUnableToReadConf, confFile)
 		}
 	}
 	return nil

@@ -15,108 +15,120 @@
  * specific language governing permissions and limitations
  * under the License.
  */
- package main
+package main
 
 import (
-	"code.cloudfoundry.org/lager"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/wso2/service-broker-apim/pkg/broker"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
-	"github.com/wso2/service-broker-apim/pkg/constants"
-	"github.com/wso2/service-broker-apim/pkg/dbutil"
-	"github.com/wso2/service-broker-apim/pkg/utils"
+	"github.com/wso2/service-broker-apim/pkg/db"
+	"github.com/wso2/service-broker-apim/pkg/log"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
+)
+
+const (
+	ErrMSGUnableToStartServerTLS = "unable to start the server on Host: %s port: %s TLS key: %s TLS cert: %s"
+	ErrMSGUnableToStartServer    = "unable to start the server on Host: %s port: %s"
+	InfoMSGShutdownBroker        = "starting APIM Service Broker shutdown"
+	InfoMSGServerStart           = "starting APIM broker"
 )
 
 func main() {
 
 	// Initialize the configuration
-	brokerConfig, err := config.LoadConfig()
+	conf, err := config.LoadConfig()
 	if err != nil {
-		utils.HandleErrorAndExit(err)
+		log.HandleErrorAndExit(err)
 	}
 	// Initialize the logs
-	logger, err := utils.InitLogger(brokerConfig.Log.LogFilePath, brokerConfig.Log.Level)
+	logger, err := log.InitLogger(conf.Log.LogFilePath, conf.Log.Level)
 	if err != nil {
-		utils.HandleErrorAndExit(err)
+		log.HandleErrorAndExit(err)
 	}
 	// Initialize HTTP client
 	client.SetupClient(&http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: brokerConfig.APIM.InsecureCon},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: conf.APIM.InsecureCon},
 		},
 	})
 
 	// Initialize ORM
-	dbutil.InitDB(&brokerConfig.DB)
+	db.InitDB(&conf.DB)
 	// Create tables
-	dbutil.CreateTables()
+	db.CreateTables()
 
 	// Initialize Token Manager
 	tManager := &broker.TokenManager{
-		TokenEndpoint:         brokerConfig.APIM.TokenEndpoint,
-		DynamicClientEndpoint: brokerConfig.APIM.DynamicClientEndpoint,
-		UserName:              brokerConfig.APIM.Username,
-		Password:              brokerConfig.APIM.Password,
+		TokenEndpoint:         conf.APIM.TokenEndpoint,
+		DynamicClientEndpoint: conf.APIM.DynamicClientEndpoint,
+		UserName:              conf.APIM.Username,
+		Password:              conf.APIM.Password,
 	}
 	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeSubscribe, broker.ScopeAPIPublish, broker.ScopeAPIView)
 
 	// Initialize APIM Manager
 	apimManager := &broker.APIMClient{
-		PublisherEndpoint: brokerConfig.APIM.PublisherEndpoint,
-		StoreEndpoint:     brokerConfig.APIM.StoreEndpoint,
+		PublisherEndpoint: conf.APIM.PublisherEndpoint,
+		StoreEndpoint:     conf.APIM.StoreEndpoint,
 		TokenManager:      tManager,
 	}
 
-	// Handling terminating signal
-	sigChannel := make(chan os.Signal, 1)
-	signal.Notify(sigChannel, syscall.SIGTERM)
-	go func() {
-		<-sigChannel
-		utils.LogInfo(constants.InfoMSGShutdownBroker, &utils.LogData{})
-		os.Exit(0)
-	}()
-
 	brokerCreds := brokerapi.BrokerCredentials{
-		Username: brokerConfig.HTTP.Auth.Username,
-		Password: brokerConfig.HTTP.Auth.Password,
+		Username: conf.HTTP.Auth.Username,
+		Password: conf.HTTP.Auth.Password,
 	}
 	apimServiceBroker := &broker.APIMServiceBroker{
-		BrokerConfig: brokerConfig,
+		BrokerConfig: conf,
 		APIMManager:  apimManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
-	// Register router with handlers
-	http.Handle("/", brokerAPI)
 
-	host := brokerConfig.HTTP.Host
-	port := brokerConfig.HTTP.Port
-	utils.LogInfo(constants.InfoMSGServerStart, &utils.LogData{
-		Data: lager.Data{
-			"host": host,
-			"port": port,
-		},
-	})
-	if !brokerConfig.HTTP.TLS.Enabled {
-		if err := http.ListenAndServe(host+":"+port, nil); err != nil {
-			utils.HandleErrorWithLoggerAndExit(
-				fmt.Sprintf(constants.ErrMSGUnableToStartServer, host, port), err)
+	host := conf.HTTP.Host
+	port := conf.HTTP.Port
+	ld := log.NewData().
+		Add("host", host).
+		Add("port", port)
+
+	server:= http.Server{
+		Handler:brokerAPI,
+		Addr: host + ":" + port,
+	}
+
+	// Handling terminating signal
+	idleConsClosed := make(chan struct{})
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt, os.Kill)
+		<-sigint
+		log.Info(InfoMSGShutdownBroker, nil)
+		if err := server.Shutdown(context.Background()); err != nil {
+			// Error from closing listeners, or context timeout:
+			log.Error("HTTP server Shutdown: %v", err, ld)
+		}
+		close(idleConsClosed)
+	}()
+
+	log.Info(InfoMSGServerStart, ld)
+	if !conf.HTTP.TLS.Enabled {
+		if err := server.ListenAndServe(); err != http.ErrServerClosed {
+			log.HandleErrorWithLoggerAndExit(
+				fmt.Sprintf(ErrMSGUnableToStartServer, host, port), err)
 		}
 	} else {
-		if err := http.ListenAndServeTLS(host+":"+port,
-			brokerConfig.HTTP.TLS.Cert, brokerConfig.HTTP.TLS.Key, nil); err != nil {
-			utils.HandleErrorWithLoggerAndExit(fmt.Sprintf(constants.ErrMSGUnableToStartServerTLS,
+		if err := server.ListenAndServeTLS(conf.HTTP.TLS.Cert, conf.HTTP.TLS.Key); err != http.ErrServerClosed {
+			log.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableToStartServerTLS,
 				host,
 				port,
-				brokerConfig.HTTP.TLS.Key,
-				brokerConfig.HTTP.TLS.Cert),
+				conf.HTTP.TLS.Key,
+				conf.HTTP.TLS.Cert),
 				err)
 		}
 	}
+	<-idleConsClosed
 }

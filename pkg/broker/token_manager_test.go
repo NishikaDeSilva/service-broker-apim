@@ -20,7 +20,6 @@ package broker
 
 import (
 	"github.com/jarcoal/httpmock"
-	"github.com/wso2/service-broker-apim/pkg/constants"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -30,12 +29,12 @@ import (
 )
 
 const (
-	dynamicClientEndpoint = "http://localhost"
-	tokenEndpoint         = "http://localhost"
-	scope                 = "scope:test"
-	token                 = "token"
-	refreshToken          = "refreshToken"
-	expiresIn             = 3600
+	dynamicClientEndpoint     = "http://localhost"
+	tokenEndpoint             = "http://localhost"
+	scope                     = "scope:test"
+	token                     = "token"
+	refreshToken              = "refreshToken"
+	expiresIn                 = 3600
 )
 
 var tmTest *TokenManager
@@ -67,7 +66,7 @@ func testIsExpired(time time.Time, expectedVal bool) func(t *testing.T) {
 	return func(t *testing.T) {
 		expired := isExpired(time)
 		if expired != expectedVal {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, expectedVal, expired)
+			t.Errorf(ErrMsgTestIncorrectResult, expectedVal, expired)
 		}
 	}
 }
@@ -94,7 +93,7 @@ func testDynamicClientRegSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 		if clientId != "1" {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, "1", clientId)
+			t.Errorf(ErrMsgTestIncorrectResult, "1", clientId)
 		}
 	}
 }
@@ -159,27 +158,27 @@ func testGenTokenSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 		if aT != token {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, token, aT)
+			t.Errorf(ErrMsgTestIncorrectResult, token, aT)
 		}
 		if rT != refreshToken {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, refreshToken, rT)
+			t.Errorf(ErrMsgTestIncorrectResult, refreshToken, rT)
 		}
 		if ex != expiresIn {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, expiresIn, ex)
+			t.Errorf(ErrMsgTestIncorrectResult, expiresIn, ex)
 		}
 	}
 }
 
 func TestAccessTokenReqBody(t *testing.T) {
 	data := url.Values{}
-	data.Set(constants.UserName, tmTest.UserName)
-	data.Add(constants.Password, tmTest.Password)
-	data.Add(constants.GrantType, constants.GrantPassword)
-	data.Add(constants.Scope, scope)
+	data.Set(UserName, tmTest.UserName)
+	data.Add(Password, tmTest.Password)
+	data.Add(GrantType, GrantPassword)
+	data.Add(Scope, scope)
 
 	result := tmTest.accessTokenReqBody(scope)
 	if !reflect.DeepEqual(result, data) {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, data, result)
+		t.Errorf(ErrMsgTestIncorrectResult, data, result)
 	}
 }
 
@@ -194,7 +193,7 @@ func testTokenSuccessFunc(t *testing.T) {
 		t.Error(err)
 	}
 	if aT != token {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, token, aT)
+		t.Errorf(ErrMsgTestIncorrectResult, token, aT)
 	}
 
 }
@@ -230,6 +229,6 @@ func testTokenRefreshFunc(t *testing.T) {
 		t.Error(err)
 	}
 	if aT != "newToken" {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, "newToken", aT)
+		t.Errorf(ErrMsgTestIncorrectResult, "newToken", aT)
 	}
 }

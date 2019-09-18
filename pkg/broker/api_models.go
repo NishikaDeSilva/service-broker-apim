@@ -58,6 +58,7 @@ type ApiCorsConfiguration struct {
 }
 
 type APIReqBody struct {
+	ID string `json:"id"`
 	// Name of the API
 	Name string `json:"name"`
 	// A brief description about the API

@@ -19,9 +19,14 @@ package utils
 
 import (
 	"encoding/json"
-	"github.com/wso2/service-broker-apim/pkg/constants"
+	"fmt"
 	"os"
 	"testing"
+)
+
+const (
+	ErrMsgTestCouldNotSetEnv  = "couldn't set the ENV: %v"
+	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 )
 
 func TestGetEnv(t *testing.T) {
@@ -29,30 +34,30 @@ func TestGetEnv(t *testing.T) {
 	envVal := "testValue"
 	envDefault := "default"
 	if err := os.Setenv(envKey, envVal); err != nil {
-		t.Errorf(constants.ErrMsgTestCouldNotSetEnv, envKey)
+		t.Errorf(ErrMsgTestCouldNotSetEnv, envKey)
 	}
 	re1 := GetEnv(envKey, envDefault)
 	if re1 != envVal {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, envVal, re1)
+		t.Errorf(ErrMsgTestIncorrectResult, envVal, re1)
 	}
 	re2 := GetEnv("", envDefault)
 	if re2 != envDefault {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, envDefault, re2)
+		t.Errorf(ErrMsgTestIncorrectResult, envDefault, re2)
 	}
 }
 
 func TestValidateParam(t *testing.T) {
 	valid := IsValidParams()
 	if valid {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+		t.Errorf(ErrMsgTestIncorrectResult, !valid, valid)
 	}
 	valid = IsValidParams("a", "b", "c")
 	if !valid {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+		t.Errorf(ErrMsgTestIncorrectResult, !valid, valid)
 	}
 	valid = IsValidParams("a", "b", "")
 	if valid {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, !valid, valid)
+		t.Errorf(ErrMsgTestIncorrectResult, !valid, valid)
 	}
 }
 
@@ -64,7 +69,7 @@ func TestRawMSGToString(t *testing.T) {
 		t.Error(err)
 	}
 	if result != msg {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, msg, result)
+		t.Errorf(ErrMsgTestIncorrectResult, msg, result)
 	}
 }
 
@@ -75,7 +80,7 @@ func TestConstructURL(t *testing.T) {
 	}
 	expected := "https://localhost:9443/carbon"
 	if result != expected {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, expected, result)
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
 
 	result, err = ConstructURL("https://localhost:9443", "carbon", "publisher")
@@ -84,7 +89,7 @@ func TestConstructURL(t *testing.T) {
 	}
 	expected = "https://localhost:9443/carbon/publisher"
 	if result != expected {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, expected, result)
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
 
 	result, err = ConstructURL("https://localhost:9443")
@@ -93,14 +98,14 @@ func TestConstructURL(t *testing.T) {
 	}
 	expected = "https://localhost:9443"
 	if result != expected {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, expected, result)
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
 
 	result, err = ConstructURL()
 	if err == nil {
-		t.Error("Expecting an error \"no paths found\"")
+		t.Error(fmt.Sprintf("Expecting an error: %v", ErrNoPaths))
 	}
-	if err.Error() != "no paths found" {
-		t.Error("Expecting the error 'no paths found' but got " + err.Error())
+	if err != ErrNoPaths {
+		t.Error(fmt.Sprintf("Expecting the error %v but got ", ErrNoPaths) + err.Error())
 	}
 }

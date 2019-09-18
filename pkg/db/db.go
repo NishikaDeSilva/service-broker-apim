@@ -16,16 +16,16 @@
  * under the License.
  */
 
-// dbutil package handles the DB connections and ORM
-package dbutil
+// db package handles the DB connections and ORM
+package db
 
 import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/config"
-	"github.com/wso2/service-broker-apim/pkg/utils"
-	"log"
+	"github.com/wso2/service-broker-apim/pkg/log"
+	logPkg "log"
 	"math"
 	"strconv"
 	"time"
@@ -33,29 +33,29 @@ import (
 import "github.com/jinzhu/gorm"
 
 const (
-	MySQL                   = "mysql"
-	ErrMsgUnableToOpenDBCon = "unable to open a DB connection"
+	MySQL                        = "mysql"
+	ErrMsgUnableToOpenDBCon      = "unable to open a DB connection"
 	ErrMsgUnableToAddForeignKeys = "unable to add foreign keys"
-	TableInstance        = "instances"
-	TableBind            = "binds"
-	TableApplication     = "applications"
-	ErrMSGAPPNameMissing = "Name is missing"
-	ErrMSGIDMissing      = "Id is missing"
+	TableInstance                = "instances"
+	TableBind                    = "binds"
+	TableApplication             = "applications"
 )
+
+type Entity interface {
+	TableName() string
+}
 
 // Instance represents the Instance model in the Database
 type Instance struct {
-	Id               string `gorm:"primary_key;type:varchar(100)"`
-	ServiceID        string `gorm:"type:varchar(100);not null"`
-	PlanID           string `gorm:"type:varchar(100);not null"`
-	APIMResourceID   string `gorm:"type:varchar(100);not null;unique"`
-	APIMResourceName string `gorm:"type:varchar(100);not null;unique"`
+	Id             string `gorm:"primary_key;type:varchar(100)"`
+	ServiceID      string `gorm:"type:varchar(100);not null"`
+	PlanID         string `gorm:"type:varchar(100);not null"`
+	APIMResourceID string `gorm:"type:varchar(100);not null;unique;column:apim_resource_id"`
 }
 
 // Application represents the Application model in the database
 type Application struct {
-	Name           string `gorm:"primary_key;type:varchar(100)"`
-	InstanceID     string `gorm:"type:varchar(100);not null;unique"`
+	ID             string `gorm:"primary_key;type:varchar(100);not null;unique"`
 	Token          string `gorm:"type:varchar(100)"`
 	ConsumerKey    string `gorm:"type:varchar(100)"`
 	ConsumerSecret string `gorm:"type:varchar(100)"`
@@ -114,28 +114,28 @@ func InitDB(conf *config.DBConfig) {
 func CreateTable(model interface{}, table string) {
 	db, err := dbCon()
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
+		log.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
 	}
 	defer closeDBCon(db)
 
-	var ld = &utils.LogData{}
-	ld.AddData("table", table)
+	var ld = &log.Data{}
+	ld.Add("table", table)
 
 	if ! db.HasTable(table) {
-		utils.LogDebug("creating a table in the DB", ld)
+		log.Debug("creating a table in the DB", ld)
 		if err := db.CreateTable(model).Error; err != nil {
-			utils.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
+			log.HandleErrorWithLoggerAndExit(fmt.Sprintf("couldn't create the table :%s", table), err)
 		}
 	} else {
-		utils.LogDebug("database already has the table", ld)
+		log.Debug("database already has the table", ld)
 	}
 }
 
 // dbCon returns a DB connection and any error occurred
 func dbCon() (*gorm.DB, error) {
-	var ld = &utils.LogData{}
-	ld.AddData("dbURL", url).
-		AddData("logMode", logMode)
+	var ld = log.NewData().
+		Add("dbURL", url).
+		Add("logMode", logMode)
 	var db *gorm.DB
 	var err error
 	for i := 0; i < maxRetries; i++ {
@@ -144,9 +144,9 @@ func dbCon() (*gorm.DB, error) {
 			break
 		}
 		bt := backOff(1*time.Second, 10*time.Second, i)
-		ld.AddData("attempt", i).
-			AddData("back-off time(seconds)", bt/time.Second)
-		utils.LogDebug(fmt.Sprintf("retrying the DB connection err: %v", err), ld)
+		ld.Add("attempt", i).
+			Add("back-off time(seconds)", bt/time.Second)
+		log.Debug(fmt.Sprintf("retrying the DB connection err: %v", err), ld)
 		time.Sleep(bt)
 	}
 
@@ -155,173 +155,96 @@ func dbCon() (*gorm.DB, error) {
 	}
 	if logMode {
 		db.LogMode(logMode)
-		ioWriter := utils.IoWriterLog()
+		ioWriter := log.IoWriterLog()
 		if ioWriter == nil {
 			return nil, errors.New("IoWriter for logging is not initialized")
 		}
-		db.SetLogger(gorm.Logger{LogWriter: log.New(ioWriter, "database", 0)})
+		db.SetLogger(gorm.Logger{LogWriter: logPkg.New(ioWriter, "database", 0)})
 	}
 	return db, nil
 }
 
 func closeDBCon(d *gorm.DB) {
 	if err := d.Close(); err != nil {
-		utils.LogError("unable to close DB connection", err, nil)
+		log.Error("unable to close DB connection", err, nil)
 	}
 }
 
 // store save the given Instance in the Database
-func store(model interface{}, table string) error {
+func Store(e Entity) error {
 	db, err := dbCon()
 	if err != nil {
 		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
-	return db.Table(table).Create(model).Error
+	return db.Table(e.TableName()).Create(e).Error
 }
 
 // update updates the given Instance in the Database
-func update(model interface{}, table string) error {
+func update(e Entity) error {
 	db, err := dbCon()
 	if err != nil {
 		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
-	return db.Table(table).Save(model).Error
+	return db.Table(e.TableName()).Save(e).Error
 }
 
 // deleteEntry deletes the given Instance in the Database
 // returns an error occurred
-func deleteEntry(model interface{}, table string) error {
+func Delete(e Entity) error {
 	db, err := dbCon()
 	if err != nil {
 		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
-	return db.Table(table).Delete(model).Error
+	return db.Table(e.TableName()).Delete(e).Error
 }
 
-// retrieve function returns the given Instance from the Database if exists and any error occurred
+// Retrieve function returns the given Instance from the Database if exists and any error occurred
 // returns true if the instance exists and an error if occurred
-func retrieve(model interface{}, table string) (bool, error) {
+func Retrieve(e Entity) (bool, error) {
 	db, err := dbCon()
 	if err != nil {
 		return false, errors.Wrap(err, ErrMsgUnableToOpenDBCon)
 	}
 	defer closeDBCon(db)
-	result := db.Table(table).Where(model).Find(model)
+	result := db.Table(e.TableName()).Where(e).Find(e)
 	if result.RecordNotFound() {
 		return false, nil
 	}
-	return true, result.Error
+
+	if result.Error != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // addForeignKeys configures foreign keys for Bind and Application tables
 func addForeignKeys() {
 	db, err := dbCon()
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
+		log.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
 	}
 	defer closeDBCon(db)
 	err = db.Model(&Bind{}).
 		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToAddForeignKeys, err)
+		log.HandleErrorWithLoggerAndExit(ErrMsgUnableToAddForeignKeys, err)
 	}
 	err = db.Model(&Application{}).
-		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
+		AddForeignKey("id", TableInstance+"(apim_resource_id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {
-		utils.HandleErrorWithLoggerAndExit(ErrMsgUnableToAddForeignKeys, err)
+		log.HandleErrorWithLoggerAndExit(ErrMsgUnableToAddForeignKeys, err)
 	}
 }
 
-// CreateInstanceTable creates the tables and add foreign keys
+// CreateTables creates the tables and add foreign keys
 func CreateTables() {
 	CreateTable(&Instance{}, TableInstance)
 	CreateTable(&Application{}, TableApplication)
 	CreateTable(&Bind{}, TableBind)
 	addForeignKeys()
-}
-
-// RetrieveInstance function returns the given Instance from the Database
-// returns true if the instance exists and an error occurred
-func RetrieveInstance(i *Instance) (bool, error) {
-	if i.Id == "" {
-		return false, errors.New(ErrMSGIDMissing)
-	}
-	return retrieve(i, i.TableName())
-}
-
-// StoreInstance saves the Instance in the database
-func StoreInstance(i *Instance) error {
-	if i.Id == "" {
-		return errors.New(ErrMSGIDMissing)
-	}
-	return store(i, i.TableName())
-}
-
-// DeleteInstance deletes the Instance in the database
-func DeleteInstance(i *Instance) error {
-	if i.Id == "" {
-		return errors.New(ErrMSGIDMissing)
-	}
-	return deleteEntry(i, i.TableName())
-}
-
-// RetrieveBind function returns the given Bind from the Database
-func RetrieveBind(b *Bind) (bool, error) {
-	if b.Id == "" {
-		return false, errors.New(ErrMSGIDMissing)
-	}
-	return retrieve(b, b.TableName())
-}
-
-// StoreBind saves the Bind in the database
-func StoreBind(b *Bind) error {
-	if b.Id == "" {
-		return errors.New(ErrMSGIDMissing)
-	}
-	return store(b, b.TableName())
-}
-
-// DeleteBind deletes the Bind in the database
-func DeleteBind(b *Bind) error {
-	if b.Id == "" {
-		return errors.New(ErrMSGIDMissing)
-	}
-	return deleteEntry(b, b.TableName())
-}
-
-// RetrieveApp function returns the given Application from the Database
-func RetrieveApp(a *Application) (bool, error) {
-	if a.Name == "" {
-		return false, errors.New(ErrMSGAPPNameMissing)
-	}
-	return retrieve(a, a.TableName())
-}
-
-// StoreApp saves the Application in the database
-func StoreApp(a *Application) error {
-	if a.Name == "" {
-		return errors.New(ErrMSGAPPNameMissing)
-	}
-	return store(a, a.TableName())
-}
-
-// UpdateApp updates the application entry
-func UpdateApp(a *Application) error {
-	if a.Name == "" {
-		return errors.New(ErrMSGAPPNameMissing)
-	}
-	return update(a, a.TableName())
-}
-
-// DeleteApp deletes the application entry
-func DeleteApp(a *Application) error {
-	if a.Name == "" {
-		return errors.New(ErrMSGAPPNameMissing)
-	}
-	return deleteEntry(a, a.TableName())
 }

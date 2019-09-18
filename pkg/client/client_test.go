@@ -20,7 +20,6 @@ package client
 import (
 	"encoding/json"
 	"github.com/jarcoal/httpmock"
-	"github.com/wso2/service-broker-apim/pkg/constants"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -41,6 +40,7 @@ const (
 	PayloadID        = 1
 	PayloadName      = "test"
 	PayloadString    = `{"id": 1, "name": "test"}`
+	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 )
 
 var payload = testVal{
@@ -59,7 +59,7 @@ func TestB64BasicAuth(t *testing.T) {
 	}
 	exp := "YWRtaW46YWRtaW4="
 	if re1 != exp {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, exp, re1)
+		t.Errorf(ErrMsgTestIncorrectResult, exp, re1)
 	}
 }
 
@@ -72,22 +72,22 @@ func TestPostReq(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if req.R.Method != http.MethodPost {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, http.MethodPost, req.R.Method)
+	if req.httpReq.Method != http.MethodPost {
+		t.Errorf(ErrMsgTestIncorrectResult, http.MethodPost, req.httpReq.Method)
 	}
-	if req.R.Host != Host {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, Host, req.R.Host)
+	if req.httpReq.Host != Host {
+		t.Errorf(ErrMsgTestIncorrectResult, Host, req.httpReq.Host)
 	}
-	if req.R.Header.Get(HeaderAuth) != (HeaderBear + Token) {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, HeaderBear+Token, req.R.Header.Get(HeaderAuth))
+	if req.httpReq.Header.Get(HeaderAuth) != (HeaderBear + Token) {
+		t.Errorf(ErrMsgTestIncorrectResult, HeaderBear+Token, req.httpReq.Header.Get(HeaderAuth))
 	}
 	var val testVal
-	err = json.NewDecoder(req.R.Body).Decode(&val)
+	err = json.NewDecoder(req.httpReq.Body).Decode(&val)
 	if err != nil {
 		t.Error(err)
 	}
 	if val.Id != PayloadID {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, PayloadID, val.Id)
+		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, val.Id)
 	}
 }
 
@@ -96,14 +96,14 @@ func TestDeleteReq(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if req.R.Method != http.MethodDelete {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, http.MethodDelete, req.R.Method)
+	if req.httpReq.Method != http.MethodDelete {
+		t.Errorf(ErrMsgTestIncorrectResult, http.MethodDelete, req.httpReq.Method)
 	}
-	if req.R.Host != Host {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, Host, req.R.Host)
+	if req.httpReq.Host != Host {
+		t.Errorf(ErrMsgTestIncorrectResult, Host, req.httpReq.Host)
 	}
-	if req.R.Header.Get(HeaderAuth) != (HeaderBear + Token) {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, HeaderBear+Token, req.R.Header.Get(HeaderAuth))
+	if req.httpReq.Header.Get(HeaderAuth) != (HeaderBear + Token) {
+		t.Errorf(ErrMsgTestIncorrectResult, HeaderBear+Token, req.httpReq.Header.Get(HeaderAuth))
 	}
 }
 
@@ -134,7 +134,7 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 		if body.Id != PayloadID {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, PayloadID, body.Id)
+			t.Errorf(ErrMsgTestIncorrectResult, PayloadID, body.Id)
 		}
 	}
 }
@@ -151,16 +151,16 @@ func testInvokeFailFunc() func(t *testing.T) {
 		}
 		err = Invoke(Context, req, nil, http.StatusOK)
 		if err == nil {
-			t.Errorf(constants.ErrMsgTestIncorrectResult, "error response with code: "+
+			t.Errorf(ErrMsgTestIncorrectResult, "error response with code: "+
 				strconv.Itoa(http.StatusNotFound), "reponse code: "+strconv.Itoa(http.StatusOK))
 		} else {
 			if e, ok := err.(*InvokeError); ok {
 				if e.StatusCode != http.StatusNotFound {
-					t.Errorf(constants.ErrMsgTestIncorrectResult, "response code = "+
+					t.Errorf(ErrMsgTestIncorrectResult, "response code = "+
 						strconv.Itoa(http.StatusNotFound), "reponse code = "+strconv.Itoa(http.StatusOK))
 				}
 			} else {
-				t.Errorf(constants.ErrMsgTestIncorrectResult, "type = "+reflect.TypeOf(InvokeError{}).Name(),
+				t.Errorf(ErrMsgTestIncorrectResult, "type = "+reflect.TypeOf(InvokeError{}).Name(),
 					"type = "+reflect.TypeOf(err).Name())
 			}
 
@@ -180,7 +180,7 @@ func TestBodyReader(t *testing.T) {
 		t.Error(err)
 	}
 	if val.Id != PayloadID {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, PayloadID, val.Id)
+		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, val.Id)
 	}
 }
 
@@ -198,6 +198,6 @@ func TestParseBody(t *testing.T) {
 		t.Error(err)
 	}
 	if body.Id != PayloadID {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, PayloadID, body.Id)
+		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, body.Id)
 	}
 }

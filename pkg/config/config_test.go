@@ -19,36 +19,152 @@ package config
 
 import (
 	"github.com/spf13/viper"
-	"github.com/wso2/service-broker-apim/pkg/constants"
 	"os"
 	"testing"
 )
 
-const ConfigFilePath = "../../config/config.yaml"
+const (
+	ConfigFilePath            = "../../config/config.yaml"
+	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
+)
 
-func setUpEnv(t *testing.T) {
-	err := os.Setenv(constants.ConfFileEnv, ConfigFilePath)
+func setUpEnv(key, val string, t *testing.T) {
+	err := os.Setenv(key, val)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func tearDownEnv(t *testing.T) {
-	err := os.Unsetenv(constants.ConfFileEnv)
+func tearDownEnv(key string, t *testing.T) {
+	err := os.Unsetenv(FilePathEnv)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestLoadConfigFile(t *testing.T) {
-	setUpEnv(t)
+	setUpEnv(FilePathEnv, ConfigFilePath, t)
 	err := loadConfigFile()
 	if err != nil {
 		t.Error(err)
 	}
 	if viper.ConfigFileUsed() != ConfigFilePath {
-		t.Errorf(constants.ErrMsgTestIncorrectResult, ConfigFilePath, viper.ConfigFileUsed())
+		t.Errorf(ErrMsgTestIncorrectResult, ConfigFilePath, viper.ConfigFileUsed())
 	}
-	tearDownEnv(t)
+	viper.Reset()
+	tearDownEnv(FilePathEnv, t)
 }
 
+func TestSetDefaultConf(t *testing.T) {
+	setDefaultConf()
+	result, expected := viper.GetString("log.logFilePath"), "server.log"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("log.level"), "info"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("http.auth.username"), "admin"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("http.auth.password"), "admin"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	resultB := viper.GetBool("http.tls.enabled")
+	if resultB {
+		t.Errorf(ErrMsgTestIncorrectResult, false, resultB)
+	}
+	result, expected = viper.GetString("http.tls.key"), "key.pem"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("http.tls.cert"), "cert.pem"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("http.host"), "0.0.0.0"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("http.port"), "8444"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("apim.username"), "admin"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("apim.password"), "admin"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	resultB = viper.GetBool("apim.insecureCon")
+	if !resultB {
+		t.Errorf(ErrMsgTestIncorrectResult, true, resultB)
+	}
+	result, expected = viper.GetString("apim.tokenEndpoint"), "https://localhost:8243"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("apim.dynamicClientEndpoint"), "https://localhost:9443"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("apim.publisherEndpoint"), "https://localhost:9443"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("apim.storeEndpoint"), "https://localhost:9443"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("db.host"), "localhost"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("db.port"), "3306"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("db.username"), "root"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("db.password"), "root123"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("db.database"), "broker"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	result, expected = viper.GetString("db.database"), "broker"
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+	resultB = viper.GetBool("db.logMode")
+	if resultB {
+		t.Errorf(ErrMsgTestIncorrectResult, false, resultB)
+	}
+	resultI, expectedI := viper.GetInt("db.maxRetries"), 3
+	if expectedI != resultI {
+		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
+	}
+	viper.Reset()
+}
+
+func TestEnvConf(t *testing.T) {
+	setUpEnv(EnvPrefix+"_DB_DATABASE", "broker_test", t)
+	c, err := LoadConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	if c.DB.Database != "broker_test" {
+		t.Errorf(ErrMsgTestIncorrectResult, "broker_test", c.DB.Database)
+	}
+	tearDownEnv(EnvPrefix+"_db_database", t)
+	viper.Reset()
+}
