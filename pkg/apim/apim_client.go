@@ -137,7 +137,7 @@ func (am *Client) PublishAPI(apiID string) error {
 		return err
 	}
 	q := url.Values{}
-	q.Add("apiID", apiID)
+	q.Add("apiId", apiID)
 	q.Add("action", "Publish")
 	req.Get().URL.RawQuery = q.Encode()
 	err = client.Invoke(PublishAPIContext, req, nil, http.StatusOK)

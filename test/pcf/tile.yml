@@ -33,7 +33,7 @@ forms:
       - name: apim_insecure_con
         type: boolean
         label: Enable insecure connections for APIM
-      - name: port
+      - name: broker_port
         type: integer
         label: Port
         default: 8080
@@ -68,7 +68,7 @@ packages:
       buildpack: binary_buildpack
       env:
         APIM_BROKER_LOG_LEVEL: (( .properties.log_level.value ))
-        APIM_BROKER_HTTP_PORT: (( .properties.port.value ))
+        APIM_BROKER_HTTP_PORT: (( .properties.broker_port.value ))
         APIM_BROKER_APIM_TOKENENDPOINT: "https://gateway.sys.ixdev.wso2.com"
         APIM_BROKER_APIM_DYNAMICCLIENTENDPOINT: "https://keymanager.sys.ixdev.wso2.com"
         APIM_BROKER_APIM_STOREENDPOINT: "https://wso2apim.sys.ixdev.wso2.com"

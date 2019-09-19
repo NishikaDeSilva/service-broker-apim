@@ -400,14 +400,21 @@ func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.P
 	logData.Add(LogKeyAPIID, apiID)
 	log.Debug("created API in APIM", logData)
 
+	if err = sBroker.APIMClient.PublishAPI(apiID); err != nil {
+		log.Error("unable to publish API", err, logData)
+		errDel := sBroker.APIMClient.DeleteAPI(apiID)
+		if errDel != nil {
+			log.Error("failed to cleanup, unable to delete the API", errDel, logData)
+		}
+		return spec, failureResponse500("unable to publish the API", "publish the API")
+	}
+	// Store instance in the database
 	i := &db.Instance{
 		ServiceID:      serviceDetails.ServiceID,
 		PlanID:         serviceDetails.PlanID,
 		Id:             instanceID,
 		APIMResourceID: apiID,
 	}
-
-	// Store instance in the database
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
@@ -416,14 +423,6 @@ func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.P
 			log.Error("failed to cleanup, unable to delete the API", errDel, logData)
 		}
 		return spec, failureResponse500(ErrMSGUnableToStoreInstance, ErrActionStoreInstance)
-	}
-	if err = sBroker.APIMClient.PublishAPI(apiID); err != nil {
-		log.Error("unable to publish API", err, logData)
-		errDel := sBroker.APIMClient.DeleteAPI(apiID)
-		if errDel != nil {
-			log.Error("failed to cleanup, unable to delete the API", errDel, logData)
-		}
-		return spec, failureResponse500("unable to publish the API", "publish the API")
 	}
 	log.Debug("published API in APIM", logData)
 	return spec, nil
