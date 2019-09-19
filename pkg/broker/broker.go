@@ -392,7 +392,7 @@ func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.P
 		log.Error("unable to create API", err, logData)
 		e, ok := err.(*client.InvokeError)
 		if ok && e.StatusCode == http.StatusConflict {
-			return spec, failureResponse500(fmt.Sprintf("API %s already exist !", apiParam.APISpec.Name), ErrActionCreateAPI)
+			return spec, failureResponse500(fmt.Sprintf("API %s already exist", apiParam.APISpec.Name), ErrActionCreateAPI)
 		}
 		return spec, failureResponse500("unable to create the API", ErrActionCreateAPI)
 	}
@@ -753,7 +753,7 @@ func (sBroker *APIM) UpdateAppService(instanceID string, serviceDetails domain.U
 		Add("description", appCreateReq.Description).
 		Add("callbackUrl", appCreateReq.CallbackUrl).
 		Add(LogKeyAPPName, appCreateReq.Name)
-	log.Debug("updating a new application...", logData)
+	log.Debug("updating the application...", logData)
 	err = sBroker.APIMClient.UpdateApplication(instance.APIMResourceID, &applicationParam.AppSpec)
 	if err != nil {
 		log.Error("unable to update Application", err, logData)
