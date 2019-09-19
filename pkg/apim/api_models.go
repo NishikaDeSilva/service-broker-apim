@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package broker
+package apim
 
 type APIMaxTps struct {
 	Production int64 `json:"production,omitempty"`

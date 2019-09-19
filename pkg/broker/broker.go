@@ -26,6 +26,7 @@ import (
 	"github.com/pivotal-cf/brokerapi/domain"
 	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
 	"github.com/pkg/errors"
+	"github.com/wso2/service-broker-apim/pkg/apim"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/db"
@@ -36,10 +37,6 @@ import (
 )
 
 const (
-	ScopeAPICreate              = "apim:api_create"
-	ScopeSubscribe              = "apim:subscribe"
-	ScopeAPIPublish             = "apim:api_publish"
-	ScopeAPIView                = "apim:api_view"
 	ErrMSGInvalidSVCPlan        = "Invalid service or Plan"
 	LogKeyAPIName               = "api-name"
 	LogKeyAPIID                 = "api-id"
@@ -70,33 +67,33 @@ const (
 	SubscriptionPlanID          = "00e851cd-ce8b-43eb-bc27-ac4d4fbb3298"
 	SubscriptionPlanName        = "subs"
 	SubscriptionPlanDescription = "Create a Subscription in WSO2 API Manager"
+	ErrActionCreateAPI          = "create API"
 )
 
 var ErrNotSupported = errors.New("not supported")
 
-// APIMServiceBroker struct holds the concrete implementation of the interface brokerapi.ServiceBroker
-type APIMServiceBroker struct {
-	BrokerConfig *config.BrokerConfig
-	//TokenManager *TokenManager
-	APIMManager *APIMClient
+// APIM struct holds the concrete implementation of the interface brokerapi.ServiceBroker
+type APIM struct {
+	BrokerConfig *config.Broker
+	APIMClient   *apim.Client
 }
 
-func (asb *APIMServiceBroker) Services(ctx context.Context) ([]brokerapi.Service, error) {
+func (sBroker *APIM) Services(ctx context.Context) ([]brokerapi.Service, error) {
 	return Plan(), nil
 }
 
-func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
+func (sBroker *APIM) Provision(ctx context.Context, instanceID string,
 	serviceDetails domain.ProvisionDetails, asyncAllowed bool) (spec domain.ProvisionedServiceSpec, err error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
 		Add(LogKeyInstanceID, instanceID)
 	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.createAPIService(instanceID, serviceDetails)
+		return sBroker.createAPIService(instanceID, serviceDetails)
 	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.createAppService(instanceID, serviceDetails)
+		return sBroker.createAppService(instanceID, serviceDetails)
 	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.createSubscriptionService(instanceID, serviceDetails)
+		return sBroker.createSubscriptionService(instanceID, serviceDetails)
 	} else {
 		log.Error("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
 		return spec, apiresponses.NewFailureResponse(errors.New("invalid Plan or Service"),
@@ -104,25 +101,25 @@ func (asb *APIMServiceBroker) Provision(ctx context.Context, instanceID string,
 	}
 }
 
-func (asb *APIMServiceBroker) Deprovision(ctx context.Context, instanceID string,
+func (sBroker *APIM) Deprovision(ctx context.Context, instanceID string,
 	serviceDetails domain.DeprovisionDetails, asyncAllowed bool) (domain.DeprovisionServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
 		Add(LogKeyInstanceID, instanceID)
 	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.delAPIService(instanceID, serviceDetails)
+		return sBroker.delAPIService(instanceID, serviceDetails)
 	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.delAppService(instanceID, serviceDetails)
+		return sBroker.delAppService(instanceID, serviceDetails)
 	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.delSubscriptionService(instanceID, serviceDetails)
+		return sBroker.delSubscriptionService(instanceID, serviceDetails)
 	} else {
 		log.Error("invalid instance id or plan id", errors.New(ErrMSGInvalidSVCPlan), logData)
 		return domain.DeprovisionServiceSpec{}, invalidServiceOrPlanFailureResponse("provisioning")
 	}
 }
 
-func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID string,
+func (sBroker *APIM) Bind(ctx context.Context, instanceID, bindingID string,
 	details domain.BindDetails, asyncAllowed bool) (domain.Binding, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, details.ServiceID).
@@ -191,7 +188,7 @@ func (asb *APIMServiceBroker) Bind(ctx context.Context, instanceID, bindingID st
 	}
 
 	if !hasBind {
-		appKeys, err := asb.APIMManager.GenerateKeys(instance.APIMResourceID)
+		appKeys, err := sBroker.APIMClient.GenerateKeys(instance.APIMResourceID)
 		if err != nil {
 			log.Error("unable generate keys for application", err, logData)
 			return domain.Binding{}, failureResponse500("unable generate keys for application",
@@ -241,7 +238,7 @@ func credentialsMap(app *db.Application) map[string]interface{} {
 	}
 }
 
-func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID string,
+func (sBroker *APIM) Unbind(ctx context.Context, instanceID, bindingID string,
 	details domain.UnbindDetails, asyncAllowed bool) (domain.UnbindSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, details.ServiceID).
@@ -276,21 +273,21 @@ func (asb *APIMServiceBroker) Unbind(ctx context.Context, instanceID, bindingID 
 // LastOperation ...
 // If the broker provisions asynchronously, the Cloud Controller will poll this endpoint
 // for the status of the provisioning operation.
-func (apimServiceBroker *APIMServiceBroker) LastOperation(ctx context.Context, instanceID string,
+func (sBroker *APIM) LastOperation(ctx context.Context, instanceID string,
 	details domain.PollDetails) (domain.LastOperation, error) {
 	return domain.LastOperation{}, errors.New("not supported")
 }
 
-func (asb *APIMServiceBroker) Update(cxt context.Context, instanceID string,
+func (sBroker *APIM) Update(cxt context.Context, instanceID string,
 	serviceDetails domain.UpdateDetails, asyncAllowed bool) (domain.UpdateServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
 		Add(LogKeyInstanceID, instanceID)
 	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.UpdateAPIService(instanceID, serviceDetails)
+		return sBroker.UpdateAPIService(instanceID, serviceDetails)
 	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		return asb.UpdateAppService(instanceID, serviceDetails)
+		return sBroker.UpdateAppService(instanceID, serviceDetails)
 	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
 		// It is not possible to update subscription
 		return domain.UpdateServiceSpec{}, ErrNotSupported
@@ -301,17 +298,17 @@ func (asb *APIMServiceBroker) Update(cxt context.Context, instanceID string,
 	}
 }
 
-func (apimServiceBroker *APIMServiceBroker) GetBinding(ctx context.Context, instanceID,
+func (sBroker *APIM) GetBinding(ctx context.Context, instanceID,
 bindingID string) (domain.GetBindingSpec, error) {
 	return domain.GetBindingSpec{}, ErrNotSupported
 }
 
-func (apimServiceBroker *APIMServiceBroker) GetInstance(ctx context.Context,
+func (sBroker *APIM) GetInstance(ctx context.Context,
 	instanceID string) (domain.GetInstanceDetailsSpec, error) {
 	return domain.GetInstanceDetailsSpec{}, ErrNotSupported
 }
 
-func (apimServiceBroker *APIMServiceBroker) LastBindingOperation(ctx context.Context, instanceID,
+func (sBroker *APIM) LastBindingOperation(ctx context.Context, instanceID,
 bindingID string, details domain.PollDetails) (domain.LastOperation, error) {
 	return domain.LastOperation{}, ErrNotSupported
 }
@@ -354,7 +351,7 @@ func Plan() []domain.Service {
 	}
 }
 
-func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails domain.ProvisionDetails) (spec domain.ProvisionedServiceSpec, err error) {
+func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.ProvisionDetails) (spec domain.ProvisionedServiceSpec, err error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -369,7 +366,7 @@ func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails
 			http.StatusInternalServerError, "getting the instance information from DB")
 	}
 	if exists {
-		log.Error(CreateAPIContext, apiresponses.ErrInstanceAlreadyExists, logData)
+		log.Error("instance already exists", apiresponses.ErrInstanceAlreadyExists, logData)
 		return spec, apiresponses.ErrInstanceAlreadyExists
 	}
 	// Parse API JSON Spec
@@ -390,14 +387,14 @@ func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails
 
 	logData.Add(LogKeyAPIName, apiParam.APISpec.Name)
 
-	apiID, err := asb.APIMManager.CreateAPI(&apiParam.APISpec)
+	apiID, err := sBroker.APIMClient.CreateAPI(&apiParam.APISpec)
 	if err != nil {
 		log.Error("unable to create API", err, logData)
 		e, ok := err.(*client.InvokeError)
 		if ok && e.StatusCode == http.StatusConflict {
-			return spec, failureResponse500(fmt.Sprintf("API %s already exist !", apiParam.APISpec.Name), "create API")
+			return spec, failureResponse500(fmt.Sprintf("API %s already exist !", apiParam.APISpec.Name), ErrActionCreateAPI)
 		}
-		return spec, failureResponse500("unable to create the API", "create API")
+		return spec, failureResponse500("unable to create the API", ErrActionCreateAPI)
 	}
 
 	logData.Add(LogKeyAPIID, apiID)
@@ -414,20 +411,19 @@ func (asb *APIMServiceBroker) createAPIService(instanceID string, serviceDetails
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
-		errDel := asb.APIMManager.DeleteAPI(apiID)
+		errDel := sBroker.APIMClient.DeleteAPI(apiID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the API", errDel, logData)
 		}
 		return spec, failureResponse500(ErrMSGUnableToStoreInstance, ErrActionStoreInstance)
 	}
-	if err = asb.APIMManager.PublishAPI(apiID); err != nil {
+	if err = sBroker.APIMClient.PublishAPI(apiID); err != nil {
 		log.Error("unable to publish API", err, logData)
-		errDel := asb.APIMManager.DeleteAPI(apiID)
+		errDel := sBroker.APIMClient.DeleteAPI(apiID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the API", errDel, logData)
 		}
-		return spec, apiresponses.NewFailureResponse(errors.New("unable to publish the API"),
-			http.StatusInternalServerError, "unable to publish the API")
+		return spec, failureResponse500("unable to publish the API", "publish the API")
 	}
 	log.Debug("published API in APIM", logData)
 	return spec, nil
@@ -444,7 +440,7 @@ func hasValidParameters(m *json.RawMessage) (bool, error) {
 	return true, nil
 }
 
-func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails domain.ProvisionDetails) (domain.ProvisionedServiceSpec, error) {
+func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.ProvisionDetails) (domain.ProvisionedServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -457,26 +453,26 @@ func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails
 		return domain.ProvisionedServiceSpec{}, err
 	}
 	if exists {
-		log.Error(CreateApplicationContext, apiresponses.ErrInstanceAlreadyExists, logData)
+		log.Error(apim.CreateApplicationContext, apiresponses.ErrInstanceAlreadyExists, logData)
 		return domain.ProvisionedServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
 	}
 	// Validates the parameters before moving forward
-	applicationParam, err := toApplicationParam(serviceDetails.RawParameters)
+	aParam, err := toApplicationParam(serviceDetails.RawParameters)
 	if err != nil {
 		log.Error("invalid parameter in application json", err, logData)
 		return domain.ProvisionedServiceSpec{}, apiresponses.NewFailureResponse(errors.New("invalid parameter"),
 			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
 	}
-	if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
-		applicationParam.AppSpec.CallbackUrl, applicationParam.AppSpec.Name) {
+	if !utils.IsValidParams(aParam.AppSpec.ThrottlingTier, aParam.AppSpec.Description,
+		aParam.AppSpec.CallbackUrl, aParam.AppSpec.Name) {
 		return domain.ProvisionedServiceSpec{}, apiresponses.NewFailureResponse(errors.New("invalid parameters"),
-			http.StatusBadRequest, "Parsing Subscription parameters")
+			http.StatusBadRequest, "parsing Subscription parameters")
 	}
-	appCreateReq := &ApplicationCreateReq{
-		ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
-		Description:    applicationParam.AppSpec.Description,
-		Name:           applicationParam.AppSpec.Name,
-		CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
+	appCreateReq := &apim.ApplicationCreateReq{
+		ThrottlingTier: aParam.AppSpec.ThrottlingTier,
+		Description:    aParam.AppSpec.Description,
+		Name:           aParam.AppSpec.Name,
+		CallbackUrl:    aParam.AppSpec.CallbackUrl,
 	}
 
 	logData.
@@ -485,7 +481,7 @@ func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails
 		Add("callbackUrl", appCreateReq.CallbackUrl).
 		Add(LogKeyAPPName, appCreateReq.Name)
 	log.Debug("creating a new application...", logData)
-	appID, err := asb.APIMManager.CreateApplication(appCreateReq)
+	appID, err := sBroker.APIMClient.CreateApplication(appCreateReq)
 	if err != nil {
 		e, ok := err.(*client.InvokeError)
 		if ok {
@@ -505,7 +501,7 @@ func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
-		errDel := asb.APIMManager.DeleteApplication(appID)
+		errDel := sBroker.APIMClient.DeleteApplication(appID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the application", errDel, logData)
 		}
@@ -514,7 +510,7 @@ func (asb *APIMServiceBroker) createAppService(instanceID string, serviceDetails
 	return domain.ProvisionedServiceSpec{}, nil
 }
 
-func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, serviceDetails domain.ProvisionDetails) (spec domain.ProvisionedServiceSpec, err error) {
+func (sBroker *APIM) createSubscriptionService(instanceID string, serviceDetails domain.ProvisionDetails) (spec domain.ProvisionedServiceSpec, err error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -527,7 +523,7 @@ func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, servi
 		return domain.ProvisionedServiceSpec{}, failureResponse500("unable to query database", "getting the instance information from DB")
 	}
 	if exists {
-		log.Error(CreateSubscriptionContext, apiresponses.ErrInstanceAlreadyExists, logData)
+		log.Error(apim.CreateSubscriptionContext, apiresponses.ErrInstanceAlreadyExists, logData)
 		return domain.ProvisionedServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
 	}
 	subsInfo, err := toSubscriptionParam(serviceDetails.RawParameters)
@@ -539,19 +535,19 @@ func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, servi
 		return domain.ProvisionedServiceSpec{}, invalidParamFailureResponse("parsing Subscription parameters")
 	}
 	logData.Add("API name", subsInfo.SubsSpec.APIName).Add("Application Name", subsInfo.SubsSpec.AppName)
-	apiID, err := asb.APIMManager.SearchAPI(subsInfo.SubsSpec.APIName)
+	apiID, err := sBroker.APIMClient.SearchAPI(subsInfo.SubsSpec.APIName)
 	if err != nil {
 		log.Error("unable to search API", err, logData)
 		return spec, failureResponse500(fmt.Sprintf("couldn't find the API: %s", subsInfo.SubsSpec.APIName), "searching API")
 	}
 	logData.Add(LogKeyAPIID, apiID)
-	appID, err := asb.APIMManager.SearchApplication(subsInfo.SubsSpec.AppName)
+	appID, err := sBroker.APIMClient.SearchApplication(subsInfo.SubsSpec.AppName)
 	if err != nil {
 		log.Error("unable to search Application", err, logData)
 		return spec, failureResponse500(fmt.Sprintf("couldn't find the Application: %s", subsInfo.SubsSpec.AppName), "searching application")
 	}
 	logData.Add(LogKeyAPPID, appID)
-	subsID, err := asb.APIMManager.Subscribe(appID, apiID, subsInfo.SubsSpec.SubscriptionTier)
+	subsID, err := sBroker.APIMClient.Subscribe(appID, apiID, subsInfo.SubsSpec.SubscriptionTier)
 	if err != nil {
 		log.Error("unable to create the subscription", err, logData)
 		return spec, failureResponse500("unable to create the subscription", "create subscription")
@@ -567,7 +563,7 @@ func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, servi
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
-		errDel := asb.APIMManager.UnSubscribe(subsID)
+		errDel := sBroker.APIMClient.UnSubscribe(subsID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the subscription", errDel, logData)
 		}
@@ -576,7 +572,7 @@ func (asb *APIMServiceBroker) createSubscriptionService(instanceID string, servi
 	return domain.ProvisionedServiceSpec{}, nil
 }
 
-func (asb *APIMServiceBroker) delAPIService(instanceID string, serviceDetails domain.DeprovisionDetails) (domain.DeprovisionServiceSpec, error) {
+func (sBroker *APIM) delAPIService(instanceID string, serviceDetails domain.DeprovisionDetails) (domain.DeprovisionServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -594,7 +590,7 @@ func (asb *APIMServiceBroker) delAPIService(instanceID string, serviceDetails do
 	}
 
 	logData.Add(LogKeyAPIID, instance.APIMResourceID)
-	err = asb.APIMManager.DeleteAPI(instance.APIMResourceID)
+	err = sBroker.APIMClient.DeleteAPI(instance.APIMResourceID)
 	if err != nil {
 		log.Error("unable to delete the API", err, logData)
 		return domain.DeprovisionServiceSpec{}, failureResponse500(ErrMsgUnableDelInstance, ErrActionDelAPI)
@@ -607,7 +603,7 @@ func (asb *APIMServiceBroker) delAPIService(instanceID string, serviceDetails do
 	return domain.DeprovisionServiceSpec{}, nil
 }
 
-func (asb *APIMServiceBroker) delAppService(instanceID string, serviceDetails domain.DeprovisionDetails) (domain.DeprovisionServiceSpec, error) {
+func (sBroker *APIM) delAppService(instanceID string, serviceDetails domain.DeprovisionDetails) (domain.DeprovisionServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -625,7 +621,7 @@ func (asb *APIMServiceBroker) delAppService(instanceID string, serviceDetails do
 	}
 
 	logData.Add(LogKeyAPPID, instance.APIMResourceID)
-	err = asb.APIMManager.DeleteApplication(instance.APIMResourceID)
+	err = sBroker.APIMClient.DeleteApplication(instance.APIMResourceID)
 	if err != nil {
 		log.Error("unable to delete the Application", err, logData)
 		return domain.DeprovisionServiceSpec{}, failureResponse500(ErrMsgUnableDelInstance, ErrActionDelAPP)
@@ -638,7 +634,7 @@ func (asb *APIMServiceBroker) delAppService(instanceID string, serviceDetails do
 	return domain.DeprovisionServiceSpec{}, nil
 }
 
-func (asb *APIMServiceBroker) delSubscriptionService(instanceID string, serviceDetails domain.DeprovisionDetails) (domain.DeprovisionServiceSpec, error) {
+func (sBroker *APIM) delSubscriptionService(instanceID string, serviceDetails domain.DeprovisionDetails) (domain.DeprovisionServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -656,7 +652,7 @@ func (asb *APIMServiceBroker) delSubscriptionService(instanceID string, serviceD
 	}
 
 	logData.Add(LogKeySubsID, instance.APIMResourceID)
-	err = asb.APIMManager.UnSubscribe(instance.APIMResourceID)
+	err = sBroker.APIMClient.UnSubscribe(instance.APIMResourceID)
 	if err != nil {
 		log.Error("unable to delete the Subscription", err, logData)
 		return domain.DeprovisionServiceSpec{}, failureResponse500(ErrMsgUnableDelInstance, ErrActionDelSubs)
@@ -669,7 +665,7 @@ func (asb *APIMServiceBroker) delSubscriptionService(instanceID string, serviceD
 	return domain.DeprovisionServiceSpec{}, nil
 }
 
-func (asb *APIMServiceBroker) UpdateAPIService(instanceID string, serviceDetails domain.UpdateDetails) (domain.UpdateServiceSpec, error) {
+func (sBroker *APIM) UpdateAPIService(instanceID string, serviceDetails domain.UpdateDetails) (domain.UpdateServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -684,7 +680,7 @@ func (asb *APIMServiceBroker) UpdateAPIService(instanceID string, serviceDetails
 		return domain.UpdateServiceSpec{}, err
 	}
 	if !exists {
-		log.Error(UpdateAPIContext, apiresponses.ErrInstanceDoesNotExist, logData)
+		log.Error(apim.UpdateAPIContext, apiresponses.ErrInstanceDoesNotExist, logData)
 		return domain.UpdateServiceSpec{}, apiresponses.ErrInstanceDoesNotExist
 	}
 	// Parse API JSON Spec
@@ -703,7 +699,7 @@ func (asb *APIMServiceBroker) UpdateAPIService(instanceID string, serviceDetails
 		}
 	}
 	apiParam.APISpec.ID = instance.APIMResourceID
-	err = asb.APIMManager.UpdateAPI(instance.APIMResourceID, &apiParam.APISpec)
+	err = sBroker.APIMClient.UpdateAPI(instance.APIMResourceID, &apiParam.APISpec)
 	if err != nil {
 		log.Error("unable to update API", err, logData)
 		e, ok := err.(*client.InvokeError)
@@ -715,7 +711,7 @@ func (asb *APIMServiceBroker) UpdateAPIService(instanceID string, serviceDetails
 	return domain.UpdateServiceSpec{}, nil
 }
 
-func (asb *APIMServiceBroker) UpdateAppService(instanceID string, serviceDetails domain.UpdateDetails) (domain.UpdateServiceSpec, error) {
+func (sBroker *APIM) UpdateAppService(instanceID string, serviceDetails domain.UpdateDetails) (domain.UpdateServiceSpec, error) {
 	logData := log.NewData().
 		Add(LogKeyServiceID, serviceDetails.ServiceID).
 		Add(LogKeyPlanID, serviceDetails.PlanID).
@@ -730,7 +726,7 @@ func (asb *APIMServiceBroker) UpdateAppService(instanceID string, serviceDetails
 		return domain.UpdateServiceSpec{}, err
 	}
 	if !exists {
-		log.Error(UpdateApplicationContext, apiresponses.ErrInstanceDoesNotExist, logData)
+		log.Error(apim.UpdateApplicationContext, apiresponses.ErrInstanceDoesNotExist, logData)
 		return domain.UpdateServiceSpec{}, apiresponses.ErrInstanceDoesNotExist
 	}
 	// Validates the parameters before moving forward
@@ -745,7 +741,7 @@ func (asb *APIMServiceBroker) UpdateAppService(instanceID string, serviceDetails
 		return domain.UpdateServiceSpec{}, apiresponses.NewFailureResponse(errors.New("invalid parameters"),
 			http.StatusBadRequest, "parsing Subscription parameters")
 	}
-	appCreateReq := &ApplicationCreateReq{
+	appCreateReq := &apim.ApplicationCreateReq{
 		ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
 		Description:    applicationParam.AppSpec.Description,
 		Name:           applicationParam.AppSpec.Name,
@@ -758,7 +754,7 @@ func (asb *APIMServiceBroker) UpdateAppService(instanceID string, serviceDetails
 		Add("callbackUrl", appCreateReq.CallbackUrl).
 		Add(LogKeyAPPName, appCreateReq.Name)
 	log.Debug("updating a new application...", logData)
-	err = asb.APIMManager.UpdateApplication(instance.APIMResourceID, &applicationParam.AppSpec)
+	err = sBroker.APIMClient.UpdateApplication(instance.APIMResourceID, &applicationParam.AppSpec)
 	if err != nil {
 		log.Error("unable to update Application", err, logData)
 		e, ok := err.(*client.InvokeError)
@@ -796,8 +792,8 @@ func isSubscriptionPlan(serviceID, planID string) bool {
 }
 
 // toApplicationParam parses application parameters
-func toApplicationParam(params json.RawMessage) (ApplicationParam, error) {
-	var a ApplicationParam
+func toApplicationParam(params json.RawMessage) (apim.ApplicationParam, error) {
+	var a apim.ApplicationParam
 	err := json.Unmarshal(params, &a)
 	if err != nil {
 		return a, errors.Wrap(err, "unable to parse application parameters")
@@ -806,8 +802,8 @@ func toApplicationParam(params json.RawMessage) (ApplicationParam, error) {
 }
 
 // toSubscriptionParam parses subscription parameters
-func toSubscriptionParam(params json.RawMessage) (SubscriptionParam, error) {
-	var s SubscriptionParam
+func toSubscriptionParam(params json.RawMessage) (apim.SubscriptionParam, error) {
+	var s apim.SubscriptionParam
 	err := json.Unmarshal(params, &s)
 	if err != nil {
 		return s, errors.Wrap(err, "unable to parse subscription parameters")
@@ -816,8 +812,8 @@ func toSubscriptionParam(params json.RawMessage) (SubscriptionParam, error) {
 }
 
 // toAPIParam parses API spec parameter
-func toAPIParam(params json.RawMessage) (APIParam, error) {
-	var a APIParam
+func toAPIParam(params json.RawMessage) (apim.APIParam, error) {
+	var a apim.APIParam
 	err := json.Unmarshal(params, &a)
 	if err != nil {
 		return a, errors.Wrap(err, "unable to parse API parameters")

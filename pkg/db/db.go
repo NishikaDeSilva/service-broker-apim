@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// db package handles the DB connections and ORM
+// db package handles the DB connections and ORM.
 package db
 
 import (
@@ -41,11 +41,12 @@ const (
 	TableApplication             = "applications"
 )
 
+// Entity represents a table in the database.
 type Entity interface {
 	TableName() string
 }
 
-// Instance represents the Instance model in the Database
+// Instance represents the Instance model in the Database.
 type Instance struct {
 	Id             string `gorm:"primary_key;type:varchar(100)"`
 	ServiceID      string `gorm:"type:varchar(100);not null"`
@@ -53,7 +54,7 @@ type Instance struct {
 	APIMResourceID string `gorm:"type:varchar(100);not null;unique;column:apim_resource_id"`
 }
 
-// Application represents the Application model in the database
+// Application represents the Application model in the database.
 type Application struct {
 	ID             string `gorm:"primary_key;type:varchar(100);not null;unique"`
 	Token          string `gorm:"type:varchar(100)"`
@@ -71,10 +72,11 @@ type Bind struct {
 	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
 }
 
-var (
+var(
 	url        string
 	logMode    bool
 	maxRetries int
+	db         *gorm.DB
 )
 
 func (Instance) TableName() string {
@@ -89,7 +91,7 @@ func (Application) TableName() string {
 	return TableApplication
 }
 
-// backOff waits until attempt^2 or (min,max)
+// backOff waits until attempt^2 or (min,max).
 func backOff(min, max time.Duration, attempt int) time.Duration {
 	du := math.Pow(2, float64(attempt))
 	sleep := time.Duration(du) * time.Second
@@ -102,22 +104,20 @@ func backOff(min, max time.Duration, attempt int) time.Duration {
 	return sleep
 }
 
-// Initialize database ORM parameters
-func InitDB(conf *config.DBConfig) {
+// Initialize database ORM parameters.
+func  InitDB(conf *config.DB) {
 	url = conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
 		conf.Database + "?charset=utf8"
 	logMode = conf.LogMode
 	maxRetries = conf.MaxRetries
-}
-
-// Creates a table for the given model only if table already not exists
-func CreateTable(model interface{}, table string) {
-	db, err := dbCon()
+	err := connection()
 	if err != nil {
 		log.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
 	}
-	defer closeDBCon(db)
+}
 
+// Creates a table for the given model only if table already not exists.
+func CreateTable(model interface{}, table string) {
 	var ld = &log.Data{}
 	ld.Add("table", table)
 
@@ -131,12 +131,11 @@ func CreateTable(model interface{}, table string) {
 	}
 }
 
-// dbCon returns a DB connection and any error occurred
-func dbCon() (*gorm.DB, error) {
+// connection returns a DB connection and any error occurred.
+func connection()  error {
 	var ld = log.NewData().
 		Add("dbURL", url).
 		Add("logMode", logMode)
-	var db *gorm.DB
 	var err error
 	for i := 0; i < maxRetries; i++ {
 		db, err = gorm.Open(MySQL, url)
@@ -149,85 +148,59 @@ func dbCon() (*gorm.DB, error) {
 		log.Debug(fmt.Sprintf("retrying the DB connection err: %v", err), ld)
 		time.Sleep(bt)
 	}
-
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot initiate ORM")
+		return errors.Wrap(err, "cannot initiate ORM")
 	}
 	if logMode {
 		db.LogMode(logMode)
 		ioWriter := log.IoWriterLog()
 		if ioWriter == nil {
-			return nil, errors.New("IoWriter for logging is not initialized")
+			return errors.New("IoWriter for logging is not initialized")
 		}
 		db.SetLogger(gorm.Logger{LogWriter: logPkg.New(ioWriter, "database", 0)})
 	}
-	return db, nil
+	return nil
 }
 
-func closeDBCon(d *gorm.DB) {
-	if err := d.Close(); err != nil {
+// CloseDBCon function closes the open DB connections.
+func CloseDBCon() {
+	if err := db.Close(); err != nil {
 		log.Error("unable to close DB connection", err, nil)
 	}
 }
 
-// store save the given Instance in the Database
+// store save the given Instance in the Database.
 func Store(e Entity) error {
-	db, err := dbCon()
-	if err != nil {
-		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
-	}
-	defer closeDBCon(db)
 	return db.Table(e.TableName()).Create(e).Error
 }
 
-// update updates the given Instance in the Database
-func update(e Entity) error {
-	db, err := dbCon()
-	if err != nil {
-		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
-	}
-	defer closeDBCon(db)
+// update updates the given Instance in the Database.
+func Update(e Entity) error {
 	return db.Table(e.TableName()).Save(e).Error
 }
 
-// deleteEntry deletes the given Instance in the Database
-// returns an error occurred
+// deleteEntry deletes the given Instance in the Database.
+// Returns any error occurred.
 func Delete(e Entity) error {
-	db, err := dbCon()
-	if err != nil {
-		return errors.Wrap(err, ErrMsgUnableToOpenDBCon)
-	}
-	defer closeDBCon(db)
 	return db.Table(e.TableName()).Delete(e).Error
 }
 
-// Retrieve function returns the given Instance from the Database if exists and any error occurred
-// returns true if the instance exists and an error if occurred
+// Retrieve function returns the given Instance from the Database if exists and any error occurred.
+// returns true if the instance exists and an error if occurred.
 func Retrieve(e Entity) (bool, error) {
-	db, err := dbCon()
-	if err != nil {
-		return false, errors.Wrap(err, ErrMsgUnableToOpenDBCon)
-	}
-	defer closeDBCon(db)
 	result := db.Table(e.TableName()).Where(e).Find(e)
 	if result.RecordNotFound() {
 		return false, nil
 	}
-
 	if result.Error != nil {
-		return false, err
+		return false, result.Error
 	}
 	return true, nil
 }
 
-// addForeignKeys configures foreign keys for Bind and Application tables
+// addForeignKeys configures foreign keys for Bind and Application tables.
 func addForeignKeys() {
-	db, err := dbCon()
-	if err != nil {
-		log.HandleErrorWithLoggerAndExit(ErrMsgUnableToOpenDBCon, err)
-	}
-	defer closeDBCon(db)
-	err = db.Model(&Bind{}).
+	err := db.Model(&Bind{}).
 		AddForeignKey("instance_id", TableInstance+"(id)", "CASCADE",
 			"CASCADE").Error
 	if err != nil {
@@ -241,7 +214,7 @@ func addForeignKeys() {
 	}
 }
 
-// CreateTables creates the tables and add foreign keys
+// CreateTables creates the tables and add foreign keys.
 func CreateTables() {
 	CreateTable(&Instance{}, TableInstance)
 	CreateTable(&Application{}, TableApplication)

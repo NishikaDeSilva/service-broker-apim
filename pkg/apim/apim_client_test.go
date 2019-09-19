@@ -16,14 +16,13 @@
  * under the License.
  */
 
-package broker
+package apim
 
 import (
 	"github.com/jarcoal/httpmock"
 	"net/http"
 	"strconv"
 	"testing"
-	"time"
 )
 
 const (
@@ -34,22 +33,21 @@ const (
 	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 )
 
+type MockTokenManager struct {
+}
+
+func (m *MockTokenManager) Token(scope string) (string, error) {
+	return "token", nil
+}
+
+func (m *MockTokenManager) InitTokenManager(scopes ...string){
+
+}
+
 var (
-	dummyToken = &tokens{
-		aT: "token",
-		// Make sure the expire time is enough to run all test cases since token
-		// might be expired in the middle of the testing due to retrying.
-		expiresIn: time.Now().Add(100 * time.Second),
-	}
-	tM = &TokenManager{
-		holder: map[string]*tokens{
-			ScopeAPICreate:  dummyToken,
-			ScopeAPIPublish: dummyToken,
-			ScopeSubscribe:  dummyToken,
-			ScopeAPIView:    dummyToken,
-		},
-	}
-	apiM = &APIMClient{
+	tM = &MockTokenManager{}
+
+	apiM = &Client{
 		PublisherEndpoint: publisherTestEndpoint,
 		StoreEndpoint:     storeTestEndpoint,
 		TokenManager:      tM,
@@ -247,7 +245,7 @@ func testUpdateApplicationFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPut, storeTestEndpoint+StoreApplicationContext+"/id", responder)
 
-		err = apiM.UpdateApplication("id",&ApplicationCreateReq{
+		err = apiM.UpdateApplication("id", &ApplicationCreateReq{
 			Name: "test",
 		})
 		if err == nil {
@@ -266,7 +264,7 @@ func testUpdateApplicationSuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPut, storeTestEndpoint+StoreApplicationContext+"/id", responder)
 
-		err = apiM.UpdateApplication("id",&ApplicationCreateReq{
+		err = apiM.UpdateApplication("id", &ApplicationCreateReq{
 			Name: "test",
 		})
 	}

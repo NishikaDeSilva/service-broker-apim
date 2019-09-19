@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package broker
+package tokens
 
 import (
 	"github.com/jarcoal/httpmock"
@@ -35,12 +35,13 @@ const (
 	token                     = "token"
 	refreshToken              = "refreshToken"
 	expiresIn                 = 3600
+	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 )
 
-var tmTest *TokenManager
+var tmTest *PasswordRefreshTokenGrantManager
 
 func init() {
-	tmTest = &TokenManager{
+	tmTest = &PasswordRefreshTokenGrantManager{
 		DynamicClientEndpoint: dynamicClientEndpoint,
 		UserName:              "admin",
 		Password:              "admin",
@@ -88,7 +89,7 @@ func testDynamicClientRegSuccessFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint+DynamicClientContext, responder)
 
-		clientId, _, err := tmTest.DynamicClientReg(DefaultClientRegBody())
+		clientId, _, err := tmTest.dynamicClientReg(defaultClientRegBody())
 		if err != nil {
 			t.Error(err)
 		}
@@ -108,7 +109,7 @@ func testDynamicClientRegFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint+DynamicClientContext, responder)
 
-		_, _, err = tmTest.DynamicClientReg(DefaultClientRegBody())
+		_, _, err = tmTest.dynamicClientReg(defaultClientRegBody())
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusMethodNotAllowed))
 		}
@@ -142,7 +143,7 @@ func testGenTokenSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, TokenResp{
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, resp{
 			AccessToken:  token,
 			RefreshToken: refreshToken,
 			ExpiresIn:    expiresIn,
@@ -201,7 +202,7 @@ func testTokenSuccessFunc(t *testing.T) {
 func testTokenRefreshFunc(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	responder, err := httpmock.NewJsonResponder(http.StatusOK, TokenResp{
+	responder, err := httpmock.NewJsonResponder(http.StatusOK, resp{
 		AccessToken:  "newToken",
 		RefreshToken: "newRefreshToken",
 		ExpiresIn:    expiresIn,
@@ -209,7 +210,7 @@ func testTokenRefreshFunc(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	tm := &TokenManager{
+	tm := &PasswordRefreshTokenGrantManager{
 		DynamicClientEndpoint: dynamicClientEndpoint,
 		UserName:              "admin",
 		Password:              "admin",

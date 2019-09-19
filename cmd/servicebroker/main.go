@@ -22,11 +22,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/pivotal-cf/brokerapi"
+	"github.com/wso2/service-broker-apim/pkg/apim"
 	"github.com/wso2/service-broker-apim/pkg/broker"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/db"
 	"github.com/wso2/service-broker-apim/pkg/log"
+	"github.com/wso2/service-broker-apim/pkg/tokens"
 	"net/http"
 	"os"
 	"os/signal"
@@ -47,7 +49,7 @@ func main() {
 		log.HandleErrorAndExit(err)
 	}
 	// Initialize the logs
-	logger, err := log.InitLogger(conf.Log.LogFilePath, conf.Log.Level)
+	logger, err := log.InitLogger(conf.Log.FilePath, conf.Log.Level)
 	if err != nil {
 		log.HandleErrorAndExit(err)
 	}
@@ -60,20 +62,21 @@ func main() {
 
 	// Initialize ORM
 	db.InitDB(&conf.DB)
+	defer db.CloseDBCon()
 	// Create tables
 	db.CreateTables()
 
-	// Initialize Token Manager
-	tManager := &broker.TokenManager{
+	// Initialize Token PasswordRefreshTokenGrantManager
+	tManager := &tokens.PasswordRefreshTokenGrantManager{
 		TokenEndpoint:         conf.APIM.TokenEndpoint,
 		DynamicClientEndpoint: conf.APIM.DynamicClientEndpoint,
 		UserName:              conf.APIM.Username,
 		Password:              conf.APIM.Password,
 	}
-	tManager.InitTokenManager(broker.ScopeAPICreate, broker.ScopeSubscribe, broker.ScopeAPIPublish, broker.ScopeAPIView)
+	tManager.InitTokenManager(tokens.ScopeAPICreate, tokens.ScopeSubscribe, tokens.ScopeAPIPublish, tokens.ScopeAPIView)
 
-	// Initialize APIM Manager
-	apimManager := &broker.APIMClient{
+	// Initialize APIM PasswordRefreshTokenGrantManager
+	apimManager := &apim.Client{
 		PublisherEndpoint: conf.APIM.PublisherEndpoint,
 		StoreEndpoint:     conf.APIM.StoreEndpoint,
 		TokenManager:      tManager,
@@ -83,9 +86,9 @@ func main() {
 		Username: conf.HTTP.Auth.Username,
 		Password: conf.HTTP.Auth.Password,
 	}
-	apimServiceBroker := &broker.APIMServiceBroker{
+	apimServiceBroker := &broker.APIM{
 		BrokerConfig: conf,
-		APIMManager:  apimManager,
+		APIMClient:   apimManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 

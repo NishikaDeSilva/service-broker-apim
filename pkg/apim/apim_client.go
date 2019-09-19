@@ -16,12 +16,14 @@
  * under the License.
  */
 
-package broker
+ // apim package handles the interactions with APIM
+package apim
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
+	"github.com/wso2/service-broker-apim/pkg/tokens"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 	"net/url"
@@ -50,23 +52,24 @@ const (
 	ErrMSGAPPIDEmpty              = "application id is empty"
 )
 
-// APIMClient handles the communication with API Manager
-type APIMClient struct {
+// Client handles the communication with API PasswordRefreshTokenGrantManager.
+type Client struct {
 	PublisherEndpoint string
 	StoreEndpoint     string
-	TokenManager      *TokenManager
+	TokenManager      tokens.Manager
 }
 
-// CreateAPI function creates an API
-func (am *APIMClient) CreateAPI(reqBody *APIReqBody) (string, error) {
+// CreateAPI function creates an API with the provided API spec.
+// Returns the API ID and any error encountered.
+func (am *Client) CreateAPI(reqBody *APIReqBody) (string, error) {
 	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
 
-	aT, err := am.TokenManager.Token(ScopeAPICreate)
+	aT, err := am.TokenManager.Token(tokens.ScopeAPICreate)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
+		return "", err
 	}
 
 	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext)
@@ -86,15 +89,17 @@ func (am *APIMClient) CreateAPI(reqBody *APIReqBody) (string, error) {
 	return resBody.Id, nil
 }
 
-func (am *APIMClient) UpdateAPI(id string, reqBody *APIReqBody) error {
+// UpdateAPI function updates an existing API under the given ID with the provided API spec.
+// Returns any error encountered.
+func (am *Client) UpdateAPI(id string, reqBody *APIReqBody) error {
 	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return err
 	}
 
-	aT, err := am.TokenManager.Token(ScopeAPICreate)
+	aT, err := am.TokenManager.Token(tokens.ScopeAPICreate)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
+		return err
 	}
 
 	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext, id)
@@ -105,23 +110,22 @@ func (am *APIMClient) UpdateAPI(id string, reqBody *APIReqBody) error {
 	if err != nil {
 		return err
 	}
-
-	var resBody APICreateResp
-	err = client.Invoke(UpdateAPIContext, req, &resBody, http.StatusOK)
+	err = client.Invoke(UpdateAPIContext, req, nil, http.StatusOK)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Publish an API in state "Created"
-func (am *APIMClient) PublishAPI(apiId string) error {
+// PublishAPI publishes an API in state "Created".
+// Returns any error encountered.
+func (am *Client) PublishAPI(apiId string) error {
 	if apiId == "" {
 		return errors.New(ErrMSGAPIIDEmpty)
 	}
-	aT, err := am.TokenManager.Token(ScopeAPIPublish)
+	aT, err := am.TokenManager.Token(tokens.ScopeAPIPublish)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPIPublish)
+		return err
 	}
 
 	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherChangeAPIContext)
@@ -140,15 +144,16 @@ func (am *APIMClient) PublishAPI(apiId string) error {
 	return err
 }
 
-// CreateApplication creates an application
-func (am *APIMClient) CreateApplication(reqBody *ApplicationCreateReq) (string, error) {
+// CreateApplication creates an application with provided Application spec.
+// Returns the Application ID and any error encountered.
+func (am *Client) CreateApplication(reqBody *ApplicationCreateReq) (string, error) {
 	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", err
 	}
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return "", err
 	}
 	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext)
 	if err != nil {
@@ -166,14 +171,16 @@ func (am *APIMClient) CreateApplication(reqBody *ApplicationCreateReq) (string, 
 	return resBody.ApplicationId, nil
 }
 
-func (am *APIMClient) UpdateApplication(id string, reqBody *ApplicationCreateReq) error {
+// UpdateApplication updates an existing Application under the given ID with the provided Application spec.
+// Returns any error encountered.
+func (am *Client) UpdateApplication(id string, reqBody *ApplicationCreateReq) error {
 	buf, err := client.BodyReader(reqBody)
 	if err != nil {
 		return err
 	}
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return err
 	}
 	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext, id)
 	if err != nil {
@@ -183,16 +190,16 @@ func (am *APIMClient) UpdateApplication(id string, reqBody *ApplicationCreateReq
 	if err != nil {
 		return err
 	}
-	var resBody AppCreateRes
-	err = client.Invoke(UpdateApplicationContext, req, &resBody, http.StatusOK)
+	err = client.Invoke(UpdateApplicationContext, req, nil, http.StatusOK)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// GenerateKeys method generate keys for the given application
-func (am *APIMClient) GenerateKeys(appID string) (*ApplicationKey, error) {
+// GenerateKeys generates keys for the given application.
+// Returns generated keys and any error encountered.
+func (am *Client) GenerateKeys(appID string) (*ApplicationKey, error) {
 	if appID == "" {
 		return nil, errors.New(ErrMSGAPPIDEmpty)
 	}
@@ -201,9 +208,9 @@ func (am *APIMClient) GenerateKeys(appID string) (*ApplicationKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return nil, errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return nil, err
 	}
 	u, err := utils.ConstructURL(am.StoreEndpoint, GenerateApplicationKeyContext)
 	if err != nil {
@@ -225,8 +232,9 @@ func (am *APIMClient) GenerateKeys(appID string) (*ApplicationKey, error) {
 	return &resBody, nil
 }
 
-// Subscribe method subscribes an application to a an API
-func (am *APIMClient) Subscribe(appID, apiID, tier string) (string, error) {
+// Subscribe subscribes the given application to the given API with given tier.
+// Returns Subscription ID and any error encountered.
+func (am *Client) Subscribe(appID, apiID, tier string) (string, error) {
 	reqBody := &SubscriptionReq{
 		ApplicationId: appID,
 		ApiIdentifier: apiID,
@@ -236,9 +244,9 @@ func (am *APIMClient) Subscribe(appID, apiID, tier string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return "", err
 	}
 	u, err := utils.ConstructURL(am.StoreEndpoint, StoreSubscriptionContext)
 	if err != nil {
@@ -256,41 +264,12 @@ func (am *APIMClient) Subscribe(appID, apiID, tier string) (string, error) {
 	return resBody.SubscriptionId, nil
 }
 
-func (am *APIMClient) UpdateSubscription(appID, apiID, tier string) (string, error) {
-	reqBody := &SubscriptionReq{
-		ApplicationId: appID,
-		ApiIdentifier: apiID,
-		Tier:          tier,
-	}
-	bodyReader, err := client.BodyReader(reqBody)
+// UnSubscribe method removes the given subscription.
+// Returns any error encountered.
+func (am *Client) UnSubscribe(subscriptionID string) error {
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return "", err
-	}
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
-	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
-	}
-	u, err := utils.ConstructURL(am.StoreEndpoint, StoreSubscriptionContext)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot construct, create subscribe endpoint")
-	}
-	req, err := client.PostReq(aT, u, bodyReader)
-	if err != nil {
-		return "", err
-	}
-	var resBody SubscriptionResp
-	err = client.Invoke(SubscribeContext, req, &resBody, http.StatusCreated)
-	if err != nil {
-		return "", err
-	}
-	return resBody.SubscriptionId, nil
-}
-
-// UnSubscribe method removes the given subscription
-func (am *APIMClient) UnSubscribe(subscriptionID string) error {
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
-	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return err
 	}
 
 	u, err := utils.ConstructURL(am.StoreEndpoint, StoreSubscriptionContext, subscriptionID)
@@ -308,11 +287,12 @@ func (am *APIMClient) UnSubscribe(subscriptionID string) error {
 	return nil
 }
 
-// DeleteApplication method deletes the given application
-func (am *APIMClient) DeleteApplication(applicationID string) error {
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
+// DeleteApplication method deletes the given application.
+// Returns any error encountered.
+func (am *Client) DeleteApplication(applicationID string) error {
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return err
 	}
 	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext, applicationID)
 	if err != nil {
@@ -329,11 +309,12 @@ func (am *APIMClient) DeleteApplication(applicationID string) error {
 	return nil
 }
 
-// DeleteApplication method deletes the given API
-func (am *APIMClient) DeleteAPI(apiID string) error {
-	aT, err := am.TokenManager.Token(ScopeAPICreate)
+// DeleteApplication method deletes the given API.
+// Returns any error encountered.
+func (am *Client) DeleteAPI(apiID string) error {
+	aT, err := am.TokenManager.Token(tokens.ScopeAPICreate)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeAPICreate)
+		return err
 	}
 	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext, apiID)
 	if err != nil {
@@ -350,11 +331,12 @@ func (am *APIMClient) DeleteAPI(apiID string) error {
 	return nil
 }
 
-//SearchAPI method returns API ID of the Given API
-func (am *APIMClient) SearchAPI(apiName string) (string, error) {
-	aT, err := am.TokenManager.Token(ScopeAPIView)
+// SearchAPI method returns API ID of the Given API
+// Returns API ID and any error encountered.
+func (am *Client) SearchAPI(apiName string) (string, error) {
+	aT, err := am.TokenManager.Token(tokens.ScopeAPIView)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return "", err
 	}
 	u, err := utils.ConstructURL(am.PublisherEndpoint, PublisherContext)
 	if err != nil {
@@ -382,11 +364,12 @@ func (am *APIMClient) SearchAPI(apiName string) (string, error) {
 	return resp.List[0].Id, nil
 }
 
-//SearchApplication method returns Application ID of the Given Application
-func (am *APIMClient) SearchApplication(appName string) (string, error) {
-	aT, err := am.TokenManager.Token(ScopeSubscribe)
+// SearchApplication method returns Application ID of the Given Application.
+// Returns Application ID and any error encountered.
+func (am *Client) SearchApplication(appName string) (string, error) {
+	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
 	if err != nil {
-		return "", errors.Wrapf(err, ErrMSGUnableToGetAccessToken, ScopeSubscribe)
+		return "", err
 	}
 	u, err := utils.ConstructURL(am.StoreEndpoint, StoreApplicationContext)
 	if err != nil {

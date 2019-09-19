@@ -15,8 +15,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package broker
+ // tokens package manages the Access tokens
+package tokens
 
 import (
 	"bytes"
@@ -52,6 +52,10 @@ const (
 	RefreshToken                    = "refresh_token"
 	ErrMSGUnableToParseRequestBody  = "unable to parse request body: %s"
 	ErrMSGUnableToCreateRequestBody = "unable to create request body: %s"
+	ScopeAPICreate                  = "apim:api_create"
+	ScopeSubscribe                  = "apim:subscribe"
+	ScopeAPIPublish                 = "apim:api_publish"
+	ScopeAPIView                    = "apim:api_view"
 
 	// CallBackUrl is a dummy value
 	CallBackUrl = "www.dummy.com"
@@ -66,14 +70,14 @@ const (
 	Owner = "admin"
 )
 
-// BasicCredentials represents the username and Password
+// BasicCredentials represents the username and Password.
 type BasicCredentials struct {
 	Username string
 	Password string
 }
 
-// DynamicClientRegReqBody represents the message body for Dynamic client request body
-type DynamicClientRegReqBody struct {
+// DynamicClientRegReq represents the request for Dynamic client request body.
+type DynamicClientRegReq struct {
 	CallbackUrl string `json:"callbackUrl"`
 	ClientName  string `json:"clientName"`
 	Owner       string `json:"owner"`
@@ -81,7 +85,7 @@ type DynamicClientRegReqBody struct {
 	SaasApp     bool   `json:"saasApp"`
 }
 
-// DynamicClientRegResBody represents the message body for Dynamic client response body
+// DynamicClientRegResBody represents the message body for Dynamic client registration response body.
 type DynamicClientRegResBody struct {
 	CallbackUrl       string `json:"callBackURL"`
 	JsonString        string `json:"jsonString"`
@@ -91,8 +95,8 @@ type DynamicClientRegResBody struct {
 	IsSaasApplication bool   `json:"isSaasApplication"`
 }
 
-// TokenResp represents the message body of the token api response
-type TokenResp struct {
+// resp represents the message body of the token api response.
+type Resp struct {
 	Scope        string `json:"scope"`
 	TokenTypes   string `json:"token_type"`
 	ExpiresIn    int    `json:"expires_in"`
@@ -100,7 +104,7 @@ type TokenResp struct {
 	AccessToken  string `json:"access_token"`
 }
 
-// tokens represent the Access token & Refresh token for a particular scope
+// tokens represent the Access token & Refresh token for a particular scope.
 type tokens struct {
 	lock      sync.RWMutex //ensures atomic writes to following fields
 	aT        string
@@ -108,8 +112,9 @@ type tokens struct {
 	expiresIn time.Time
 }
 
-// TokenManager is used to manage Access token & Refresh token
-type TokenManager struct {
+// PasswordRefreshTokenGrantManager is used to manage Access token using password and refresh_token grant type.
+// Holds access tokens for the given scopes and regenerate tokens using refresh tokens if the access token is expired.
+type PasswordRefreshTokenGrantManager struct {
 	once                  sync.Once
 	holder                map[string]*tokens
 	clientID              string
@@ -120,24 +125,32 @@ type TokenManager struct {
 	Password              string
 }
 
-// InitTokenManager initialize the Token Manager. This method runs only once.
-// Must run before using the TokenManager
-func (tm *TokenManager) InitTokenManager(scopes ...string) {
-	tm.once.Do(func() {
+type Manager interface {
+	// InitTokenManager initialize the Token Manager. Get tokens for the given scopes.
+	// Must run before using the Token Manager.
+	InitTokenManager(scopes ...string)
+
+	// Token method returns a valid Access token.
+	// Returns the access token and any error occurred.
+	Token(scope string) (string, error)
+}
+
+func (m *PasswordRefreshTokenGrantManager) InitTokenManager(scopes ...string) {
+	m.once.Do(func() {
 		if len(scopes) == 0 {
 			log.HandleErrorWithLoggerAndExit(ErrMSGNotEnoughArgs, nil)
 		}
 
 		var errDynamic error
-		tm.clientID, tm.clientSec, errDynamic = tm.DynamicClientReg(DefaultClientRegBody())
+		m.clientID, m.clientSec, errDynamic = m.dynamicClientReg(defaultClientRegBody())
 		if errDynamic != nil {
 			log.HandleErrorWithLoggerAndExit(ErrMSGUnableToGetClientCreds, errDynamic)
 		}
 
-		tm.holder = make(map[string]*tokens)
+		m.holder = make(map[string]*tokens)
 		for _, scope := range scopes {
-			data := tm.accessTokenReqBody(scope)
-			aT, rT, expiresIn, err := tm.genToken(data, GenerateAccessToken)
+			data := m.accessTokenReqBody(scope)
+			aT, rT, expiresIn, err := m.genToken(data, GenerateAccessToken)
 			if err != nil {
 				log.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableToGetAccessToken, scope), err)
 			}
@@ -146,7 +159,7 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 			if err != nil {
 				log.HandleErrorWithLoggerAndExit(ErrMSGUnableToParseExpireTime, err)
 			}
-			tm.holder[scope] = &tokens{
+			m.holder[scope] = &tokens{
 				aT:        aT,
 				rT:        rT,
 				expiresIn: time.Now().Add(duration),
@@ -155,17 +168,17 @@ func (tm *TokenManager) InitTokenManager(scopes ...string) {
 	})
 }
 
-// accessTokenReqBody functions returns access token request body
-func (tm *TokenManager) accessTokenReqBody(scope string) url.Values {
+// accessTokenReqBody method returns access token request body.
+func (m *PasswordRefreshTokenGrantManager) accessTokenReqBody(scope string) url.Values {
 	data := url.Values{}
-	data.Set(UserName, tm.UserName)
-	data.Add(Password, tm.Password)
+	data.Set(UserName, m.UserName)
+	data.Add(Password, m.Password)
 	data.Add(GrantType, GrantPassword)
 	data.Add(Scope, scope)
 	return data
 }
 
-// refreshTokenReqBody functions returns refresh token request body
+// refreshTokenReqBody method returns refresh token request body.
 func refreshTokenReqBody(rT string) url.Values {
 	data := url.Values{}
 	data.Add(RefreshToken, rT)
@@ -173,7 +186,7 @@ func refreshTokenReqBody(rT string) url.Values {
 	return data
 }
 
-// isExpired function returns true if the difference between the current time and given time is 10s
+// isExpired method returns true if the difference between the current time and given time is 10s.
 func isExpired(expiresIn time.Time) bool {
 	if time.Now().Sub(expiresIn) > (10 * time.Second) {
 		return true
@@ -181,10 +194,8 @@ func isExpired(expiresIn time.Time) bool {
 	return false
 }
 
-// Token method returns a valid Access token. If the Access token is invalid then it will regenerate a Access token
-// with the Refresh token.
-func (tm *TokenManager) Token(scope string) (string, error) {
-	t := tm.holder[scope]
+func (m *PasswordRefreshTokenGrantManager) Token(scope string) (string, error) {
+	t := m.holder[scope]
 	t.lock.RLock()
 	if !isExpired(t.expiresIn) {
 		aT := t.aT
@@ -197,7 +208,7 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 		t.lock.Unlock()
 		return t.aT, nil
 	}
-	aT, rT, expiresIn, err := tm.refreshToken(t.rT)
+	aT, rT, expiresIn, err := m.refreshToken(t.rT)
 	if err != nil {
 		t.lock.Unlock()
 		return "", err
@@ -209,7 +220,7 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 		Add("refresh token", rT).
 		Add("expires in", expiresIn)
 	log.Debug("token details", ld)
-	tm.holder[scope] = &tokens{
+	m.holder[scope] = &tokens{
 		aT:        aT,
 		rT:        rT,
 		expiresIn: time.Now().Add(duration),
@@ -218,19 +229,19 @@ func (tm *TokenManager) Token(scope string) (string, error) {
 	return aT, nil
 }
 
-// refreshToken function generates a new Access token and a Refresh token
-func (tm *TokenManager) refreshToken(rTNow string) (aT, newRT string, expiresIn int, err error) {
+// refreshToken method generates a new Access token and a Refresh token.
+func (m *PasswordRefreshTokenGrantManager) refreshToken(rTNow string) (aT, newRT string, expiresIn int, err error) {
 	data := refreshTokenReqBody(rTNow)
-	aT, rT, expiresIn, err := tm.genToken(data, RefreshTokenContext)
+	aT, rT, expiresIn, err := m.genToken(data, RefreshTokenContext)
 	if err != nil {
 		return "", "", 0, err
 	}
 	return aT, rT, expiresIn, nil
 }
 
-// genToken returns an Access token and a Refresh token from given params,
-func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
-	u, err := utils.ConstructURL(tm.TokenEndpoint, TokenContext)
+// genToken method returns an Access token and a Refresh token from given params.
+func (m *PasswordRefreshTokenGrantManager) genToken(reqBody url.Values, context string) (aT, rT string, expiresIn int, err error) {
+	u, err := utils.ConstructURL(m.TokenEndpoint, TokenContext)
 	if err != nil {
 		return "", "", 0, errors.Wrap(err, "cannot construct, token endpoint")
 	}
@@ -239,22 +250,22 @@ func (tm *TokenManager) genToken(reqBody url.Values, context string) (aT, rT str
 		return "", "", 0, errors.Wrapf(err, ErrMSGUnableToCreateRequestBody,
 			context)
 	}
-	req.Get().SetBasicAuth(tm.clientID, tm.clientSec)
+	req.Get().SetBasicAuth(m.clientID, m.clientSec)
 	req.SetHeader(client.HTTPContentType, client.ContentTypeUrlEncoded)
-	var resBody TokenResp
+	var resBody Resp
 	if err := client.Invoke(context, req, &resBody, http.StatusOK); err != nil {
 		return "", "", 0, err
 	}
 	return resBody.AccessToken, resBody.RefreshToken, resBody.ExpiresIn, nil
 }
 
-// DynamicClientReg gets the Client ID and Client Secret
-func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clientId, clientSecret string, er error) {
+// dynamicClientReg method gets the Client ID and Client Secret using the given Dynamic client registration request.
+func (m *PasswordRefreshTokenGrantManager) dynamicClientReg(reqBody *DynamicClientRegReq) (clientId, clientSecret string, er error) {
 	r, err := client.BodyReader(reqBody)
 	if err != nil {
 		return "", "", errors.Wrapf(err, ErrMSGUnableToParseRequestBody, DynamicClientRegMSG)
 	}
-	u, err := utils.ConstructURL(tm.DynamicClientEndpoint, DynamicClientContext)
+	u, err := utils.ConstructURL(m.DynamicClientEndpoint, DynamicClientContext)
 	if err != nil {
 		return "", "", errors.Wrap(err, "cannot construct, Dynamic client registration endpoint")
 	}
@@ -264,7 +275,7 @@ func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clie
 	if err != nil {
 		return "", "", errors.Wrapf(err, ErrMSGUnableToCreateRequestBody, DynamicClientRegMSG)
 	}
-	req.Get().SetBasicAuth(tm.UserName, tm.Password)
+	req.Get().SetBasicAuth(m.UserName, m.Password)
 	req.SetHeader(client.HTTPContentType, client.ContentTypeApplicationJson)
 
 	var resBody DynamicClientRegResBody
@@ -274,9 +285,9 @@ func (tm *TokenManager) DynamicClientReg(reqBody *DynamicClientRegReqBody) (clie
 	return resBody.ClientId, resBody.ClientSecret, nil
 }
 
-// DefaultClientRegBody returns a dynamic client request body with values
-func DefaultClientRegBody() *DynamicClientRegReqBody {
-	return &DynamicClientRegReqBody{
+// defaultClientRegBody function returns an initialized dynamic client registration request body.
+func defaultClientRegBody() *DynamicClientRegReq {
+	return &DynamicClientRegReq{
 		CallbackUrl: CallBackUrl,
 		ClientName:  ClientName,
 		GrantType:   DynamicClientRegGrantType,
