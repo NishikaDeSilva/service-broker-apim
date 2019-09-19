@@ -20,39 +20,58 @@
 
 # Logging configuration
 log:
-  logFilePath: "server.log"
+  # log file path
+  filePath: "server.log"
+  # log level(info, debug)
   level: "info"
 
 # HTTP server configuration
 http:
-  # Basic Auth configuration for the service broker
+  # basic Auth configuration for the service broker
   auth:
     username: "admin"
     password: "admin"
 
   # HTTPS configuration
   tls:
+    # Enable HTTPS server
     enabled: false
+    # private certificate for TLS
     key: "key.pem"
+    # public certificate for TLS
     cert: "cert.pem"
-
+  # host for server
   host: "0.0.0.0"
+  # port for server
   port: 8444
 
+# APIM endpoints and credentials
 apim:
+  # Credentials for APIM
   username: "admin"
   password: "admin"
   # If "true", doesn't validate the certificate for the APIM
   insecureCon: true
+  # token endpoint
   tokenEndpoint: "https://localhost:8243"
+  # dynamic client registration endpoint
   dynamicClientEndpoint: "https://localhost:9443"
+  # publisher endpoint
   publisherEndpoint: "https://localhost:9443"
+  # store endpoint
   storeEndpoint: "https://localhost:9443"
 
+# Database configuration
 db:
+  # database host
   host:     "localhost"
+  # database port
   port:     3306
+  # database username
   username: "root"
+  # database password
   password: "root123"
+  # database name
   database: "broker"
+  # enable debug logs
   logMode:  false

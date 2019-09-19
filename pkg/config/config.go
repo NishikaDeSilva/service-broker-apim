@@ -33,7 +33,7 @@ const (
 	// FileType constant is used to specify the Configuration file type(YAML).
 	FileType = "yaml"
 	// EnvPrefix is the prefix for configuration parameters ex: BROKER_APIM_LOGCONF_LOGFILE.
-	EnvPrefix               = "BROKER_APIM"
+	EnvPrefix               = "APIM_BROKER"
 	InfoMsgSettingUp        = "loading the configuration file: %s "
 	ErrMsgUnableToReadConf  = "unable to read configuration: %s"
 	ErrMsgUnableToParseConf = "unable to parse configuration"

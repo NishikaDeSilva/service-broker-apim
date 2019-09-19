@@ -57,7 +57,7 @@ func TestLoadConfigFile(t *testing.T) {
 
 func TestSetDefaultConf(t *testing.T) {
 	setDefaultConf()
-	result, expected := viper.GetString("log.logFilePath"), "server.log"
+	result, expected := viper.GetString("log.filePath"), "server.log"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}

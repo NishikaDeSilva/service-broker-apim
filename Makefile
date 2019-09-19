@@ -10,7 +10,7 @@ tests: ## Runs the tests
 integration-test-start:
 	./test/run-tests.sh
 
-integration-test-setup-down:
+integration-test-stop:
 	docker-compose -f ./test/integration-test-setup.yaml down
 
 debug-setup-up:
@@ -19,18 +19,17 @@ debug-setup-up:
 debug-setup-down:
 	docker-compose -f ./test/debug-setup.yaml down
 
-linux: ## Builds a Linux executable
+build-linux: ## Builds a Linux executable
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-	go build -o servicebroker-linux github.com/wso2/service-broker-apim/cmd/servicebroker
+	go build -o ./target/linux/servicebroker github.com/wso2/service-broker-apim/cmd/servicebroker
 
-darwin: ## Builds a Darwin executable
+build-darwin: ## Builds a Darwin executable
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
-	go build -o servicebroker-darwin github.com/wso2/service-broker-apim/cmd/servicebroker
+	go build -o ./target/darwin/servicebroker github.com/wso2/service-broker-apim/cmd/servicebroker
 
 clean: ## Cleans up build artifacts
 	rm -f servicebroker
-	rm -f servicebroker-linux
-	rm -f servicebroker-darwin
+	rm -fr target
 
 deps:
 	dep ensure

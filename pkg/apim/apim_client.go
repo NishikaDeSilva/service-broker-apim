@@ -16,7 +16,7 @@
  * under the License.
  */
 
- // apim package handles the interactions with APIM
+ // Package apim handles the interactions with APIM
 package apim
 
 import (
@@ -86,7 +86,7 @@ func (am *Client) CreateAPI(reqBody *APIReqBody) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return resBody.Id, nil
+	return resBody.ID, nil
 }
 
 // UpdateAPI function updates an existing API under the given ID with the provided API spec.
@@ -119,8 +119,8 @@ func (am *Client) UpdateAPI(id string, reqBody *APIReqBody) error {
 
 // PublishAPI publishes an API in state "Created".
 // Returns any error encountered.
-func (am *Client) PublishAPI(apiId string) error {
-	if apiId == "" {
+func (am *Client) PublishAPI(apiID string) error {
+	if apiID == "" {
 		return errors.New(ErrMSGAPIIDEmpty)
 	}
 	aT, err := am.TokenManager.Token(tokens.ScopeAPIPublish)
@@ -137,7 +137,7 @@ func (am *Client) PublishAPI(apiId string) error {
 		return err
 	}
 	q := url.Values{}
-	q.Add("apiId", apiId)
+	q.Add("apiID", apiID)
 	q.Add("action", "Publish")
 	req.Get().URL.RawQuery = q.Encode()
 	err = client.Invoke(PublishAPIContext, req, nil, http.StatusOK)
@@ -168,7 +168,7 @@ func (am *Client) CreateApplication(reqBody *ApplicationCreateReq) (string, erro
 	if err != nil {
 		return "", err
 	}
-	return resBody.ApplicationId, nil
+	return resBody.ApplicationID, nil
 }
 
 // UpdateApplication updates an existing Application under the given ID with the provided Application spec.
@@ -199,7 +199,7 @@ func (am *Client) UpdateApplication(id string, reqBody *ApplicationCreateReq) er
 
 // GenerateKeys generates keys for the given application.
 // Returns generated keys and any error encountered.
-func (am *Client) GenerateKeys(appID string) (*ApplicationKey, error) {
+func (am *Client) GenerateKeys(appID string) (*ApplicationKeyResp, error) {
 	if appID == "" {
 		return nil, errors.New(ErrMSGAPPIDEmpty)
 	}
@@ -224,7 +224,7 @@ func (am *Client) GenerateKeys(appID string) (*ApplicationKey, error) {
 	q.Add("applicationId", appID)
 	req.Get().URL.RawQuery = q.Encode()
 
-	var resBody ApplicationKey
+	var resBody ApplicationKeyResp
 	err = client.Invoke(GenerateKeyContext, req, &resBody, http.StatusOK)
 	if err != nil {
 		return nil, err
@@ -236,8 +236,8 @@ func (am *Client) GenerateKeys(appID string) (*ApplicationKey, error) {
 // Returns Subscription ID and any error encountered.
 func (am *Client) Subscribe(appID, apiID, tier string) (string, error) {
 	reqBody := &SubscriptionReq{
-		ApplicationId: appID,
-		ApiIdentifier: apiID,
+		ApplicationID: appID,
+		APIIdentifier: apiID,
 		Tier:          tier,
 	}
 	bodyReader, err := client.BodyReader(reqBody)
@@ -261,7 +261,7 @@ func (am *Client) Subscribe(appID, apiID, tier string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return resBody.SubscriptionId, nil
+	return resBody.SubscriptionID, nil
 }
 
 // UnSubscribe method removes the given subscription.
@@ -309,7 +309,7 @@ func (am *Client) DeleteApplication(applicationID string) error {
 	return nil
 }
 
-// DeleteApplication method deletes the given API.
+// DeleteAPI method deletes the given API.
 // Returns any error encountered.
 func (am *Client) DeleteAPI(apiID string) error {
 	aT, err := am.TokenManager.Token(tokens.ScopeAPICreate)
@@ -361,7 +361,7 @@ func (am *Client) SearchAPI(apiName string) (string, error) {
 	if resp.Count > 1 {
 		return "", errors.New(fmt.Sprintf("returned more than one API for API %s", apiName))
 	}
-	return resp.List[0].Id, nil
+	return resp.List[0].ID, nil
 }
 
 // SearchApplication method returns Application ID of the Given Application.
@@ -394,7 +394,7 @@ func (am *Client) SearchApplication(appName string) (string, error) {
 	if resp.Count > 1 {
 		return "", errors.New(fmt.Sprintf("returned more than one Application for %s", appName))
 	}
-	return resp.List[0].ApplicationId, nil
+	return resp.List[0].ApplicationID, nil
 }
 
 func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {

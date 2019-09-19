@@ -143,7 +143,7 @@ func testGenTokenSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, resp{
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, Resp{
 			AccessToken:  token,
 			RefreshToken: refreshToken,
 			ExpiresIn:    expiresIn,
@@ -202,7 +202,7 @@ func testTokenSuccessFunc(t *testing.T) {
 func testTokenRefreshFunc(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	responder, err := httpmock.NewJsonResponder(http.StatusOK, resp{
+	responder, err := httpmock.NewJsonResponder(http.StatusOK, Resp{
 		AccessToken:  "newToken",
 		RefreshToken: "newRefreshToken",
 		ExpiresIn:    expiresIn,

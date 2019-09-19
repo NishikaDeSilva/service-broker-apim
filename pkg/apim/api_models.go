@@ -18,38 +18,43 @@
 
 package apim
 
+// APIMaxTps represents the max TPS(Transactions per second) for an API.
 type APIMaxTps struct {
 	Production int64 `json:"production,omitempty"`
 	Sandbox    int64 `json:"sandbox,omitempty"`
 }
 
-type ApiEndpointSecurity struct {
-	Type_    string `json:"type,omitempty"`
+// APIEndpointSecurity represents the endpoint security information.
+type APIEndpointSecurity struct {
+	Type     string `json:"type,omitempty"`
 	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
+// Sequence represents a API sequence.
 type Sequence struct {
 	Name   string `json:"name"`
-	Type_  string `json:"type,omitempty"`
-	Id     string `json:"id,omitempty"`
+	Type   string `json:"type,omitempty"`
+	ID     string `json:"id,omitempty"`
 	Shared bool   `json:"shared,omitempty"`
 }
 
+// Label represents a API label.
 type Label struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 }
 
-type ApiBusinessInformation struct {
+// APIBusinessInformation represents the  API business information.
+type APIBusinessInformation struct {
 	BusinessOwner       string `json:"businessOwner,omitempty"`
 	BusinessOwnerEmail  string `json:"businessOwnerEmail,omitempty"`
 	TechnicalOwner      string `json:"technicalOwner,omitempty"`
 	TechnicalOwnerEmail string `json:"technicalOwnerEmail,omitempty"`
 }
 
-// CORS configuration for the API
-type ApiCorsConfiguration struct {
+// APICorsConfiguration represents the CORS configuration for the API.
+type APICorsConfiguration struct {
 	CorsConfigurationEnabled      bool     `json:"corsConfigurationEnabled,omitempty"`
 	AccessControlAllowOrigins     []string `json:"accessControlAllowOrigins,omitempty"`
 	AccessControlAllowCredentials bool     `json:"accessControlAllowCredentials,omitempty"`
@@ -57,6 +62,7 @@ type ApiCorsConfiguration struct {
 	AccessControlAllowMethods     []string `json:"accessControlAllowMethods,omitempty"`
 }
 
+// APIReqBody represents the request of create "API" API call.
 type APIReqBody struct {
 	ID string `json:"id"`
 	// Name of the API
@@ -71,17 +77,17 @@ type APIReqBody struct {
 	Provider string `json:"provider,omitempty"`
 	// This describes in which status of the lifecycle the API is
 	Status       string `json:"status"`
-	ThumbnailUri string `json:"thumbnailUri,omitempty"`
+	ThumbnailURI string `json:"thumbnailUri,omitempty"`
 	// Swagger definition of the API which contains details about URI templates and scopes
-	ApiDefinition string `json:"apiDefinition"`
+	APIDefinition string `json:"apiDefinition"`
 	// WSDL URL if the API is based on a WSDL endpoint
-	WsdlUri                 string `json:"wsdlUri,omitempty"`
+	WsdlURI                 string `json:"wsdlUri,omitempty"`
 	ResponseCaching         string `json:"responseCaching,omitempty"`
 	CacheTimeout            int32  `json:"cacheTimeout,omitempty"`
 	DestinationStatsEnabled bool   `json:"destinationStatsEnabled,omitempty"`
 	IsDefaultVersion        bool   `json:"isDefaultVersion"`
 	// The transport to be set. Accepted values are HTTP, WS
-	Type_ string `json:"type"`
+	Type string `json:"type"`
 	// Supported transports for the API (http and/or https).
 	Transport []string `json:"transport"`
 	// Search keywords related to the API
@@ -89,7 +95,7 @@ type APIReqBody struct {
 	// The subscription tiers selected for the particular API
 	Tiers []string `json:"tiers"`
 	// The policy selected for the particular API
-	ApiLevelPolicy string `json:"apiLevelPolicy,omitempty"`
+	APILevelPolicy string `json:"apiLevelPolicy,omitempty"`
 	// Name of the Authorization header used for invoking the API. If it is not set, Authorization header name specified in tenant or system level will be used.
 	AuthorizationHeader string     `json:"authorizationHeader,omitempty"`
 	MaxTps              *APIMaxTps `json:"maxTps,omitempty"`
@@ -99,7 +105,7 @@ type APIReqBody struct {
 	VisibleRoles     []string             `json:"visibleRoles,omitempty"`
 	VisibleTenants   []string             `json:"visibleTenants,omitempty"`
 	EndpointConfig   string               `json:"endpointConfig"`
-	EndpointSecurity *ApiEndpointSecurity `json:"endpointSecurity,omitempty"`
+	EndpointSecurity *APIEndpointSecurity `json:"endpointSecurity,omitempty"`
 	// Comma separated list of gateway environments.
 	GatewayEnvironments string `json:"gatewayEnvironments,omitempty"`
 	// Labels of micro-gateway environments attached to the API.
@@ -114,76 +120,86 @@ type APIReqBody struct {
 	AccessControl string `json:"accessControl,omitempty"`
 	// The user roles that are able to view/modify as API publisher or creator.
 	AccessControlRoles  []string                `json:"accessControlRoles,omitempty"`
-	BusinessInformation *ApiBusinessInformation `json:"businessInformation,omitempty"`
-	CorsConfiguration   *ApiCorsConfiguration   `json:"corsConfiguration,omitempty"`
+	BusinessInformation *APIBusinessInformation `json:"businessInformation,omitempty"`
+	CorsConfiguration   *APICorsConfiguration   `json:"corsConfiguration,omitempty"`
 }
+
+// APICreateResp represents the response of create "API" API call.
 type APICreateResp struct {
 	// UUID of the api registry artifact
-	Id string `json:"id,omitempty"`
+	ID string `json:"id,omitempty"`
 }
+
+// ApplicationCreateReq represents the response of create Application API call.
 type ApplicationCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
 	Description    string `json:"description,omitempty"`
 	Name           string `json:"name,omitempty"`
-	CallbackUrl    string `json:"callbackUrl,omitempty"`
+	CallbackURL    string `json:"callbackUrl,omitempty"`
 }
 
+// APIParam represents the structure for API plan parameters.
 type APIParam struct {
 	APISpec APIReqBody `json:"api"`
 }
 
+// ApplicationParam represents the structure for Application plan parameters.
 type ApplicationParam struct {
 	AppSpec ApplicationCreateReq `json:"app"`
 }
 
+// SubscriptionSpec represents the parameters for a Subscription.
 type SubscriptionSpec struct {
 	APIName          string `json:"apiName"`
 	AppName          string `json:"appName"`
 	SubscriptionTier string `json:"tier"`
 }
 
+// SubscriptionParam represents the structure for Subscription plan parameters.
 type SubscriptionParam struct {
 	SubsSpec SubscriptionSpec `json:"subs"`
 }
 
+// SubscriptionReq represents the APIM subscription create request.
 type SubscriptionReq struct {
 	Tier          string `json:"tier"`
-	ApiIdentifier string `json:"apiIdentifier"`
-	ApplicationId string `json:"applicationId"`
+	APIIdentifier string `json:"apiIdentifier"`
+	ApplicationID string `json:"applicationId"`
 }
 
-// AppCreateReq represents the application creation request body
+// AppCreateReq represents the application creation request body.
 type AppCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
 	Description    string `json:"description"`
 	Name           string `json:"name"`
-	CallbackUrl    string `json:"callbackUrl"`
+	CallbackURL    string `json:"callbackUrl"`
 }
 
-// AppCreateRes represents the application creation response body
+// AppCreateRes represents the application creation response body.
 type AppCreateRes struct {
-	ApplicationId string `json:"applicationId"`
+	ApplicationID string `json:"applicationId"`
 }
 
-// ApplicationKeyGenerateRequest represents the application key generation request
+// ApplicationKeyGenerateRequest represents the application key generation request.
 type ApplicationKeyGenerateRequest struct {
 	KeyType      string `json:"keyType"`
 	ValidityTime string `json:"validityTime"`
 	// The grant types that are supported by the application
 	SupportedGrantTypes []string `json:"supportedGrantTypes,omitempty"`
 	// Callback URL
-	CallbackUrl string `json:"callbackUrl,omitempty"`
+	CallbackURL string `json:"callbackUrl,omitempty"`
 	// Allowed domains for the access token
 	AccessAllowDomains []string `json:"accessAllowDomains"`
 	// Allowed scopes for the access token
 	Scopes []string `json:"scopes,omitempty"`
 	// Client ID for generating access token.
-	ClientId string `json:"clientId,omitempty"`
-	// Client secret for generating access token. This is given together with the client Id.
+	ClientID string `json:"clientId,omitempty"`
+	// Client secret for generating access token. This is given together with the client ID.
 	ClientSecret string `json:"clientSecret,omitempty"`
 }
 
-type ApplicationKey struct {
+// ApplicationKeyResp represents the Application generate keys API call response.
+type ApplicationKeyResp struct {
 	// The consumer key associated with the application and identifying the client
 	ConsumerKey string `json:"consumerKey,omitempty"`
 	// The client secret that is used to authenticate the client with the authentication server
@@ -191,16 +207,17 @@ type ApplicationKey struct {
 	// The grant types that are supported by the application
 	SupportedGrantTypes []string `json:"supportedGrantTypes,omitempty"`
 	// Callback URL
-	CallbackUrl string `json:"callbackUrl,omitempty"`
+	CallbackURL string `json:"callbackUrl,omitempty"`
 	// Describes the state of the key generation.
 	KeyState string `json:"keyState,omitempty"`
 	// Describes to which endpoint the key belongs
 	KeyType string `json:"keyType,omitempty"`
 	// ApplicationConfig group id (if any).
-	GroupId string `json:"groupId,omitempty"`
+	GroupID string `json:"groupId,omitempty"`
 	Token   *Token `json:"token,omitempty"`
 }
 
+// Token represents an Application token.
 type Token struct {
 	// Access token
 	AccessToken string `json:"accessToken,omitempty"`
@@ -210,17 +227,19 @@ type Token struct {
 	ValidityTime int64 `json:"validityTime,omitempty"`
 }
 
+// SubscriptionResp represents the response of create Subscription API call.
 type SubscriptionResp struct {
 	// The UUID of the subscription
-	SubscriptionId string `json:"subscriptionId,omitempty"`
+	SubscriptionID string `json:"subscriptionId,omitempty"`
 	// The UUID of the application
-	ApplicationId string `json:"applicationId"`
+	ApplicationID string `json:"applicationId"`
 	// The unique identifier of the API.
-	ApiIdentifier string `json:"apiIdentifier"`
+	APIIdentifier string `json:"apiIdentifier"`
 	Tier          string `json:"tier"`
 	Status        string `json:"status,omitempty"`
 }
 
+// APISearchInfo represents the API search information.
 type APISearchInfo struct {
 	Provider    string `json:"provider"`
 	Version     string `json:"version"`
@@ -228,9 +247,10 @@ type APISearchInfo struct {
 	Status      string `json:"status"`
 	Name        string `json:"name"`
 	Context     string `json:"context"`
-	Id          string `json:"id"`
+	ID          string `json:"id"`
 }
 
+// APISearchResp represents the response of search "API" by name API call.
 type APISearchResp struct {
 	Previous string          `json:"previous"`
 	List     []APISearchInfo `json:"list"`
@@ -238,16 +258,18 @@ type APISearchResp struct {
 	Next     string          `json:"next"`
 }
 
+// ApplicationSearchInfo represents the Application search information.
 type ApplicationSearchInfo struct {
-	GroupId        string `json:"groupId"`
+	GroupID        string `json:"groupId"`
 	Subscriber     string `json:"subscriber"`
 	ThrottlingTier string `json:"throttlingTier"`
-	ApplicationId  string `json:"applicationId"`
+	ApplicationID  string `json:"applicationId"`
 	Name           string `json:"name"`
 	Description    string `json:"description"`
 	Status         string `json:"status"`
 }
 
+// ApplicationSearchResp represents the response of search Application by name API call.
 type ApplicationSearchResp struct {
 	Previous string                  `json:"previous"`
 	List     []ApplicationSearchInfo `json:"list"`

@@ -65,7 +65,7 @@ func testCreateAPISuccessFunc() func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
 		responder, err := httpmock.NewJsonResponder(http.StatusCreated, APICreateResp{
-			Id: id,
+			ID: id,
 		})
 		if err != nil {
 			t.Error(err)
@@ -215,7 +215,7 @@ func testCreateApplicationSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusCreated, &AppCreateRes{ApplicationId: "1"})
+		responder, err := httpmock.NewJsonResponder(http.StatusCreated, &AppCreateRes{ApplicationID: "1"})
 		if err != nil {
 			t.Error(err)
 		}
@@ -300,7 +300,7 @@ func testGenerateKeysSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, &ApplicationKey{
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, &ApplicationKeyResp{
 			Token: &Token{AccessToken: "abc"},
 		})
 		if err != nil {
@@ -345,7 +345,7 @@ func testSubscribeSuccessFunc() func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
 		responder, err := httpmock.NewJsonResponder(http.StatusCreated, &SubscriptionResp{
-			SubscriptionId: "abc",
+			SubscriptionID: "abc",
 		})
 		if err != nil {
 			t.Error(err)
@@ -492,19 +492,19 @@ func testSearchAPInSuccessFunc() func(t *testing.T) {
 		responder, err := httpmock.NewJsonResponder(http.StatusOK, &APISearchResp{
 			Count: 1,
 			List: []APISearchInfo{{
-				Id: "111-111",
+				ID: "111-111",
 			}},
 		})
 		if err != nil {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		apiId, err := apiM.SearchAPI("Test")
+		apiID, err := apiM.SearchAPI("Test")
 		if err != nil {
 			t.Error(err)
 		}
-		if apiId != "111-111" {
-			t.Errorf(ErrMsgTestIncorrectResult, "Test", apiId)
+		if apiID != "111-111" {
+			t.Errorf(ErrMsgTestIncorrectResult, "Test", apiID)
 		}
 	}
 }
@@ -563,19 +563,19 @@ func testSearchApplicationSuccessFunc() func(t *testing.T) {
 		responder, err := httpmock.NewJsonResponder(http.StatusOK, &ApplicationSearchResp{
 			Count: 1,
 			List: []ApplicationSearchInfo{{
-				ApplicationId: "111-111",
+				ApplicationID: "111-111",
 			}},
 		})
 		if err != nil {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
-		apiId, err := apiM.SearchApplication("Test")
+		apiID, err := apiM.SearchApplication("Test")
 		if err != nil {
 			t.Error(err)
 		}
-		if apiId != "111-111" {
-			t.Errorf(ErrMsgTestIncorrectResult, "Test", apiId)
+		if apiID != "111-111" {
+			t.Errorf(ErrMsgTestIncorrectResult, "Test", apiID)
 		}
 	}
 }

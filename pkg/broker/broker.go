@@ -464,7 +464,7 @@ func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.P
 			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
 	}
 	if !utils.IsValidParams(aParam.AppSpec.ThrottlingTier, aParam.AppSpec.Description,
-		aParam.AppSpec.CallbackUrl, aParam.AppSpec.Name) {
+		aParam.AppSpec.CallbackURL, aParam.AppSpec.Name) {
 		return domain.ProvisionedServiceSpec{}, apiresponses.NewFailureResponse(errors.New("invalid parameters"),
 			http.StatusBadRequest, "parsing Subscription parameters")
 	}
@@ -472,13 +472,13 @@ func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.P
 		ThrottlingTier: aParam.AppSpec.ThrottlingTier,
 		Description:    aParam.AppSpec.Description,
 		Name:           aParam.AppSpec.Name,
-		CallbackUrl:    aParam.AppSpec.CallbackUrl,
+		CallbackURL:    aParam.AppSpec.CallbackURL,
 	}
 
 	logData.
 		Add("throttlingTier", appCreateReq.ThrottlingTier).
 		Add("description", appCreateReq.Description).
-		Add("callbackUrl", appCreateReq.CallbackUrl).
+		Add("callbackUrl", appCreateReq.CallbackURL).
 		Add(LogKeyAPPName, appCreateReq.Name)
 	log.Debug("creating a new application...", logData)
 	appID, err := sBroker.APIMClient.CreateApplication(appCreateReq)
@@ -737,7 +737,7 @@ func (sBroker *APIM) UpdateAppService(instanceID string, serviceDetails domain.U
 			http.StatusBadRequest, "parsing ApplicationConfig JSON Spec parameter")
 	}
 	if !utils.IsValidParams(applicationParam.AppSpec.ThrottlingTier, applicationParam.AppSpec.Description,
-		applicationParam.AppSpec.CallbackUrl, applicationParam.AppSpec.Name) {
+		applicationParam.AppSpec.CallbackURL, applicationParam.AppSpec.Name) {
 		return domain.UpdateServiceSpec{}, apiresponses.NewFailureResponse(errors.New("invalid parameters"),
 			http.StatusBadRequest, "parsing Subscription parameters")
 	}
@@ -745,13 +745,13 @@ func (sBroker *APIM) UpdateAppService(instanceID string, serviceDetails domain.U
 		ThrottlingTier: applicationParam.AppSpec.ThrottlingTier,
 		Description:    applicationParam.AppSpec.Description,
 		Name:           applicationParam.AppSpec.Name,
-		CallbackUrl:    applicationParam.AppSpec.CallbackUrl,
+		CallbackURL:    applicationParam.AppSpec.CallbackURL,
 	}
 
 	logData.
 		Add("throttlingTier", appCreateReq.ThrottlingTier).
 		Add("description", appCreateReq.Description).
-		Add("callbackUrl", appCreateReq.CallbackUrl).
+		Add("callbackUrl", appCreateReq.CallbackURL).
 		Add(LogKeyAPPName, appCreateReq.Name)
 	log.Debug("updating the application...", logData)
 	err = sBroker.APIMClient.UpdateApplication(instance.APIMResourceID, &applicationParam.AppSpec)

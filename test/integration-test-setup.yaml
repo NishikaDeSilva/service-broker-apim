@@ -30,12 +30,12 @@ services:
     links:
       - mysql
     environment:
-      BROKER_APIM_LOG_LEVEL: "debug"
-      BROKER_APIM_DB_HOST: "mysql"
-      BROKER_APIM_APIM_DYNAMICCLIENTENDPOINT: "https://wso2apim:9443"
-      BROKER_APIM_APIM_TOKENENDPOINT: "https://wso2apim:8243"
-      BROKER_APIM_APIM_PUBLISHERENDPOINT: "https://wso2apim:9443"
-      BROKER_APIM_APIM_STOREENDPOINT: "https://wso2apim:9443"
+      APIM_BROKER_LOG_LEVEL: "debug"
+      APIM_BROKER_DB_HOST: "mysql"
+      APIM_BROKER_APIM_DYNAMICCLIENTENDPOINT: "https://wso2apim:9443"
+      APIM_BROKER_APIM_TOKENENDPOINT: "https://wso2apim:8243"
+      APIM_BROKER_APIM_PUBLISHERENDPOINT: "https://wso2apim:9443"
+      APIM_BROKER_APIM_STOREENDPOINT: "https://wso2apim:9443"
   mysql:
     image: "mysql:5.7.14"
     restart: always

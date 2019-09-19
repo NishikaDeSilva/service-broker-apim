@@ -1,0 +1,8 @@
+{
+  "app": {
+    "throttlingTier": "Unlimited",
+    "description": "sample app description",
+    "callbackUrl": "http://my.server.com/callback",
+    "name": "sampleApp-updated"
+  }
+}
