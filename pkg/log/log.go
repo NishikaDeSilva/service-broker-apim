@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// log package handles logging
+// Package log handles logging.
 package log
 
 import (
@@ -28,13 +28,13 @@ import (
 )
 
 const (
-	// LoggerName is used to specify the source of the logger
+	// LoggerName is used to specify the source of the logger.
 	LoggerName = "wso2-apim-broker"
 
-	// FilePerm is the permission for the server log file
+	// FilePerm is the permission for the server log file.
 	FilePerm = 0644
 
-	// ExitCode represents the OS exist code 1
+	// ExitCode1 represents the OS exist code 1.
 	ExitCode1 = 1
 
 	ErrMsgUnableToOpenLogFile = "unable to open the Log file: %s"
@@ -43,14 +43,15 @@ const (
 var logger = lager.NewLogger(LoggerName)
 var ioWriter io.Writer
 
+// Data represents the information in the logs.
 type Data struct {
 	lData lager.Data
 }
 
-// InitLogger initializes lager logging object
+// InitLogger initializes lager logging object,
 // 1. Setup log level
 // 2. Setup log file
-// Must initialize logger object to handle logging
+// Must initialize logger object to handle logging.
 func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 	logL, err := lager.LogLevelFromString(logLevelS)
 	if err != nil {
@@ -65,12 +66,12 @@ func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 	return logger, nil
 }
 
-// IoWriterLog returns the IO writer object for logging
+// IoWriterLog returns the IO writer object for logging.
 func IoWriterLog() io.Writer {
 	return ioWriter
 }
 
-// Info logs Info level messages using configured lager.Logger
+// Info logs Info level messages using configured lager.Logger.
 func Info(msg string, data *Data) {
 	if data == nil {
 		data = &Data{}
@@ -86,7 +87,7 @@ func Error(msg string, err error, data *Data) {
 	logger.Error(msg, err, data.lData)
 }
 
-// Debug logs Info level messages using configured lager.Logger
+// Debug logs Info level messages using configured lager.Logger.
 func Debug(msg string, data *Data) {
 	if data == nil {
 		data = &Data{}
@@ -94,27 +95,27 @@ func Debug(msg string, data *Data) {
 	logger.Debug(msg, data.lData)
 }
 
-// HandleErrorAndExit prints an error and exit with exit code 1
-// Only applicable upto server startup since process will be killed once invoked
+// HandleErrorAndExit prints an error and exit with exit code 1.
+// Only applicable upto server startup since process will be killed once invoked.
 func HandleErrorAndExit(err error) {
 	fmt.Println(err)
 	os.Exit(ExitCode1)
 }
 
-// HandleErrorWithLoggerAndExit prints an error through the provided logger and exit with exit code 1
-// Only applicable upto server startup since process will be killed once invoked
+// HandleErrorWithLoggerAndExit prints an error through the provided logger and exit with exit code 1.
+// Only applicable upto server startup since process will be killed once invoked.
 func HandleErrorWithLoggerAndExit(errMsg string, err error) {
 	Error(errMsg, err, &Data{})
 	os.Exit(ExitCode1)
 }
 
-// NewData returns a pointer a lData struct
+// NewData returns a pointer a Data struct.
 func NewData() *Data {
 	return &Data{}
 }
 
-// Add adds data to current data obj
-// Returns a reference to the current Log data obj
+// Add adds data to current data obj.
+// Returns a reference to the current Log data obj.
 func (l *Data) Add(key string, val interface{}) *Data {
 	if l.lData == nil {
 		l.lData = lager.Data{}

@@ -76,7 +76,7 @@ func (am *Client) CreateAPI(reqBody *APIReqBody) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "cannot construct, creation endpoint")
 	}
-	req, err := client.PostReq(aT, u, buf)
+	req, err := client.PostHTTPRequestWrapper(aT, u, buf)
 	if err != nil {
 		return "", err
 	}
@@ -106,7 +106,7 @@ func (am *Client) UpdateAPI(id string, reqBody *APIReqBody) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot construct, update endpoint")
 	}
-	req, err := client.PutReq(aT, u, buf)
+	req, err := client.PutHTTPRequestWrapper(aT, u, buf)
 	if err != nil {
 		return err
 	}
@@ -132,15 +132,15 @@ func (am *Client) PublishAPI(apiID string) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot construct, publish API endpoint")
 	}
-	req, err := client.PostReq(aT, u, nil)
+	rWrapper, err := client.PostHTTPRequestWrapper(aT, u, nil)
 	if err != nil {
 		return err
 	}
 	q := url.Values{}
 	q.Add("apiId", apiID)
 	q.Add("action", "Publish")
-	req.Get().URL.RawQuery = q.Encode()
-	err = client.Invoke(PublishAPIContext, req, nil, http.StatusOK)
+	rWrapper.HTTPRequest().URL.RawQuery = q.Encode()
+	err = client.Invoke(PublishAPIContext, rWrapper, nil, http.StatusOK)
 	return err
 }
 
@@ -159,7 +159,7 @@ func (am *Client) CreateApplication(reqBody *ApplicationCreateReq) (string, erro
 	if err != nil {
 		return "", errors.Wrap(err, "cannot construct, create Application endpoint")
 	}
-	req, err := client.PostReq(aT, u, buf)
+	req, err := client.PostHTTPRequestWrapper(aT, u, buf)
 	if err != nil {
 		return "", err
 	}
@@ -186,7 +186,7 @@ func (am *Client) UpdateApplication(id string, reqBody *ApplicationCreateReq) er
 	if err != nil {
 		return errors.Wrap(err, "cannot construct, update Application endpoint")
 	}
-	req, err := client.PutReq(aT, u, buf)
+	req, err := client.PutHTTPRequestWrapper(aT, u, buf)
 	if err != nil {
 		return err
 	}
@@ -216,16 +216,16 @@ func (am *Client) GenerateKeys(appID string) (*ApplicationKeyResp, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot construct, generate Application endpoint")
 	}
-	req, err := client.PostReq(aT, u, buf)
+	rWrapper, err := client.PostHTTPRequestWrapper(aT, u, buf)
 	if err != nil {
 		return nil, err
 	}
 	q := url.Values{}
 	q.Add("applicationId", appID)
-	req.Get().URL.RawQuery = q.Encode()
+	rWrapper.HTTPRequest().URL.RawQuery = q.Encode()
 
 	var resBody ApplicationKeyResp
-	err = client.Invoke(GenerateKeyContext, req, &resBody, http.StatusOK)
+	err = client.Invoke(GenerateKeyContext, rWrapper, &resBody, http.StatusOK)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (am *Client) Subscribe(appID, apiID, tier string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "cannot construct, create subscribe endpoint")
 	}
-	req, err := client.PostReq(aT, u, bodyReader)
+	req, err := client.PostHTTPRequestWrapper(aT, u, bodyReader)
 	if err != nil {
 		return "", err
 	}
@@ -276,7 +276,7 @@ func (am *Client) UnSubscribe(subscriptionID string) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot construct, create unsubscribe endpoint")
 	}
-	req, err := client.DeleteReq(aT, u)
+	req, err := client.DeleteHTTPRequestWrapper(aT, u)
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (am *Client) DeleteApplication(applicationID string) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot construct, delete Application endpoint")
 	}
-	req, err := client.DeleteReq(aT, u)
+	req, err := client.DeleteHTTPRequestWrapper(aT, u)
 	if err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func (am *Client) DeleteAPI(apiID string) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot construct, delete API endpoint")
 	}
-	req, err := client.DeleteReq(aT, u)
+	req, err := client.DeleteHTTPRequestWrapper(aT, u)
 	if err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (am *Client) DeleteAPI(apiID string) error {
 	return nil
 }
 
-// SearchAPI method returns API ID of the Given API
+// SearchAPI method returns API ID of the Given API.
 // Returns API ID and any error encountered.
 func (am *Client) SearchAPI(apiName string) (string, error) {
 	aT, err := am.TokenManager.Token(tokens.ScopeAPIView)
@@ -342,16 +342,16 @@ func (am *Client) SearchAPI(apiName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "cannot construct, search API endpoint")
 	}
-	req, err := client.GetReq(aT, u)
+	rWrapper, err := client.GetHTTPRequestWrapper(aT, u)
 	if err != nil {
 		return "", err
 	}
 	q := url.Values{}
 	q.Add("query", apiName)
-	req.Get().URL.RawQuery = q.Encode()
+	rWrapper.HTTPRequest().URL.RawQuery = q.Encode()
 
 	var resp APISearchResp
-	err = client.Invoke(APISearchContext, req, &resp, http.StatusOK)
+	err = client.Invoke(APISearchContext, rWrapper, &resp, http.StatusOK)
 	if err != nil {
 		return "", err
 	}
@@ -365,6 +365,7 @@ func (am *Client) SearchAPI(apiName string) (string, error) {
 }
 
 // SearchApplication method returns Application ID of the Given Application.
+// An error is returned if the number of result for the search is not equal to 1.
 // Returns Application ID and any error encountered.
 func (am *Client) SearchApplication(appName string) (string, error) {
 	aT, err := am.TokenManager.Token(tokens.ScopeSubscribe)
@@ -375,16 +376,16 @@ func (am *Client) SearchApplication(appName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "cannot construct, search Application endpoint")
 	}
-	req, err := client.GetReq(aT, u)
+	rWrapper, err := client.GetHTTPRequestWrapper(aT, u)
 	if err != nil {
 		return "", err
 	}
 	q := url.Values{}
 	q.Add("query", appName)
-	req.Get().URL.RawQuery = q.Encode()
+	rWrapper.HTTPRequest().URL.RawQuery = q.Encode()
 
 	var resp ApplicationSearchResp
-	err = client.Invoke(ApplicationSearchContext, req, &resp, http.StatusOK)
+	err = client.Invoke(ApplicationSearchContext, rWrapper, &resp, http.StatusOK)
 	if err != nil {
 		return "", err
 	}

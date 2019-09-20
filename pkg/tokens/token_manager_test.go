@@ -82,19 +82,19 @@ func testDynamicClientRegSuccessFunc() func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
 		responder, err := httpmock.NewJsonResponder(http.StatusOK, DynamicClientRegResBody{
-			ClientId: "1",
+			ClientID: "1",
 		})
 		if err != nil {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodPost, dynamicClientEndpoint+DynamicClientContext, responder)
 
-		clientId, _, err := tmTest.dynamicClientReg(defaultClientRegBody())
+		clientID, _, err := tmTest.dynamicClientReg(defaultClientRegBody())
 		if err != nil {
 			t.Error(err)
 		}
-		if clientId != "1" {
-			t.Errorf(ErrMsgTestIncorrectResult, "1", clientId)
+		if clientID != "1" {
+			t.Errorf(ErrMsgTestIncorrectResult, "1", clientID)
 		}
 	}
 }

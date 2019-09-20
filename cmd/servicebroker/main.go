@@ -15,11 +15,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+ // Package main initialize and start the broker.
 package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/wso2/service-broker-apim/pkg/apim"
@@ -53,12 +54,8 @@ func main() {
 	if err != nil {
 		log.HandleErrorAndExit(err)
 	}
-	// Initialize HTTP client
-	client.SetupClient(&http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: conf.APIM.InsecureCon},
-		},
-	})
+	// Initialize Server client
+	client.Configure(&conf.HTTP.Client)
 
 	// Initialize ORM
 	db.InitDB(&conf.DB)
@@ -83,8 +80,8 @@ func main() {
 	}
 
 	brokerCreds := brokerapi.BrokerCredentials{
-		Username: conf.HTTP.Auth.Username,
-		Password: conf.HTTP.Auth.Password,
+		Username: conf.HTTP.Server.Auth.Username,
+		Password: conf.HTTP.Server.Auth.Password,
 	}
 	apimServiceBroker := &broker.APIM{
 		BrokerConfig: conf,
@@ -92,8 +89,8 @@ func main() {
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 
-	host := conf.HTTP.Host
-	port := conf.HTTP.Port
+	host := conf.HTTP.Server.Host
+	port := conf.HTTP.Server.Port
 	ld := log.NewData().
 		Add("host", host).
 		Add("port", port)
@@ -112,24 +109,24 @@ func main() {
 		log.Info(InfoMSGShutdownBroker, nil)
 		if err := server.Shutdown(context.Background()); err != nil {
 			// Error from closing listeners, or context timeout:
-			log.Error("HTTP server Shutdown: %v", err, ld)
+			log.Error("Server server Shutdown: %v", err, ld)
 		}
 		close(idleConsClosed)
 	}()
 
 	log.Info(InfoMSGServerStart, ld)
-	if !conf.HTTP.TLS.Enabled {
+	if !conf.HTTP.Server.TLS.Enabled {
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
 			log.HandleErrorWithLoggerAndExit(
 				fmt.Sprintf(ErrMSGUnableToStartServer, host, port), err)
 		}
 	} else {
-		if err := server.ListenAndServeTLS(conf.HTTP.TLS.Cert, conf.HTTP.TLS.Key); err != http.ErrServerClosed {
+		if err := server.ListenAndServeTLS(conf.HTTP.Server.TLS.Cert, conf.HTTP.Server.TLS.Key); err != http.ErrServerClosed {
 			log.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableToStartServerTLS,
 				host,
 				port,
-				conf.HTTP.TLS.Key,
-				conf.HTTP.TLS.Cert),
+				conf.HTTP.Server.TLS.Key,
+				conf.HTTP.Server.TLS.Cert),
 				err)
 		}
 	}

@@ -15,6 +15,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+// Package broker holds the implementation of brokerapi.ServiceBroker interface.
 package broker
 
 import (
@@ -33,7 +35,6 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
-	"strconv"
 )
 
 const (
@@ -55,7 +56,7 @@ const (
 	ErrActionDelSubs            = "delete Application"
 	ErrActionDelInstanceFromDB  = "delete service instance from DB"
 	ErrMsgUnableDelInstance     = "unable to delete service instance"
-	ServiceId                   = "460F28F9-4D05-4889-970A-6BF5FB7D3CF8"
+	ServiceID                   = "460F28F9-4D05-4889-970A-6BF5FB7D3CF8"
 	ServiceName                 = "wso2apim-service"
 	ServiceDescription          = "WSO2 API Manager Services"
 	APIPlanID                   = "4CA4F2AF-EADF-4E76-A5CA-732FBC625593"
@@ -133,7 +134,7 @@ func (sBroker *APIM) Bind(ctx context.Context, instanceID, bindingID string,
 	}
 
 	bind := &db.Bind{
-		Id: bindingID,
+		ID: bindingID,
 	}
 	exists, err := db.Retrieve(bind)
 	if err != nil {
@@ -146,7 +147,7 @@ func (sBroker *APIM) Bind(ctx context.Context, instanceID, bindingID string,
 	}
 
 	instance := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err = db.Retrieve(instance)
 	if err != nil {
@@ -249,7 +250,7 @@ func (sBroker *APIM) Unbind(ctx context.Context, instanceID, bindingID string,
 		return domain.UnbindSpec{}, invalidServiceOrPlanFailureResponse("unbinding")
 	}
 	bind := &db.Bind{
-		Id: bindingID,
+		ID: bindingID,
 	}
 	exists, err := db.Retrieve(bind)
 	if err != nil {
@@ -320,7 +321,7 @@ func Plan() []domain.Service {
 	subscriptionPlanBindable := false
 	return []domain.Service{
 		{
-			ID:                   ServiceId,
+			ID:                   ServiceID,
 			Name:                 ServiceName,
 			Description:          ServiceDescription,
 			Bindable:             false,
@@ -375,14 +376,14 @@ func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.P
 		log.Error("unable to parse API parameters", err, logData)
 		return spec, invalidParamFailureResponse("parse API JSON Spec parameter")
 	}
-	if has, err := hasValidParameters(&serviceDetails.RawParameters); err != nil {
+	var has bool
+	if has, err = hasValidParameters(&serviceDetails.RawParameters); err != nil {
 		log.Error("couldn't validate API parameters", err, logData)
 		return spec, failureResponse500("couldn't validate API parameters", "validate API parameters")
-	} else {
-		if !has {
-			log.Error("empty API parameters", err, logData)
-			return spec, invalidParamFailureResponse("validate API parameters")
-		}
+	}
+	if !has {
+		log.Error("empty API parameters", err, logData)
+		return spec, invalidParamFailureResponse("validate API parameters")
 	}
 
 	logData.Add(LogKeyAPIName, apiParam.APISpec.Name)
@@ -412,7 +413,7 @@ func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.P
 	i := &db.Instance{
 		ServiceID:      serviceDetails.ServiceID,
 		PlanID:         serviceDetails.PlanID,
-		Id:             instanceID,
+		ID:             instanceID,
 		APIMResourceID: apiID,
 	}
 	err = db.Store(i)
@@ -483,16 +484,17 @@ func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.P
 	appID, err := sBroker.APIMClient.CreateApplication(appCreateReq)
 	if err != nil {
 		e, ok := err.(*client.InvokeError)
-		if ok {
-			logData.Add("response code", strconv.Itoa(e.StatusCode))
+		if ok && e.StatusCode == http.StatusConflict {
+			return domain.ProvisionedServiceSpec{}, failureResponse500(fmt.Sprintf("Application %s already exist", appCreateReq.Name), "create application")
 		}
 		log.Error("unable to create application", err, logData)
 		return domain.ProvisionedServiceSpec{}, failureResponse500(ErrMSGUnableToStoreInstance, ErrActionStoreInstance)
 	}
+	log.Debug("application created", logData)
 	i := &db.Instance{
 		ServiceID:      serviceDetails.ServiceID,
 		PlanID:         serviceDetails.PlanID,
-		Id:             instanceID,
+		ID:             instanceID,
 		APIMResourceID: appID,
 	}
 	logData.Add(LogKeyAPPID, appID)
@@ -500,12 +502,15 @@ func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.P
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
+		log.Debug("unable to store instance, deleting Application", logData)
 		errDel := sBroker.APIMClient.DeleteApplication(appID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the application", errDel, logData)
 		}
+		log.Debug("deleted the Application", logData)
 		return domain.ProvisionedServiceSpec{}, failureResponse500("unable to store instance in DB", "storing instance in DB")
 	}
+	log.Debug("stored app service instance information in DB", logData)
 	return domain.ProvisionedServiceSpec{}, nil
 }
 
@@ -554,7 +559,7 @@ func (sBroker *APIM) createSubscriptionService(instanceID string, serviceDetails
 	i := &db.Instance{
 		ServiceID:      serviceDetails.ServiceID,
 		PlanID:         serviceDetails.PlanID,
-		Id:             instanceID,
+		ID:             instanceID,
 		APIMResourceID: subsID,
 	}
 	logData.Add(LogKeySubsID, subsID)
@@ -577,7 +582,7 @@ func (sBroker *APIM) delAPIService(instanceID string, serviceDetails domain.Depr
 		Add(LogKeyPlanID, serviceDetails.PlanID).
 		Add(LogKeyInstanceID, instanceID)
 	instance := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err := db.Retrieve(instance)
 	if err != nil {
@@ -608,7 +613,7 @@ func (sBroker *APIM) delAppService(instanceID string, serviceDetails domain.Depr
 		Add(LogKeyPlanID, serviceDetails.PlanID).
 		Add(LogKeyInstanceID, instanceID)
 	instance := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err := db.Retrieve(instance)
 	if err != nil {
@@ -639,7 +644,7 @@ func (sBroker *APIM) delSubscriptionService(instanceID string, serviceDetails do
 		Add(LogKeyPlanID, serviceDetails.PlanID).
 		Add(LogKeyInstanceID, instanceID)
 	instance := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err := db.Retrieve(instance)
 	if err != nil {
@@ -671,7 +676,7 @@ func (sBroker *APIM) UpdateAPIService(instanceID string, serviceDetails domain.U
 		Add(LogKeyInstanceID, instanceID)
 	log.Debug("updating API service instance", logData)
 	instance := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err := db.Retrieve(instance)
 	if err != nil {
@@ -688,15 +693,17 @@ func (sBroker *APIM) UpdateAPIService(instanceID string, serviceDetails domain.U
 		log.Error("unable to parse API parameters", err, logData)
 		return domain.UpdateServiceSpec{}, invalidParamFailureResponse("parse API JSON Spec parameter")
 	}
-	if has, err := hasValidParameters(&serviceDetails.RawParameters); err != nil {
+
+	var has bool
+	if has, err = hasValidParameters(&serviceDetails.RawParameters); err != nil {
 		log.Error("couldn't validate API parameters", err, logData)
 		return domain.UpdateServiceSpec{}, failureResponse500("couldn't validate API parameters", "validate API parameters")
-	} else {
-		if !has {
-			log.Error("empty API parameters", err, logData)
-			return domain.UpdateServiceSpec{}, invalidParamFailureResponse("validate API parameters")
-		}
 	}
+	if !has {
+		log.Error("empty API parameters", err, logData)
+		return domain.UpdateServiceSpec{}, invalidParamFailureResponse("validate API parameters")
+	}
+
 	apiParam.APISpec.ID = instance.APIMResourceID
 	err = sBroker.APIMClient.UpdateAPI(instance.APIMResourceID, &apiParam.APISpec)
 	if err != nil {
@@ -717,7 +724,7 @@ func (sBroker *APIM) UpdateAppService(instanceID string, serviceDetails domain.U
 		Add(LogKeyInstanceID, instanceID)
 	log.Debug("updating Application service instance", logData)
 	instance := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err := db.Retrieve(instance)
 	if err != nil {
@@ -779,15 +786,15 @@ func invalidParamFailureResponse(a string) *apiresponses.FailureResponse {
 }
 
 func isAPIPlan(serviceID, planID string) bool {
-	return (serviceID == ServiceId) && (planID == APIPlanID)
+	return (serviceID == ServiceID) && (planID == APIPlanID)
 }
 
 func isApplicationPlan(serviceID, planID string) bool {
-	return (serviceID == ServiceId) && (planID == ApplicationPlanID)
+	return (serviceID == ServiceID) && (planID == ApplicationPlanID)
 }
 
 func isSubscriptionPlan(serviceID, planID string) bool {
-	return (serviceID == ServiceId) && (planID == SubscriptionPlanID)
+	return (serviceID == ServiceID) && (planID == SubscriptionPlanID)
 }
 
 // toApplicationParam parses application parameters
@@ -823,7 +830,7 @@ func toAPIParam(params json.RawMessage) (apim.APIParam, error) {
 // isInstanceExists returns true if the given instanceID already exists in the DB
 func isInstanceExists(instanceID string) (bool, error) {
 	i := &db.Instance{
-		Id: instanceID,
+		ID: instanceID,
 	}
 	exists, err := db.Retrieve(i)
 	if err != nil {

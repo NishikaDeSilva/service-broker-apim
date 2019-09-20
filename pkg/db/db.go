@@ -16,11 +16,12 @@
  * under the License.
  */
 
-// db package handles the DB connections and ORM.
+// Package db handles the DB connections and ORM.
 package db
 
 import (
 	"fmt"
+	// mysql driver is blank import for grom
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/config"
@@ -48,7 +49,7 @@ type Entity interface {
 
 // Instance represents the Instance model in the Database.
 type Instance struct {
-	Id             string `gorm:"primary_key;type:varchar(100)"`
+	ID             string `gorm:"primary_key;type:varchar(100)"`
 	ServiceID      string `gorm:"type:varchar(100);not null"`
 	PlanID         string `gorm:"type:varchar(100);not null"`
 	APIMResourceID string `gorm:"type:varchar(100);not null;unique;column:apim_resource_id"`
@@ -64,7 +65,7 @@ type Application struct {
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	Id                 string `gorm:"primary_key;type:varchar(100)"`
+	ID                 string `gorm:"primary_key;type:varchar(100)"`
 	InstanceID         string `gorm:"type:varchar(100);not null"`
 	AppName            string `gorm:"type:varchar(100);not null"`
 	ServiceID          string `gorm:"type:varchar(100);not null"`
@@ -104,7 +105,7 @@ func backOff(min, max time.Duration, attempt int) time.Duration {
 	return sleep
 }
 
-// Initialize database ORM parameters.
+// InitDB initialize database ORM parameters.
 func  InitDB(conf *config.DB) {
 	url = conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
 		conf.Database + "?charset=utf8"
@@ -116,7 +117,7 @@ func  InitDB(conf *config.DB) {
 	}
 }
 
-// Creates a table for the given model only if table already not exists.
+// CreateTable creates a table for the given model only if table already not exists.
 func CreateTable(model interface{}, table string) {
 	var ld = &log.Data{}
 	ld.Add("table", table)
@@ -169,17 +170,17 @@ func CloseDBCon() {
 	}
 }
 
-// store save the given Instance in the Database.
+// Store save the given Instance in the Database.
 func Store(e Entity) error {
 	return db.Table(e.TableName()).Create(e).Error
 }
 
-// update updates the given Instance in the Database.
+// Update updates the given Instance in the Database.
 func Update(e Entity) error {
 	return db.Table(e.TableName()).Save(e).Error
 }
 
-// deleteEntry deletes the given Instance in the Database.
+// Delete deletes the given Instance in the Database.
 // Returns any error occurred.
 func Delete(e Entity) error {
 	return db.Table(e.TableName()).Delete(e).Error

@@ -28,23 +28,23 @@ import (
 )
 
 type testVal struct {
-	Id   int
+	ID   int
 	Name string
 }
 
 const (
-	Host             = "localhost"
-	HttpMockEndpoint = "https://" + Host + "/api"
-	Context          = "testing"
-	Token            = "Token"
-	PayloadID        = 1
-	PayloadName      = "test"
-	PayloadString    = `{"id": 1, "name": "test"}`
+	Host                      = "localhost"
+	HTTPMockEndpoint          = "https://" + Host + "/api"
+	Context                   = "testing"
+	Token                     = "Token"
+	PayloadID                 = 1
+	PayloadName               = "test"
+	PayloadString             = `{"id": 1, "name": "test"}`
 	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 )
 
 var payload = testVal{
-	Id:   PayloadID,
+	ID:   PayloadID,
 	Name: PayloadName,
 }
 
@@ -63,12 +63,12 @@ func TestB64BasicAuth(t *testing.T) {
 	}
 }
 
-func TestPostReq(t *testing.T) {
+func TestPostHTTPRequestWrapper(t *testing.T) {
 	b, err := BodyReader(payload)
 	if err != nil {
 		t.Error(err)
 	}
-	req, err := PostReq(Token, HttpMockEndpoint, b)
+	req, err := PostHTTPRequestWrapper(Token, HTTPMockEndpoint, b)
 	if err != nil {
 		t.Error(err)
 	}
@@ -86,13 +86,13 @@ func TestPostReq(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if val.Id != PayloadID {
-		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, val.Id)
+	if val.ID != PayloadID {
+		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, val.ID)
 	}
 }
 
-func TestDeleteReq(t *testing.T) {
-	req, err := DeleteReq(Token, "http://"+Host)
+func TestDeleteHTTPRequestWrapper(t *testing.T) {
+	req, err := DeleteHTTPRequestWrapper(Token, "http://"+Host)
 	if err != nil {
 		t.Error(err)
 	}
@@ -116,7 +116,7 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		httpmock.RegisterResponder("POST", HttpMockEndpoint,
+		httpmock.RegisterResponder("POST", HTTPMockEndpoint,
 			httpmock.NewStringResponder(200, PayloadString))
 
 		buf, err := BodyReader(PayloadString)
@@ -124,7 +124,7 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 
-		req, err := PostReq(Token, HttpMockEndpoint, buf)
+		req, err := PostHTTPRequestWrapper(Token, HTTPMockEndpoint, buf)
 		if err != nil {
 			t.Error(err)
 		}
@@ -133,8 +133,8 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if body.Id != PayloadID {
-			t.Errorf(ErrMsgTestIncorrectResult, PayloadID, body.Id)
+		if body.ID != PayloadID {
+			t.Errorf(ErrMsgTestIncorrectResult, PayloadID, body.ID)
 		}
 	}
 }
@@ -143,9 +143,9 @@ func testInvokeFailFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		httpmock.RegisterResponder("POST", HttpMockEndpoint,
+		httpmock.RegisterResponder("POST", HTTPMockEndpoint,
 			httpmock.NewStringResponder(http.StatusNotFound, ""))
-		req, err := PostReq(Token, HttpMockEndpoint, nil)
+		req, err := PostHTTPRequestWrapper(Token, HTTPMockEndpoint, nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -179,8 +179,8 @@ func TestBodyReader(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if val.Id != PayloadID {
-		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, val.Id)
+	if val.ID != PayloadID {
+		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, val.ID)
 	}
 }
 
@@ -197,7 +197,7 @@ func TestParseBody(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if body.Id != PayloadID {
-		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, body.Id)
+	if body.ID != PayloadID {
+		t.Errorf(ErrMsgTestIncorrectResult, PayloadID, body.ID)
 	}
 }

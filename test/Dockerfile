@@ -24,6 +24,7 @@ RUN chmod +x /usr/bin/dep
 COPY Gopkg.toml Gopkg.lock $GOPATH/src/github.com/wso2/service-broker-apim/
 COPY cmd/ $GOPATH/src/github.com/wso2/service-broker-apim/cmd/
 COPY pkg/ $GOPATH/src/github.com/wso2/service-broker-apim/pkg/
+COPY vendor/ $GOPATH/src/github.com/wso2/service-broker-apim/vendor/
 
 WORKDIR $GOPATH/src/github.com/wso2/service-broker-apim
 RUN dep ensure

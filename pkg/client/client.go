@@ -16,14 +16,16 @@
  * under the License.
  */
 
-// client package contains functions required to make HTTP calls.
+// Package client contains functions required to make HTTP calls.
 package client
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"io"
 	"io/ioutil"
@@ -42,8 +44,8 @@ const (
 	ErrMSGUnsuccessfulAPICall   = "unsuccessful API call: %s response Code: %s URL: %s"
 	ErrMSGUnableToCloseBody     = "unable to close the body"
 	HTTPContentType             = "Content-Type"
-	ContentTypeApplicationJson  = "application/json"
-	ContentTypeUrlEncoded       = "application/x-www-form-urlencoded; param=value"
+	ContentTypeApplicationJSON  = "application/json"
+	ContentTypeURLEncoded       = "application/x-www-form-urlencoded; param=value"
 )
 
 var ErrInvalidParameters = errors.New("invalid parameters")
@@ -66,38 +68,49 @@ type Client struct {
 	maxRetry int
 }
 
+// default client
 var client = &Client{
 	httpClient:    http.DefaultClient,
 	checkForReTry: defaultRetryPolicy,
 	backOff:       defaultBackOffPolicy,
 	minBackOff:    1 * time.Second,
-	maxBackOff:    10 * time.Second,
+	maxBackOff:    60 * time.Second,
 	maxRetry:      3,
 }
 
-// Request wraps the http.request and the Body.
+// HTTPRequestWrapper wraps the http.request and the Body.
 // Body is wrapped with io.ReadSeeker which allows to reset the body buffer reader to initial state in retires.
-type Request struct {
+type HTTPRequestWrapper struct {
 	body    io.ReadSeeker
 	httpReq *http.Request
 }
 
-// Get returns the HTTP request.
-func (r *Request) Get() *http.Request {
+// HTTPRequest returns the HTTP request.
+func (r *HTTPRequestWrapper) HTTPRequest() *http.Request {
 	return r.httpReq
 }
 
 // SetHeader method set the given header key and value to the HTTP request.
-func (r *Request) SetHeader(k, v string) {
+func (r *HTTPRequestWrapper) SetHeader(k, v string) {
 	r.httpReq.Header.Set(k, v)
 }
 
-// SetupClient overrides the default HTTP client. This method should be called before calling Invoke method.
-func SetupClient(c *http.Client) {
-	client.httpClient = c
+// Configure overrides the default client values. This method should be called before calling Invoke method.
+func Configure(c *config.Client) {
+	client = &Client{
+		httpClient: &http.Client{
+			Timeout: time.Duration(c.Timeout) * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: c.InsecureCon},
+			},
+		},
+		minBackOff: time.Duration(c.MinBackOff) * time.Second,
+		maxBackOff: time.Duration(c.MaxBackOff) * time.Second,
+		maxRetry:   c.MaxRetry,
+	}
 }
 
-// Wraps more information about the error
+// InvokeError wraps more information about the error.
 type InvokeError struct {
 	err        error
 	StatusCode int
@@ -134,7 +147,7 @@ func ParseBody(res *http.Response, v interface{}) error {
 // context parameter is used to maintain the request context in the log.
 // resCode parameter is used to determine the desired response code.
 // Returns any error encountered.
-func Invoke(context string, req *Request, body interface{}, resCode int) error {
+func Invoke(context string, req *HTTPRequestWrapper, body interface{}, resCode int) error {
 	var resp *http.Response
 	var err error
 	resp, err = client.Do(req)
@@ -167,34 +180,34 @@ func Invoke(context string, req *Request, body interface{}, resCode int) error {
 	return nil
 }
 
-// PostReq returns a POST HTTP request with a Bearer token header with the content type to application/json
+// PostHTTPRequestWrapper returns a POST HTTP request with a Bearer token header with the content type to application/json
 // and any error encountered.
-func PostReq(token, url string, body io.ReadSeeker) (*Request, error) {
-	req, err := ToRequest(http.MethodPost, url, body)
+func PostHTTPRequestWrapper(token, url string, body io.ReadSeeker) (*HTTPRequestWrapper, error) {
+	req, err := ToHTTPRequestWrapper(http.MethodPost, url, body)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
 	req.SetHeader(HeaderAuth, HeaderBear+token)
-	req.SetHeader(HTTPContentType, ContentTypeApplicationJson)
+	req.SetHeader(HTTPContentType, ContentTypeApplicationJSON)
 	return req, nil
 }
 
-// PutReq returns a PUT HTTP request with a Bearer token header with the content type to application/json
+// PutHTTPRequestWrapper returns a PUT HTTP request with a Bearer token header with the content type to application/json
 // and any error encountered.
-func PutReq(token, url string, body io.ReadSeeker) (*Request, error) {
-	req, err := ToRequest(http.MethodPut, url, body)
+func PutHTTPRequestWrapper(token, url string, body io.ReadSeeker) (*HTTPRequestWrapper, error) {
+	req, err := ToHTTPRequestWrapper(http.MethodPut, url, body)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
 	req.SetHeader(HeaderAuth, HeaderBear+token)
-	req.SetHeader(HTTPContentType, ContentTypeApplicationJson)
+	req.SetHeader(HTTPContentType, ContentTypeApplicationJSON)
 	return req, nil
 }
 
-// GetReq returns a GET HTTP request with a Bearer token header
+// GetHTTPRequestWrapper returns a GET HTTP request with a Bearer token header
 // and any error encountered.
-func GetReq(token, url string) (*Request, error) {
-	req, err := ToRequest(http.MethodGet, url, nil)
+func GetHTTPRequestWrapper(token, url string) (*HTTPRequestWrapper, error) {
+	req, err := ToHTTPRequestWrapper(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
@@ -202,10 +215,10 @@ func GetReq(token, url string) (*Request, error) {
 	return req, nil
 }
 
-// DeleteReq returns a DELETE HTTP request with a Bearer token header
+// DeleteHTTPRequestWrapper returns a DELETE HTTP request with a Bearer token header
 // and any error encountered.
-func DeleteReq(token, url string) (*Request, error) {
-	req, err := ToRequest(http.MethodDelete, url, nil)
+func DeleteHTTPRequestWrapper(token, url string) (*HTTPRequestWrapper, error) {
+	req, err := ToHTTPRequestWrapper(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
 	}
@@ -223,8 +236,8 @@ func BodyReader(v interface{}) (io.ReadSeeker, error) {
 	return bytes.NewReader(buf.Bytes()), nil
 }
 
-// ToRequest returns client.Request struct which wraps the http.request, request Body any error encountered.
-func ToRequest(method, url string, body io.ReadSeeker) (*Request, error) {
+// ToHTTPRequestWrapper returns client.HTTPRequestWrapper struct which wraps the http.request, request Body any error encountered.
+func ToHTTPRequestWrapper(method, url string, body io.ReadSeeker) (*HTTPRequestWrapper, error) {
 	var rcBody io.ReadCloser
 	if body != nil {
 		rcBody = ioutil.NopCloser(body)
@@ -233,14 +246,14 @@ func ToRequest(method, url string, body io.ReadSeeker) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Request{httpReq: req, body: body}, nil
+	return &HTTPRequestWrapper{httpReq: req, body: body}, nil
 }
 
 // Do method invokes the request and returns the response and, an error if exists.
 // If the request is failed it will retry according to the registered Retry policy and Back off policy.
-func (c *Client) Do(req *Request) (resp *http.Response, err error) {
+func (c *Client) Do(reqWrapper *HTTPRequestWrapper) (resp *http.Response, err error) {
 	for i := 1; i <= c.maxRetry; i++ {
-		resp, err = c.httpClient.Do(req.httpReq)
+		resp, err = c.httpClient.Do(reqWrapper.httpReq)
 		// This error occurs due to  network connectivity problem and not for Non 2xx responses
 		if err != nil {
 			return nil, err
@@ -250,11 +263,11 @@ func (c *Client) Do(req *Request) (resp *http.Response, err error) {
 		}
 
 		logData := log.NewData().
-			Add("url", req.httpReq.URL).
+			Add("url", reqWrapper.httpReq.URL).
 			Add("response code", resp.StatusCode)
-		if req.body != nil {
+		if reqWrapper.body != nil {
 			// Reset the body reader
-			if _, err := req.body.Seek(0, 0); err != nil {
+			if _, err := reqWrapper.body.Seek(0, 0); err != nil {
 				log.Error("unable to reset body reader", err, logData)
 				return nil, err
 			}

@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// config package responsible for loading, parsing the configuration.
+// Package config is responsible for loading, parsing the configuration.
 package config
 
 import (
@@ -54,7 +54,6 @@ type DB struct {
 type APIM struct {
 	Username              string `mapstructure:"username"`
 	Password              string `mapstructure:"password"`
-	InsecureCon           bool   `mapstructure:"insecureCon"`
 	TokenEndpoint         string `mapstructure:"tokenEndpoint"`
 	DynamicClientEndpoint string `mapstructure:"dynamicClientEndpoint"`
 	PublisherEndpoint     string `mapstructure:"publisherEndpoint"`
@@ -80,12 +79,27 @@ type Log struct {
 	Level    string `mapstructure:"level"`
 }
 
-// HTTP represents configuration needed for HTTP server.
-type HTTP struct {
+// Server represents configuration needed for the HTTP server.
+type Server struct {
 	Auth Auth   `mapstructure:"auth"`
 	TLS  TLS    `mapstructure:"tls"`
 	Host string `mapstructure:"host"`
 	Port string `mapstructure:"port"`
+}
+
+// Client represents configuration needed for the HTTP client.
+type Client struct {
+	InsecureCon bool `mapstructure:"insecureCon"`
+	Timeout     int  `mapstructure:"timeout"`
+	MinBackOff  int  `mapstructure:"minBackOff"`
+	MaxBackOff  int  `mapstructure:"maxBackOff"`
+	MaxRetry    int  `mapstructure:"maxRetry"`
+}
+
+// HTTP represents configuration needed for the HTTP server and client.
+type HTTP struct {
+	Server Server `mapstructure:"server"`
+	Client Client `mapstructure:"client"`
 }
 
 // Broker main struct which holds references to sub configurations.
@@ -135,17 +149,22 @@ func setDefaultConf() {
 	viper.SetDefault("log.filePath", "server.log")
 	viper.SetDefault("log.level", "info")
 
-	viper.SetDefault("http.auth.username", "admin")
-	viper.SetDefault("http.auth.password", "admin")
-	viper.SetDefault("http.tls.enabled", false)
-	viper.SetDefault("http.tls.key", "key.pem")
-	viper.SetDefault("http.tls.cert", "cert.pem")
-	viper.SetDefault("http.host", "0.0.0.0")
-	viper.SetDefault("http.port", "8444")
+	viper.SetDefault("http.server.auth.username", "admin")
+	viper.SetDefault("http.server.auth.password", "admin")
+	viper.SetDefault("http.server.tls.enabled", false)
+	viper.SetDefault("http.server.tls.key", "key.pem")
+	viper.SetDefault("http.server.tls.cert", "cert.pem")
+	viper.SetDefault("http.server.host", "0.0.0.0")
+	viper.SetDefault("http.server.port", "8444")
+
+	viper.SetDefault("http.client.insecureCon", true)
+	viper.SetDefault("http.client.minBackOff", 1)
+	viper.SetDefault("http.client.maxBackOff", 60)
+	viper.SetDefault("http.client.timeout", 30)
+	viper.SetDefault("http.client.maxRetries", 3)
 
 	viper.SetDefault("apim.username", "admin")
 	viper.SetDefault("apim.password", "admin")
-	viper.SetDefault("apim.insecureCon", true)
 	viper.SetDefault("apim.tokenEndpoint", "https://localhost:8243")
 	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.publisherEndpoint", "https://localhost:9443")

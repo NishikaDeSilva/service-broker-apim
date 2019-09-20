@@ -65,34 +65,56 @@ func TestSetDefaultConf(t *testing.T) {
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	result, expected = viper.GetString("http.auth.username"), "admin"
+	result, expected = viper.GetString("http.server.auth.username"), "admin"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	result, expected = viper.GetString("http.auth.password"), "admin"
+	result, expected = viper.GetString("http.server.auth.password"), "admin"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	resultB := viper.GetBool("http.tls.enabled")
+
+	resultB := viper.GetBool("http.server.tls.enabled")
 	if resultB {
 		t.Errorf(ErrMsgTestIncorrectResult, false, resultB)
 	}
-	result, expected = viper.GetString("http.tls.key"), "key.pem"
+	result, expected = viper.GetString("http.server.tls.key"), "key.pem"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	result, expected = viper.GetString("http.tls.cert"), "cert.pem"
+	result, expected = viper.GetString("http.server.tls.cert"), "cert.pem"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	result, expected = viper.GetString("http.host"), "0.0.0.0"
+	result, expected = viper.GetString("http.server.host"), "0.0.0.0"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	result, expected = viper.GetString("http.port"), "8444"
+	result, expected = viper.GetString("http.server.port"), "8444"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
+	resultI, expectedI := viper.GetInt("http.client.timeout"), 30
+	if expectedI != resultI {
+		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
+	}
+	resultI, expectedI = viper.GetInt("http.client.minBackOff"), 1
+	if expectedI != resultI {
+		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
+	}
+	resultI, expectedI = viper.GetInt("http.client.maxBackOff"), 60
+	if expectedI != resultI {
+		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
+	}
+	resultI, expectedI = viper.GetInt("http.client.maxRetries"), 3
+	if expectedI != resultI {
+		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
+	}
+	resultB = viper.GetBool("http.client.insecureCon")
+	if !resultB {
+		t.Errorf(ErrMsgTestIncorrectResult, true, resultB)
+	}
+
 	result, expected = viper.GetString("apim.username"), "admin"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
@@ -101,10 +123,7 @@ func TestSetDefaultConf(t *testing.T) {
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
 	}
-	resultB = viper.GetBool("apim.insecureCon")
-	if !resultB {
-		t.Errorf(ErrMsgTestIncorrectResult, true, resultB)
-	}
+
 	result, expected = viper.GetString("apim.tokenEndpoint"), "https://localhost:8243"
 	if expected != result {
 		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
@@ -149,7 +168,7 @@ func TestSetDefaultConf(t *testing.T) {
 	if resultB {
 		t.Errorf(ErrMsgTestIncorrectResult, false, resultB)
 	}
-	resultI, expectedI := viper.GetInt("db.maxRetries"), 3
+	resultI, expectedI = viper.GetInt("db.maxRetries"), 3
 	if expectedI != resultI {
 		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
 	}
