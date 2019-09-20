@@ -41,7 +41,7 @@ const (
 	ErrMSGInvalidSVCPlan        = "Invalid service or Plan"
 	LogKeyAPIName               = "api-name"
 	LogKeyAPIID                 = "api-id"
-	LogKeyAPPID                 = "app-id"
+	LogKeyAppID                 = "app-id"
 	LogKeyAPPName               = "app-name"
 	LogKeySubsID                = "subs-id"
 	LogKeyServiceID             = "service-id"
@@ -69,6 +69,7 @@ const (
 	SubscriptionPlanName        = "subs"
 	SubscriptionPlanDescription = "Create a Subscription in WSO2 API Manager"
 	ErrActionCreateAPI          = "create API"
+	DebugMSGDelInstanceFromDB   = "delete instance from DB"
 )
 
 var ErrNotSupported = errors.New("not supported")
@@ -397,10 +398,9 @@ func (sBroker *APIM) createAPIService(instanceID string, serviceDetails domain.P
 		}
 		return spec, failureResponse500("unable to create the API", ErrActionCreateAPI)
 	}
-
-	logData.Add(LogKeyAPIID, apiID)
 	log.Debug("created API in APIM", logData)
 
+	logData.Add(LogKeyAPIID, apiID)
 	if err = sBroker.APIMClient.PublishAPI(apiID); err != nil {
 		log.Error("unable to publish API", err, logData)
 		errDel := sBroker.APIMClient.DeleteAPI(apiID)
@@ -497,12 +497,12 @@ func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.P
 		ID:             instanceID,
 		APIMResourceID: appID,
 	}
-	logData.Add(LogKeyAPPID, appID)
+	logData.Add(LogKeyAppID, appID)
 	// Store instance in the database
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
-		log.Debug("unable to store instance, deleting Application", logData)
+		log.Debug("deleting the Application", logData)
 		errDel := sBroker.APIMClient.DeleteApplication(appID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the application", errDel, logData)
@@ -510,7 +510,6 @@ func (sBroker *APIM) createAppService(instanceID string, serviceDetails domain.P
 		log.Debug("deleted the Application", logData)
 		return domain.ProvisionedServiceSpec{}, failureResponse500("unable to store instance in DB", "storing instance in DB")
 	}
-	log.Debug("stored app service instance information in DB", logData)
 	return domain.ProvisionedServiceSpec{}, nil
 }
 
@@ -550,7 +549,8 @@ func (sBroker *APIM) createSubscriptionService(instanceID string, serviceDetails
 		log.Error("unable to search Application", err, logData)
 		return spec, failureResponse500(fmt.Sprintf("couldn't find the Application: %s", subsInfo.SubsSpec.AppName), "searching application")
 	}
-	logData.Add(LogKeyAPPID, appID)
+	logData.Add(LogKeyAppID, appID)
+	log.Debug("creating the subscription", logData)
 	subsID, err := sBroker.APIMClient.Subscribe(appID, apiID, subsInfo.SubsSpec.SubscriptionTier)
 	if err != nil {
 		log.Error("unable to create the subscription", err, logData)
@@ -564,13 +564,16 @@ func (sBroker *APIM) createSubscriptionService(instanceID string, serviceDetails
 	}
 	logData.Add(LogKeySubsID, subsID)
 	// Store instance in the database
+	log.Debug("store instance in DB", logData)
 	err = db.Store(i)
 	if err != nil {
 		log.Error("unable to store instance", err, logData)
+		log.Debug("revert subscription", logData)
 		errDel := sBroker.APIMClient.UnSubscribe(subsID)
 		if errDel != nil {
 			log.Error("failed to cleanup, unable to delete the subscription", errDel, logData)
 		}
+		log.Debug("subscription is reverted", logData)
 		return spec, failureResponse500(ErrMSGUnableToStoreInstance, ErrActionStoreInstance)
 	}
 	return domain.ProvisionedServiceSpec{}, nil
@@ -594,11 +597,13 @@ func (sBroker *APIM) delAPIService(instanceID string, serviceDetails domain.Depr
 	}
 
 	logData.Add(LogKeyAPIID, instance.APIMResourceID)
+	log.Debug("delete the API", logData)
 	err = sBroker.APIMClient.DeleteAPI(instance.APIMResourceID)
 	if err != nil {
 		log.Error("unable to delete the API", err, logData)
 		return domain.DeprovisionServiceSpec{}, failureResponse500(ErrMsgUnableDelInstance, ErrActionDelAPI)
 	}
+	log.Debug(DebugMSGDelInstanceFromDB, logData)
 	err = db.Delete(instance)
 	if err != nil {
 		log.Error("unable to delete the instance from the database", err, logData)
@@ -624,12 +629,14 @@ func (sBroker *APIM) delAppService(instanceID string, serviceDetails domain.Depr
 		return domain.DeprovisionServiceSpec{}, apiresponses.ErrInstanceDoesNotExist
 	}
 
-	logData.Add(LogKeyAPPID, instance.APIMResourceID)
+	logData.Add(LogKeyAppID, instance.APIMResourceID)
+	log.Debug("delete the application", logData)
 	err = sBroker.APIMClient.DeleteApplication(instance.APIMResourceID)
 	if err != nil {
 		log.Error("unable to delete the Application", err, logData)
 		return domain.DeprovisionServiceSpec{}, failureResponse500(ErrMsgUnableDelInstance, ErrActionDelAPP)
 	}
+	log.Debug(DebugMSGDelInstanceFromDB, logData)
 	err = db.Delete(instance)
 	if err != nil {
 		log.Error("unable to delete the instance from the database", err, logData)
@@ -656,11 +663,13 @@ func (sBroker *APIM) delSubscriptionService(instanceID string, serviceDetails do
 	}
 
 	logData.Add(LogKeySubsID, instance.APIMResourceID)
+	log.Debug("remove subscription", logData)
 	err = sBroker.APIMClient.UnSubscribe(instance.APIMResourceID)
 	if err != nil {
 		log.Error("unable to delete the Subscription", err, logData)
 		return domain.DeprovisionServiceSpec{}, failureResponse500(ErrMsgUnableDelInstance, ErrActionDelSubs)
 	}
+	log.Debug(DebugMSGDelInstanceFromDB, logData)
 	err = db.Delete(instance)
 	if err != nil {
 		log.Error("unable to delete the instance from the database", err, logData)
@@ -703,7 +712,7 @@ func (sBroker *APIM) UpdateAPIService(instanceID string, serviceDetails domain.U
 		log.Error("empty API parameters", err, logData)
 		return domain.UpdateServiceSpec{}, invalidParamFailureResponse("validate API parameters")
 	}
-
+	log.Debug("update the API", logData)
 	apiParam.APISpec.ID = instance.APIMResourceID
 	err = sBroker.APIMClient.UpdateAPI(instance.APIMResourceID, &apiParam.APISpec)
 	if err != nil {

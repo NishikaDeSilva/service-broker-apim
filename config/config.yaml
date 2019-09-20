@@ -56,7 +56,7 @@ http:
     # maximum seconds for the back off policy
     maxBackOff: 60
     # maximum retries
-    maxRetry: 3
+    maxRetries: 3
 
 # APIM endpoints and credentials
 apim:

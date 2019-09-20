@@ -64,8 +64,7 @@ type Client struct {
 	backOff       BackOffPolicy
 	minBackOff    time.Duration
 	maxBackOff    time.Duration
-	// Maximum number of retries
-	maxRetry int
+	maxRetry      int
 }
 
 // default client
@@ -104,9 +103,12 @@ func Configure(c *config.Client) {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: c.InsecureCon},
 			},
 		},
-		minBackOff: time.Duration(c.MinBackOff) * time.Second,
-		maxBackOff: time.Duration(c.MaxBackOff) * time.Second,
-		maxRetry:   c.MaxRetry,
+		minBackOff:    time.Duration(c.MinBackOff) * time.Second,
+		maxBackOff:    time.Duration(c.MaxBackOff) * time.Second,
+		// to make sure that maxRetry is always a positive int
+		maxRetry:      validMaxRetries(c.MaxRetries),
+		backOff:       defaultBackOffPolicy,
+		checkForReTry: defaultRetryPolicy,
 	}
 }
 
@@ -150,7 +152,7 @@ func ParseBody(res *http.Response, v interface{}) error {
 func Invoke(context string, req *HTTPRequestWrapper, body interface{}, resCode int) error {
 	var resp *http.Response
 	var err error
-	resp, err = client.Do(req)
+	resp, err = do(req)
 	if err != nil {
 		return errors.Wrapf(err, ErrMSGUnableInitiateReq, context)
 	}
@@ -249,16 +251,16 @@ func ToHTTPRequestWrapper(method, url string, body io.ReadSeeker) (*HTTPRequestW
 	return &HTTPRequestWrapper{httpReq: req, body: body}, nil
 }
 
-// Do method invokes the request and returns the response and, an error if exists.
+// do invokes the request and returns the response and, an error if exists.
 // If the request is failed it will retry according to the registered Retry policy and Back off policy.
-func (c *Client) Do(reqWrapper *HTTPRequestWrapper) (resp *http.Response, err error) {
-	for i := 1; i <= c.maxRetry; i++ {
-		resp, err = c.httpClient.Do(reqWrapper.httpReq)
+func do(reqWrapper *HTTPRequestWrapper) (resp *http.Response, err error) {
+	for i := 1; i <= client.maxRetry; i++ {
+		resp, err = client.httpClient.Do(reqWrapper.httpReq)
 		// This error occurs due to  network connectivity problem and not for Non 2xx responses
 		if err != nil {
 			return nil, err
 		}
-		if !c.checkForReTry(resp) {
+		if !client.checkForReTry(resp) {
 			break
 		}
 
@@ -267,12 +269,12 @@ func (c *Client) Do(reqWrapper *HTTPRequestWrapper) (resp *http.Response, err er
 			Add("response code", resp.StatusCode)
 		if reqWrapper.body != nil {
 			// Reset the body reader
+			log.Debug("resetting the request body", logData)
 			if _, err := reqWrapper.body.Seek(0, 0); err != nil {
-				log.Error("unable to reset body reader", err, logData)
 				return nil, err
 			}
 		}
-		bt := c.backOff(c.minBackOff, c.maxBackOff, i)
+		bt := client.backOff(client.minBackOff, client.maxBackOff, i)
 		logData.Add("back off time", bt.Seconds()).Add("attempt", i)
 		log.Debug("retrying the request", logData)
 		time.Sleep(bt)
@@ -299,4 +301,12 @@ func defaultBackOffPolicy(min, max time.Duration, attempt int) time.Duration {
 		return max
 	}
 	return sleep
+}
+
+// validMaxRetries returns a valid maximum number of retires.
+func validMaxRetries(maxRetries int) int {
+	if maxRetries > 0 {
+		return maxRetries
+	}
+	return 3
 }

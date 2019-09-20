@@ -93,7 +93,7 @@ type Client struct {
 	Timeout     int  `mapstructure:"timeout"`
 	MinBackOff  int  `mapstructure:"minBackOff"`
 	MaxBackOff  int  `mapstructure:"maxBackOff"`
-	MaxRetry    int  `mapstructure:"maxRetry"`
+	MaxRetries  int  `mapstructure:"maxRetries"`
 }
 
 // HTTP represents configuration needed for the HTTP server and client.
