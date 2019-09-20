@@ -30,17 +30,33 @@ forms:
             default: true
           - name: debug
             label: debug
-      - name: apim_insecure_con
+      - name: http_client_insecure_con
         type: boolean
-        label: Enable insecure connections for APIM
+        label: Enable insecure connections for HTTP client
+      - name: http_client_timeout
+        type: integer
+        label: Timeout for HTTP client(s)
+        default: 30
+      - name: http_client_max_retries
+        type: integer
+        label: Max retires for HTTP client
+        default: 3
+      - name: http_client_min_back_off
+        type: integer
+        label: Minimum backoff time for HTTP client retries(s)
+        default: 1
+      - name: http_client_max_back_off
+        type: integer
+        label: Maximum backoff time for HTTP client retries(s)
+        default: 60
       - name: broker_port
         type: integer
-        label: Port
+        label: Broker listening Port
         default: 8080
       - name: memory
         type: string
         label: Memory
-        default: 512M
+        default: 256M
       - name: db_host
         type: string
         label: Database host
@@ -73,7 +89,11 @@ packages:
         APIM_BROKER_APIM_DYNAMICCLIENTENDPOINT: "https://keymanager.sys.ixdev.wso2.com"
         APIM_BROKER_APIM_STOREENDPOINT: "https://wso2apim.sys.ixdev.wso2.com"
         APIM_BROKER_APIM_PUBLISHERENDPOINT: "https://wso2apim.sys.ixdev.wso2.com"
-        APIM_BROKER_APIM_INSECURECON: (( .properties.apim_insecure_con.value ))
+        APIM_BROKER_HTTP_SERVER_INSECURECON: (( .properties.http_client_insecure_con.value ))
+        APIM_BROKER_HTTP_SERVER_TIMEOUT: (( .properties.http_client_timeout.value ))
+        APIM_BROKER_HTTP_CLIENT_MINBACKOFF: (( .properties.http_client_min_back_off.value ))
+        APIM_BROKER_HTTP_CLIENT_MAXBACKOFF: (( .properties.http_client_max_back_off.value ))
+        APIM_BROKER_HTTP_CLIENT_MAXRETRIES: (( .properties.http_client_max_retries.value ))
         APIM_BROKER_DB_HOST: (( .properties.db_host.value ))
         APIM_BROKER_DB_PORT: (( .properties.db_port.value ))
         APIM_BROKER_DB_DATABASE: (( .properties.db_database_name.value ))

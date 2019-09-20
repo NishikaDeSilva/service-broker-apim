@@ -28,12 +28,12 @@ import (
 )
 
 const (
+	EnvPrefix = "APIM_BROKER"
 	// FilePathEnv is used as a key to get the configuration file location.
-	FilePathEnv = "BROKER_APIM_CONF_FILE"
+	FilePathEnv = EnvPrefix + "_CONF_FILE"
 	// FileType constant is used to specify the Configuration file type(YAML).
 	FileType = "yaml"
 	// EnvPrefix is the prefix for configuration parameters ex: BROKER_APIM_LOGCONF_LOGFILE.
-	EnvPrefix               = "APIM_BROKER"
 	InfoMsgSettingUp        = "loading the configuration file: %s "
 	ErrMsgUnableToReadConf  = "unable to read configuration: %s"
 	ErrMsgUnableToParseConf = "unable to parse configuration"

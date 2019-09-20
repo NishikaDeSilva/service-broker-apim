@@ -23,6 +23,7 @@ import (
 	"fmt"
 	// mysql driver is blank import for grom
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/log"
@@ -31,7 +32,6 @@ import (
 	"strconv"
 	"time"
 )
-import "github.com/jinzhu/gorm"
 
 const (
 	MySQL                        = "mysql"
@@ -73,7 +73,7 @@ type Bind struct {
 	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
 }
 
-var(
+var (
 	url        string
 	logMode    bool
 	maxRetries int
@@ -106,7 +106,7 @@ func backOff(min, max time.Duration, attempt int) time.Duration {
 }
 
 // InitDB initialize database ORM parameters.
-func  InitDB(conf *config.DB) {
+func InitDB(conf *config.DB) {
 	url = conf.Username + ":" + conf.Password + "@tcp(" + conf.Host + ":" + strconv.Itoa(conf.Port) + ")/" +
 		conf.Database + "?charset=utf8"
 	logMode = conf.LogMode
@@ -133,9 +133,8 @@ func CreateTable(model interface{}, table string) {
 }
 
 // connection returns a DB connection and any error occurred.
-func connection()  error {
+func connection() error {
 	var ld = log.NewData().
-		Add("dbURL", url).
 		Add("logMode", logMode)
 	var err error
 	for i := 0; i < maxRetries; i++ {
