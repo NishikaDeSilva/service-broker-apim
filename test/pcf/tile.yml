@@ -89,8 +89,8 @@ packages:
         APIM_BROKER_APIM_DYNAMICCLIENTENDPOINT: "https://keymanager.sys.ixdev.wso2.com"
         APIM_BROKER_APIM_STOREENDPOINT: "https://wso2apim.sys.ixdev.wso2.com"
         APIM_BROKER_APIM_PUBLISHERENDPOINT: "https://wso2apim.sys.ixdev.wso2.com"
-        APIM_BROKER_HTTP_SERVER_INSECURECON: (( .properties.http_client_insecure_con.value ))
-        APIM_BROKER_HTTP_SERVER_TIMEOUT: (( .properties.http_client_timeout.value ))
+        APIM_BROKER_HTTP_CLIENT_INSECURECON: (( .properties.http_client_insecure_con.value ))
+        APIM_BROKER_HTTP_CLIENT_TIMEOUT: (( .properties.http_client_timeout.value ))
         APIM_BROKER_HTTP_CLIENT_MINBACKOFF: (( .properties.http_client_min_back_off.value ))
         APIM_BROKER_HTTP_CLIENT_MAXBACKOFF: (( .properties.http_client_max_back_off.value ))
         APIM_BROKER_HTTP_CLIENT_MAXRETRIES: (( .properties.http_client_max_retries.value ))
