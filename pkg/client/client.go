@@ -37,15 +37,15 @@ import (
 const (
 	HeaderAuth                  = "Authorization"
 	HeaderBear                  = "Bearer "
-	ErrMSGUnableToCreateReq     = "unable to create request"
-	ErrMSGUnableToParseReqBody  = "unable to parse request body"
-	ErrMSGUnableToParseRespBody = "unable to parse response body: %s "
-	ErrMSGUnableInitiateReq     = "unable to initiate request: %s"
-	ErrMSGUnsuccessfulAPICall   = "unsuccessful API call: %s response Code: %s URL: %s"
-	ErrMSGUnableToCloseBody     = "unable to close the body"
 	HTTPContentType             = "Content-Type"
 	ContentTypeApplicationJSON  = "application/json"
 	ContentTypeURLEncoded       = "application/x-www-form-urlencoded; param=value"
+	ErrMsgUnableToCreateReq     = "unable to create request"
+	ErrMsgUnableToParseReqBody  = "unable to parse request body"
+	ErrMsgUnableToParseRespBody = "unable to parse response body, context: %s "
+	ErrMsgUnableInitiateReq     = "unable to initiate request: %s"
+	ErrMsgUnsuccessfulAPICall   = "unsuccessful API call: %s response Code: %s URL: %s"
+	ErrMsgUnableToCloseBody     = "unable to close the body"
 )
 
 var ErrInvalidParameters = errors.New("invalid parameters")
@@ -70,31 +70,31 @@ type Client struct {
 // default client
 var client = &Client{
 	httpClient:    http.DefaultClient,
-	checkForReTry: defaultRetryPolicy,
-	backOff:       defaultBackOffPolicy,
+	checkForReTry: isErrorResponse,
+	backOff:       calculateBackOff,
 	minBackOff:    1 * time.Second,
 	maxBackOff:    60 * time.Second,
 	maxRetry:      3,
 }
 
-// HTTPRequestWrapper wraps the http.request and the Body.
+// HTTPRequest wraps the http.request and the Body.
 // Body is wrapped with io.ReadSeeker which allows to reset the body buffer reader to initial state in retires.
-type HTTPRequestWrapper struct {
+type HTTPRequest struct {
 	body    io.ReadSeeker
 	httpReq *http.Request
 }
 
 // HTTPRequest returns the HTTP request.
-func (r *HTTPRequestWrapper) HTTPRequest() *http.Request {
+func (r *HTTPRequest) HTTPRequest() *http.Request {
 	return r.httpReq
 }
 
 // SetHeader method set the given header key and value to the HTTP request.
-func (r *HTTPRequestWrapper) SetHeader(k, v string) {
+func (r *HTTPRequest) SetHeader(k, v string) {
 	r.httpReq.Header.Set(k, v)
 }
 
-// Configure overrides the default client values. This method should be called before calling Invoke method.
+// Configure overrides the default client values. This function should be called before calling Invoke method.
 func Configure(c *config.Client) {
 	client = &Client{
 		httpClient: &http.Client{
@@ -103,12 +103,11 @@ func Configure(c *config.Client) {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: c.InsecureCon},
 			},
 		},
-		minBackOff:    time.Duration(c.MinBackOff) * time.Second,
-		maxBackOff:    time.Duration(c.MaxBackOff) * time.Second,
-		// to make sure that maxRetry is always a positive int
-		maxRetry:      validMaxRetries(c.MaxRetries),
-		backOff:       defaultBackOffPolicy,
-		checkForReTry: defaultRetryPolicy,
+		minBackOff: time.Duration(c.MinBackOff) * time.Second,
+		maxBackOff: time.Duration(c.MaxBackOff) * time.Second,
+		maxRetry:      c.MaxRetries,
+		backOff:       calculateBackOff,
+		checkForReTry: isErrorResponse,
 	}
 }
 
@@ -149,16 +148,14 @@ func ParseBody(res *http.Response, v interface{}) error {
 // context parameter is used to maintain the request context in the log.
 // resCode parameter is used to determine the desired response code.
 // Returns any error encountered.
-func Invoke(context string, req *HTTPRequestWrapper, body interface{}, resCode int) error {
-	var resp *http.Response
-	var err error
-	resp, err = do(req)
+func Invoke(context string, req *HTTPRequest, body interface{}, expectedRespCode int) error {
+	resp, err := do(req)
 	if err != nil {
-		return errors.Wrapf(err, ErrMSGUnableInitiateReq, context)
+		return errors.Wrapf(err, ErrMsgUnableInitiateReq, context)
 	}
-	if resp.StatusCode != resCode {
+	if resp.StatusCode != expectedRespCode {
 		return &InvokeError{
-			err:        errors.Errorf(ErrMSGUnsuccessfulAPICall, context, resp.Status, req.httpReq.URL),
+			err:        errors.Errorf(ErrMsgUnsuccessfulAPICall, context, resp.Status, req.httpReq.URL),
 			StatusCode: resp.StatusCode,
 		}
 	}
@@ -166,15 +163,18 @@ func Invoke(context string, req *HTTPRequestWrapper, body interface{}, resCode i
 	// If response has a body
 	if body != nil {
 		defer func() {
+			ld := log.NewData().
+				Add("context", context).
+				Add("URL", req.httpReq.URL)
 			if err := resp.Body.Close(); err != nil {
-				log.Error(ErrMSGUnableToCloseBody, err, &log.Data{})
+				log.Error(ErrMsgUnableToCloseBody, err, ld)
 			}
 		}()
 
 		err = ParseBody(resp, body)
 		if err != nil {
 			return &InvokeError{
-				err:        errors.Wrapf(err, ErrMSGUnableToParseRespBody, context),
+				err:        errors.Wrapf(err, ErrMsgUnableToParseRespBody, context),
 				StatusCode: resp.StatusCode,
 			}
 		}
@@ -182,47 +182,47 @@ func Invoke(context string, req *HTTPRequestWrapper, body interface{}, resCode i
 	return nil
 }
 
-// PostHTTPRequestWrapper returns a POST HTTP request with a Bearer token header with the content type to application/json
+// CreateHTTPPOSTRequest returns a POST HTTP request with a Bearer token header with the content type to application/json
 // and any error encountered.
-func PostHTTPRequestWrapper(token, url string, body io.ReadSeeker) (*HTTPRequestWrapper, error) {
-	req, err := ToHTTPRequestWrapper(http.MethodPost, url, body)
+func CreateHTTPPOSTRequest(token, url string, body io.ReadSeeker) (*HTTPRequest, error) {
+	req, err := CreateHTTPRequest(http.MethodPost, url, body)
 	if err != nil {
-		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+		return nil, errors.Wrap(err, ErrMsgUnableToCreateReq)
 	}
 	req.SetHeader(HeaderAuth, HeaderBear+token)
 	req.SetHeader(HTTPContentType, ContentTypeApplicationJSON)
 	return req, nil
 }
 
-// PutHTTPRequestWrapper returns a PUT HTTP request with a Bearer token header with the content type to application/json
+// CreateHTTPPUTRequest returns a PUT HTTP request with a Bearer token header with the content type to application/json
 // and any error encountered.
-func PutHTTPRequestWrapper(token, url string, body io.ReadSeeker) (*HTTPRequestWrapper, error) {
-	req, err := ToHTTPRequestWrapper(http.MethodPut, url, body)
+func CreateHTTPPUTRequest(token, url string, body io.ReadSeeker) (*HTTPRequest, error) {
+	req, err := CreateHTTPRequest(http.MethodPut, url, body)
 	if err != nil {
-		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+		return nil, errors.Wrap(err, ErrMsgUnableToCreateReq)
 	}
 	req.SetHeader(HeaderAuth, HeaderBear+token)
 	req.SetHeader(HTTPContentType, ContentTypeApplicationJSON)
 	return req, nil
 }
 
-// GetHTTPRequestWrapper returns a GET HTTP request with a Bearer token header
+// CreateHTTPGETRequest returns a GET HTTP request with a Bearer token header
 // and any error encountered.
-func GetHTTPRequestWrapper(token, url string) (*HTTPRequestWrapper, error) {
-	req, err := ToHTTPRequestWrapper(http.MethodGet, url, nil)
+func CreateHTTPGETRequest(token, url string) (*HTTPRequest, error) {
+	req, err := CreateHTTPRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+		return nil, errors.Wrap(err, ErrMsgUnableToCreateReq)
 	}
 	req.SetHeader(HeaderAuth, HeaderBear+token)
 	return req, nil
 }
 
-// DeleteHTTPRequestWrapper returns a DELETE HTTP request with a Bearer token header
+// CreateHTTPDELETERequest returns a DELETE HTTP request with a Bearer token header
 // and any error encountered.
-func DeleteHTTPRequestWrapper(token, url string) (*HTTPRequestWrapper, error) {
-	req, err := ToHTTPRequestWrapper(http.MethodDelete, url, nil)
+func CreateHTTPDELETERequest(token, url string) (*HTTPRequest, error) {
+	req, err := CreateHTTPRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, ErrMSGUnableToCreateReq)
+		return nil, errors.Wrap(err, ErrMsgUnableToCreateReq)
 	}
 	req.SetHeader(HeaderAuth, HeaderBear+token)
 	return req, nil
@@ -233,13 +233,13 @@ func BodyReader(v interface{}) (io.ReadSeeker, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(v)
 	if err != nil {
-		return nil, errors.Wrap(err, ErrMSGUnableToParseReqBody)
+		return nil, errors.Wrap(err, ErrMsgUnableToParseReqBody)
 	}
 	return bytes.NewReader(buf.Bytes()), nil
 }
 
-// ToHTTPRequestWrapper returns client.HTTPRequestWrapper struct which wraps the http.request, request Body any error encountered.
-func ToHTTPRequestWrapper(method, url string, body io.ReadSeeker) (*HTTPRequestWrapper, error) {
+// CreateHTTPRequest returns client.HTTPRequest struct which wraps the http.request, request Body, and any error encountered.
+func CreateHTTPRequest(method, url string, body io.ReadSeeker) (*HTTPRequest, error) {
 	var rcBody io.ReadCloser
 	if body != nil {
 		rcBody = ioutil.NopCloser(body)
@@ -248,15 +248,16 @@ func ToHTTPRequestWrapper(method, url string, body io.ReadSeeker) (*HTTPRequestW
 	if err != nil {
 		return nil, err
 	}
-	return &HTTPRequestWrapper{httpReq: req, body: body}, nil
+	return &HTTPRequest{httpReq: req, body: body}, nil
 }
 
 // do invokes the request and returns the response and, an error if exists.
 // If the request is failed it will retry according to the registered Retry policy and Back off policy.
-func do(reqWrapper *HTTPRequestWrapper) (resp *http.Response, err error) {
-	for i := 1; i <= client.maxRetry; i++ {
-		resp, err = client.httpClient.Do(reqWrapper.httpReq)
-		// This error occurs due to  network connectivity problem and not for Non 2xx responses
+func do(req *HTTPRequest) (resp *http.Response, err error) {
+	i := 1
+	for ok := true; ok; ok = i <= client.maxRetry {
+		resp, err = client.httpClient.Do(req.httpReq)
+		// This error occurs due to  network connectivity problem and not for non 2xx responses.
 		if err != nil {
 			return nil, err
 		}
@@ -265,33 +266,33 @@ func do(reqWrapper *HTTPRequestWrapper) (resp *http.Response, err error) {
 		}
 
 		logData := log.NewData().
-			Add("url", reqWrapper.httpReq.URL).
+			Add("url", req.httpReq.URL).
 			Add("response code", resp.StatusCode)
-		if reqWrapper.body != nil {
+		if req.body != nil {
 			// Reset the body reader
 			log.Debug("resetting the request body", logData)
-			if _, err := reqWrapper.body.Seek(0, 0); err != nil {
+			if _, err := req.body.Seek(0, 0); err != nil {
 				return nil, err
 			}
 		}
 		bt := client.backOff(client.minBackOff, client.maxBackOff, i)
-		logData.Add("back off time", bt.Seconds()).Add("attempt", i)
+		logData.
+			Add("back off time", bt.Seconds()).
+			Add("attempt", i)
 		log.Debug("retrying the request", logData)
 		time.Sleep(bt)
+		i++
 	}
 	return resp, nil
 }
 
-// defaultRetryPolicy will retry the request if the response code is 4XX or 5XX.
-func defaultRetryPolicy(resp *http.Response) bool {
-	if resp.StatusCode >= 400 {
-		return true
-	}
-	return false
+// isErrorResponse will retry the request if the response code is 4XX or 5XX.
+func isErrorResponse(resp *http.Response) bool {
+	return resp.StatusCode >= 400
 }
 
-// defaultBackOffPolicy waits until attempt^2 or (min,max).
-func defaultBackOffPolicy(min, max time.Duration, attempt int) time.Duration {
+// calculateBackOff waits until attempt^2 or (min,max).
+func calculateBackOff(min, max time.Duration, attempt int) time.Duration {
 	du := math.Pow(2, float64(attempt))
 	sleep := time.Duration(du) * time.Second
 	if sleep < min {
@@ -303,10 +304,3 @@ func defaultBackOffPolicy(min, max time.Duration, attempt int) time.Duration {
 	return sleep
 }
 
-// validMaxRetries returns a valid maximum number of retires.
-func validMaxRetries(maxRetries int) int {
-	if maxRetries > 0 {
-		return maxRetries
-	}
-	return 3
-}

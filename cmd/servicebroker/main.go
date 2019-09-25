@@ -16,7 +16,7 @@
  * under the License.
  */
 
- // Package main initialize and start the broker.
+// Package main initialize and start the broker.
 package main
 
 import (
@@ -29,55 +29,51 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/db"
 	"github.com/wso2/service-broker-apim/pkg/log"
-	"github.com/wso2/service-broker-apim/pkg/tokens"
+	"github.com/wso2/service-broker-apim/pkg/token"
 	"net/http"
 	"os"
 	"os/signal"
 )
 
 const (
-	ErrMSGUnableToStartServerTLS = "unable to start the server on Host: %s port: %s TLS key: %s TLS cert: %s"
-	ErrMSGUnableToStartServer    = "unable to start the server on Host: %s port: %s"
+	ErrMsgUnableToStartServerTLS = "unable to start the server on Host: %s port: %s TLS key: %s TLS cert: %s"
+	ErrMsgUnableToStartServer    = "unable to start the server on Host: %s port: %s"
 	InfoMSGShutdownBroker        = "starting APIM Service Broker shutdown"
 	InfoMSGServerStart           = "starting APIM broker"
+	ErrMsgUnableToAddForeignKeys = "unable to add foreign keys"
 )
 
 func main() {
 
-	// Initialize the configuration
-	conf, err := config.LoadConfig()
+	// load configuration.
+	conf, err := config.Load()
 	if err != nil {
-		log.HandleErrorAndExit(err)
+		log.HandleErrorAndExit("failed to load configuration", err)
 	}
-	// Initialize the logs
-	logger, err := log.InitLogger(conf.Log.FilePath, conf.Log.Level)
+	// configure logging.
+	logger, err := log.Configure(conf.Log.FilePath, conf.Log.Level)
 	if err != nil {
-		log.HandleErrorAndExit(err)
+		log.HandleErrorAndExit("failed to configure logger", err)
 	}
-	// Initialize Server client
+	// configure HTTP client
 	client.Configure(&conf.HTTP.Client)
 
-	// Initialize ORM
-	db.InitDB(&conf.DB)
+	// Initialize DB.
+	db.Init(&conf.DB)
 	defer db.CloseDBCon()
-	// Create tables
-	db.CreateTables()
+	setupTables()
 
-	// Initialize Token PasswordRefreshTokenGrantManager
-	tManager := &tokens.PasswordRefreshTokenGrantManager{
+	// Initialize Token manager.
+	tManager := &token.PasswordRefreshTokenGrantManager{
 		TokenEndpoint:         conf.APIM.TokenEndpoint,
 		DynamicClientEndpoint: conf.APIM.DynamicClientEndpoint,
 		UserName:              conf.APIM.Username,
 		Password:              conf.APIM.Password,
 	}
-	tManager.InitTokenManager(tokens.ScopeAPICreate, tokens.ScopeSubscribe, tokens.ScopeAPIPublish, tokens.ScopeAPIView)
+	tManager.Init([]string{token.ScopeAPICreate, token.ScopeSubscribe, token.ScopeAPIPublish, token.ScopeAPIView})
 
-	// Initialize APIM PasswordRefreshTokenGrantManager
-	apimManager := &apim.Client{
-		PublisherEndpoint: conf.APIM.PublisherEndpoint,
-		StoreEndpoint:     conf.APIM.StoreEndpoint,
-		TokenManager:      tManager,
-	}
+	// Initialize API-M client.
+	apim.Init(tManager, conf.APIM)
 
 	brokerCreds := brokerapi.BrokerCredentials{
 		Username: conf.HTTP.Server.Auth.Username,
@@ -85,7 +81,6 @@ func main() {
 	}
 	apimServiceBroker := &broker.APIM{
 		BrokerConfig: conf,
-		APIMClient:   apimManager,
 	}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 
@@ -95,34 +90,24 @@ func main() {
 		Add("host", host).
 		Add("port", port)
 
-	server:= http.Server{
-		Handler:brokerAPI,
-		Addr: host + ":" + port,
+	server := http.Server{
+		Handler: brokerAPI,
+		Addr:    host + ":" + port,
 	}
 
-	// Handling terminating signal
-	idleConsClosed := make(chan struct{})
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt, os.Kill)
-		<-sigint
-		log.Info(InfoMSGShutdownBroker, nil)
-		if err := server.Shutdown(context.Background()); err != nil {
-			// Error from closing listeners, or context timeout:
-			log.Error("Server server Shutdown: %v", err, ld)
-		}
-		close(idleConsClosed)
-	}()
+	// Handling terminating signal.
+	idleConsClosed := make(chan struct{}, 1)
+	go handleGracefulShutdown(idleConsClosed, &server)
 
 	log.Info(InfoMSGServerStart, ld)
 	if !conf.HTTP.Server.TLS.Enabled {
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-			log.HandleErrorWithLoggerAndExit(
-				fmt.Sprintf(ErrMSGUnableToStartServer, host, port), err)
+			log.HandleErrorAndExit(
+				fmt.Sprintf(ErrMsgUnableToStartServer, host, port), err)
 		}
 	} else {
 		if err := server.ListenAndServeTLS(conf.HTTP.Server.TLS.Cert, conf.HTTP.Server.TLS.Key); err != http.ErrServerClosed {
-			log.HandleErrorWithLoggerAndExit(fmt.Sprintf(ErrMSGUnableToStartServerTLS,
+			log.HandleErrorAndExit(fmt.Sprintf(ErrMsgUnableToStartServerTLS,
 				host,
 				port,
 				conf.HTTP.Server.TLS.Key,
@@ -130,5 +115,43 @@ func main() {
 				err)
 		}
 	}
+	log.Debug("waiting for idle connections to be closed", nil)
 	<-idleConsClosed
+}
+
+// addForeignKeys configures foreign keys for Application table.
+func addForeignKeys() {
+	err := db.AddForeignKey(&db.Application{}, "id", db.ForeignKeyDestAPIMID, "CASCADE",
+		"CASCADE")
+	if err != nil {
+		log.HandleErrorAndExit(ErrMsgUnableToAddForeignKeys, err)
+	}
+	err = db.AddForeignKey(&db.Bind{}, "instance_id", db.ForeignKeyDestInstanceID, "RESTRICT",
+		"RESTRICT")
+	if err != nil {
+		log.HandleErrorAndExit(ErrMsgUnableToAddForeignKeys, err)
+	}
+}
+
+// SetupTables creates the tables and add foreign keys.
+func setupTables() {
+	db.CreateTable(&db.Instance{})
+	db.CreateTable(&db.Application{})
+	db.CreateTable(&db.Bind{})
+	addForeignKeys()
+}
+
+// handleGracefulShutdown shutdown the server gracefully.
+func handleGracefulShutdown(idleConsClosed chan<- struct{}, server *http.Server) {
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt, os.Kill)
+	log.Debug("graceful shutdown process is started. Waiting for interrupt or kill signal", nil)
+	<-sigint
+	log.Debug("interrupt or kill signal received", nil)
+	log.Info(InfoMSGShutdownBroker, nil)
+	if err := server.Shutdown(context.Background()); err != nil {
+		// Error from closing listeners, or context timeout.
+		log.Error("unable to shutdown server", err, nil)
+	}
+	close(idleConsClosed)
 }

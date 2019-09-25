@@ -22,10 +22,10 @@
 log:
   # log file path
   filePath: "server.log"
-  # log level(info, debug)
+  # log level(info, debug, error, fatal)
   level: "info"
 
-# HTTP server configuration
+# HTTP server/client configuration
 http:
   server:
     # basic Auth configuration for the service broker
@@ -66,11 +66,21 @@ apim:
   # token endpoint
   tokenEndpoint: "https://localhost:8243"
   # dynamic client registration endpoint
-  dynamicClientEndpoint: "https://localhost:9443"
+  dynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register"
   # publisher endpoint
   publisherEndpoint: "https://localhost:9443"
+  # publisher API context
+  publisherAPIContext: "/api/am/publisher/v0.14/apis"
+  # publisher Change API life cycle change context
+  publisherChangeAPILifeCycleContext: "/api/am/publisher/v0.14/apis/change-lifecycle"
   # store endpoint
   storeEndpoint: "https://localhost:9443"
+  # store Application API context
+  storeApplicationContext: "/api/am/store/v0.14/applications"
+  # store Subscription API Context
+  storeSubscriptionContext: "/api/am/store/v0.14/subscriptions"
+  # generate application context
+  generateApplicationKeyContext: "/api/am/store/v0.14/applications/generate-keys"
 
 # Database configuration
 db:

@@ -21,7 +21,6 @@ package log
 
 import (
 	"code.cloudfoundry.org/lager"
-	"fmt"
 	"github.com/pkg/errors"
 	"io"
 	"os"
@@ -34,25 +33,22 @@ const (
 	// FilePerm is the permission for the server log file.
 	FilePerm = 0644
 
-	// ExitCode1 represents the OS exist code 1.
-	ExitCode1 = 1
-
 	ErrMsgUnableToOpenLogFile = "unable to open the Log file: %s"
 )
 
 var logger = lager.NewLogger(LoggerName)
-var ioWriter io.Writer
+var ioWriter io.Writer = os.Stdout
 
 // Data represents the information in the logs.
 type Data struct {
 	lData lager.Data
 }
 
-// InitLogger initializes lager logging object,
+// Configure initializes lager logging object,
 // 1. Setup log level
 // 2. Setup log file
-// Must initialize logger object to handle logging.
-func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
+// Returns configured logger and any error encountered.
+func Configure(logFile, logLevelS string) (lager.Logger, error) {
 	logL, err := lager.LogLevelFromString(logLevelS)
 	if err != nil {
 		return nil, err
@@ -66,7 +62,7 @@ func InitLogger(logFile, logLevelS string) (lager.Logger, error) {
 	return logger, nil
 }
 
-// IoWriterLog returns the IO writer object for logging.
+// IoWriterLog returns the IO writer object for logging. By default it is pointed to STDOUT.
 func IoWriterLog() io.Writer {
 	return ioWriter
 }
@@ -74,39 +70,30 @@ func IoWriterLog() io.Writer {
 // Info logs Info level messages using configured lager.Logger.
 func Info(msg string, data *Data) {
 	if data == nil {
-		data = &Data{}
+		data = NewData()
 	}
 	logger.Info(msg, data.lData)
 }
 
-// Error logs Info level messages using configured lager.Logger.
+// Error logs Error level messages using configured lager.Logger.
 func Error(msg string, err error, data *Data) {
 	if data == nil {
-		data = &Data{}
+		data = NewData()
 	}
 	logger.Error(msg, err, data.lData)
 }
 
-// Debug logs Info level messages using configured lager.Logger.
+// Debug logs Debug level messages using configured lager.Logger.
 func Debug(msg string, data *Data) {
 	if data == nil {
-		data = &Data{}
+		data = NewData()
 	}
 	logger.Debug(msg, data.lData)
 }
 
-// HandleErrorAndExit prints an error and exit with exit code 1.
-// Only applicable upto server startup since process will be killed once invoked.
-func HandleErrorAndExit(err error) {
-	fmt.Println(err)
-	os.Exit(ExitCode1)
-}
-
-// HandleErrorWithLoggerAndExit prints an error through the provided logger and exit with exit code 1.
-// Only applicable upto server startup since process will be killed once invoked.
-func HandleErrorWithLoggerAndExit(errMsg string, err error) {
-	Error(errMsg, err, &Data{})
-	os.Exit(ExitCode1)
+// HandleErrorAndExit prints an error to STDOUT and invoke a panic.
+func HandleErrorAndExit(errMsg string, err error) {
+	logger.Fatal(errMsg, err, lager.Data{})
 }
 
 // NewData returns a pointer a Data struct.

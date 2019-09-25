@@ -31,6 +31,7 @@ var (
 	ErrCannotParseURL = errors.New("unable to parse URL")
 	ErrNoPaths        = errors.New("no paths found")
 )
+
 // GetEnv returns the value (which may be empty) If the Key is present in the environment
 // Otherwise the default value is returned
 func GetEnv(key, defaultVal string) string {
@@ -54,9 +55,9 @@ func IsValidParams(vals ...string) bool {
 	return true
 }
 
-// RawMSGToString converts json.RawMessage into String
+// RawMsgToString converts json.RawMessage into String
 // Returns the string representation of json.RawMessage and any error occurred
-func RawMSGToString(msg *json.RawMessage) (string, error) {
+func RawMsgToString(msg *json.RawMessage) (string, error) {
 	j, err := json.Marshal(msg)
 	if err != nil {
 		return "", err
@@ -64,10 +65,10 @@ func RawMSGToString(msg *json.RawMessage) (string, error) {
 	return string(j), nil
 }
 
-// ConstructURL construct URL by joining the paths provided
-// first param will be treated as the base and the rest of params configured as paths
-// An error will be thrown if the number of paths is equal to zero
-// Returns constructed path and any error occurred
+// ConstructURL construct URL by joining the paths provided.
+// First param will be treated as the base and the rest of params configured as paths.
+// An error will be thrown if the number of paths is equal to zero.
+// Returns constructed path and any error occurred.
 func ConstructURL(paths ...string) (string, error) {
 	if len(paths) == 0 {
 		return "", ErrNoPaths

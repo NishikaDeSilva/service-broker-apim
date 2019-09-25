@@ -57,127 +57,65 @@ func TestLoadConfigFile(t *testing.T) {
 
 func TestSetDefaultConf(t *testing.T) {
 	setDefaultConf()
-	result, expected := viper.GetString("log.filePath"), "server.log"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("log.level"), "info"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("http.server.auth.username"), "admin"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("http.server.auth.password"), "admin"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-
-	resultB := viper.GetBool("http.server.tls.enabled")
-	if resultB {
-		t.Errorf(ErrMsgTestIncorrectResult, false, resultB)
-	}
-	result, expected = viper.GetString("http.server.tls.key"), "key.pem"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("http.server.tls.cert"), "cert.pem"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("http.server.host"), "0.0.0.0"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("http.server.port"), "8444"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	resultI, expectedI := viper.GetInt("http.client.timeout"), 30
-	if expectedI != resultI {
-		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
-	}
-	resultI, expectedI = viper.GetInt("http.client.minBackOff"), 1
-	if expectedI != resultI {
-		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
-	}
-	resultI, expectedI = viper.GetInt("http.client.maxBackOff"), 60
-	if expectedI != resultI {
-		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
-	}
-	resultI, expectedI = viper.GetInt("http.client.maxRetries"), 3
-	if expectedI != resultI {
-		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
-	}
-	resultB = viper.GetBool("http.client.insecureCon")
-	if !resultB {
-		t.Errorf(ErrMsgTestIncorrectResult, true, resultB)
-	}
-
-	result, expected = viper.GetString("apim.username"), "admin"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("apim.password"), "admin"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-
-	result, expected = viper.GetString("apim.tokenEndpoint"), "https://localhost:8243"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("apim.dynamicClientEndpoint"), "https://localhost:9443"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("apim.publisherEndpoint"), "https://localhost:9443"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("apim.storeEndpoint"), "https://localhost:9443"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("db.host"), "localhost"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("db.port"), "3306"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("db.username"), "root"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("db.password"), "root123"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("db.database"), "broker"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	result, expected = viper.GetString("db.database"), "broker"
-	if expected != result {
-		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
-	}
-	resultB = viper.GetBool("db.logMode")
-	if resultB {
-		t.Errorf(ErrMsgTestIncorrectResult, false, resultB)
-	}
-	resultI, expectedI = viper.GetInt("db.maxRetries"), 3
-	if expectedI != resultI {
-		t.Errorf(ErrMsgTestIncorrectResult, expectedI, resultI)
-	}
+	testStringConf(t, "log.filePath", "server.log")
+	testStringConf(t, "log.level", "info")
+	testStringConf(t, "http.server.auth.username", "admin")
+	testStringConf(t, "http.server.auth.password", "admin")
+	testBooleanConf(t, "http.server.tls.enabled", false)
+	testStringConf(t, "http.server.tls.key", "key.pem")
+	testStringConf(t, "http.server.tls.cert", "cert.pem")
+	testStringConf(t, "http.server.host", "0.0.0.0")
+	testStringConf(t, "http.server.port", "8444")
+	testIntegerConf(t, "http.client.timeout", 30)
+	testIntegerConf(t, "http.client.minBackOff", 1)
+	testIntegerConf(t, "http.client.maxBackOff", 60)
+	testIntegerConf(t, "http.client.maxRetries", 3)
+	testBooleanConf(t, "http.client.insecureCon", true)
+	testStringConf(t, "apim.username", "admin")
+	testStringConf(t, "apim.password", "admin")
+	testStringConf(t, "apim.tokenEndpoint", "https://localhost:8243")
+	testStringConf(t, "apim.dynamicClientEndpoint", "https://localhost:9443/client-registration/v0.14/register")
+	testStringConf(t, "apim.publisherEndpoint", "https://localhost:9443")
+	testStringConf(t, "apim.publisherContext", "/api/am/publisher/v0.14/apis")
+	testStringConf(t, "apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")
+	testStringConf(t, "apim.storeEndpoint", "https://localhost:9443")
+	testStringConf(t, "apim.storeApplicationContext", "/api/am/store/v0.14/applications")
+	testStringConf(t, "apim.storeSubscriptionContext", "/api/am/store/v0.14/subscriptions")
+	testStringConf(t, "apim.generateApplicationKeyContext", "/api/am/store/v0.14/applications/generate-keys")
+	testStringConf(t, "db.host", "localhost")
+	testIntegerConf(t, "db.port", 3306)
+	testStringConf(t, "db.username", "root")
+	testStringConf(t, "db.password", "root123")
+	testStringConf(t, "db.database", "broker")
+	testBooleanConf(t, "db.logMode", false)
+	testIntegerConf(t, "db.maxRetries", 3)
 	viper.Reset()
+}
+
+func testBooleanConf(t *testing.T, key string, expected bool) {
+	result := viper.GetBool(key)
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+}
+
+func testIntegerConf(t *testing.T, key string, expected int) {
+	result := viper.GetInt(key)
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
+}
+
+func testStringConf(t *testing.T, key, expected string) {
+	result := viper.GetString(key)
+	if expected != result {
+		t.Errorf(ErrMsgTestIncorrectResult, expected, result)
+	}
 }
 
 func TestEnvConf(t *testing.T) {
 	setUpEnv(EnvPrefix+"_DB_DATABASE", "broker_test", t)
-	c, err := LoadConfig()
+	c, err := Load()
 	if err != nil {
 		t.Error(err)
 	}

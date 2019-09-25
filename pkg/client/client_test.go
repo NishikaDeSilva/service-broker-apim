@@ -68,7 +68,7 @@ func TestPostHTTPRequestWrapper(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	req, err := PostHTTPRequestWrapper(Token, HTTPMockEndpoint, b)
+	req, err := CreateHTTPPOSTRequest(Token, HTTPMockEndpoint, b)
 	if err != nil {
 		t.Error(err)
 	}
@@ -92,7 +92,7 @@ func TestPostHTTPRequestWrapper(t *testing.T) {
 }
 
 func TestDeleteHTTPRequestWrapper(t *testing.T) {
-	req, err := DeleteHTTPRequestWrapper(Token, "http://"+Host)
+	req, err := CreateHTTPDELETERequest(Token, "http://"+Host)
 	if err != nil {
 		t.Error(err)
 	}
@@ -124,7 +124,7 @@ func testInvokeSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 
-		req, err := PostHTTPRequestWrapper(Token, HTTPMockEndpoint, buf)
+		req, err := CreateHTTPPOSTRequest(Token, HTTPMockEndpoint, buf)
 		if err != nil {
 			t.Error(err)
 		}
@@ -145,7 +145,7 @@ func testInvokeFailFunc() func(t *testing.T) {
 		defer httpmock.DeactivateAndReset()
 		httpmock.RegisterResponder("POST", HTTPMockEndpoint,
 			httpmock.NewStringResponder(http.StatusNotFound, ""))
-		req, err := PostHTTPRequestWrapper(Token, HTTPMockEndpoint, nil)
+		req, err := CreateHTTPPOSTRequest(Token, HTTPMockEndpoint, nil)
 		if err != nil {
 			t.Error(err)
 		}

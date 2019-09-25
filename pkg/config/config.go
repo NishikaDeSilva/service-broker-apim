@@ -28,18 +28,19 @@ import (
 )
 
 const (
+	// EnvPrefix is used as the prefix for Environment variable configuration.
 	EnvPrefix = "APIM_BROKER"
 	// FilePathEnv is used as a key to get the configuration file location.
 	FilePathEnv = EnvPrefix + "_CONF_FILE"
 	// FileType constant is used to specify the Configuration file type(YAML).
 	FileType = "yaml"
-	// EnvPrefix is the prefix for configuration parameters ex: BROKER_APIM_LOGCONF_LOGFILE.
+
 	InfoMsgSettingUp        = "loading the configuration file: %s "
 	ErrMsgUnableToReadConf  = "unable to read configuration: %s"
 	ErrMsgUnableToParseConf = "unable to parse configuration"
 )
 
-// DB represent the ORM configuration.
+// DB represent the Database configuration.
 type DB struct {
 	Host       string `mapstructure:"host"`
 	Port       int    `mapstructure:"port"`
@@ -52,12 +53,17 @@ type DB struct {
 
 // APIM represents the information required to interact with the APIM.
 type APIM struct {
-	Username              string `mapstructure:"username"`
-	Password              string `mapstructure:"password"`
-	TokenEndpoint         string `mapstructure:"tokenEndpoint"`
-	DynamicClientEndpoint string `mapstructure:"dynamicClientEndpoint"`
-	PublisherEndpoint     string `mapstructure:"publisherEndpoint"`
-	StoreEndpoint         string `mapstructure:"storeEndpoint"`
+	Username                           string `mapstructure:"username"`
+	Password                           string `mapstructure:"password"`
+	TokenEndpoint                      string `mapstructure:"tokenEndpoint"`
+	DynamicClientEndpoint              string `mapstructure:"dynamicClientEndpoint"`
+	PublisherEndpoint                  string `mapstructure:"publisherEndpoint"`
+	PublisherAPIContext                string `mapstructure:"publisherAPIContext"`
+	PublisherChangeAPILifeCycleContext string `mapstructure:"publisherChangeAPILifeCycleContext"`
+	StoreApplicationContext            string `mapstructure:"storeApplicationContext"`
+	StoreSubscriptionContext           string `mapstructure:"storeSubscriptionContext"`
+	StoreEndpoint                      string `mapstructure:"storeEndpoint"`
+	GenerateApplicationKeyContext      string `mapstructure:"generateApplicationKeyContext"`
 }
 
 // Auth represents the username and the password for basic auth.
@@ -66,7 +72,7 @@ type Auth struct {
 	Password string `mapstructure:"password"`
 }
 
-// TLS represents configuration needed for HTTPS
+// TLS represents configuration needed for HTTPS.
 type TLS struct {
 	Enabled bool   `mapstructure:"enabled"`
 	Key     string `mapstructure:"key"`
@@ -102,7 +108,7 @@ type HTTP struct {
 	Client Client `mapstructure:"client"`
 }
 
-// Broker main struct which holds references to sub configurations.
+// Broker main struct which holds  sub configurations.
 type Broker struct {
 	Log  Log  `mapstructure:log"`
 	HTTP HTTP `mapstructure:"http"`
@@ -110,9 +116,9 @@ type Broker struct {
 	DB   DB   `mapstructure:"db"`
 }
 
-// LoadConfig load configuration into Broker object.
+// Load loads configuration into Broker object.
 // Returns a pointer to the created Broker object or any error encountered.
-func LoadConfig() (*Broker, error) {
+func Load() (*Broker, error) {
 	viper.SetConfigType(FileType)
 	viper.SetEnvPrefix(EnvPrefix)
 	viper.AutomaticEnv()
@@ -166,9 +172,15 @@ func setDefaultConf() {
 	viper.SetDefault("apim.username", "admin")
 	viper.SetDefault("apim.password", "admin")
 	viper.SetDefault("apim.tokenEndpoint", "https://localhost:8243")
-	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443/client-registration/v0.14/register")
 	viper.SetDefault("apim.publisherEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.publisherAPIContext", "/api/am/publisher/v0.14/apis")
+	viper.SetDefault("apim.publisherContext", "/api/am/publisher/v0.14/apis")
+	viper.SetDefault("apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")
 	viper.SetDefault("apim.storeEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.storeApplicationContext", "/api/am/store/v0.14/applications")
+	viper.SetDefault("apim.storeSubscriptionContext", "/api/am/store/v0.14/subscriptions")
+	viper.SetDefault("apim.generateApplicationKeyContext", "/api/am/store/v0.14/applications/generate-keys")
 
 	viper.SetDefault("db.host", "localhost")
 	viper.SetDefault("db.port", "3306")
