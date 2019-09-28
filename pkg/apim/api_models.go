@@ -276,3 +276,37 @@ type ApplicationSearchResp struct {
 	Count    int                     `json:"count"`
 	Next     string                  `json:"next"`
 }
+
+var ApplicationInputSchemaRaw = `{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "app": {
+      "type": "object",
+      "properties": {
+        "throttlingTier": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "callbackUrl": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "throttlingTier",
+        "description",
+        "callbackUrl",
+        "name"
+      ]
+    }
+  },
+  "required": [
+    "app"
+  ]
+}
+`

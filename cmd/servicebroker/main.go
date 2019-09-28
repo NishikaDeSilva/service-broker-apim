@@ -79,9 +79,7 @@ func main() {
 		Username: conf.HTTP.Server.Auth.Username,
 		Password: conf.HTTP.Server.Auth.Password,
 	}
-	apimServiceBroker := &broker.APIM{
-		BrokerConfig: conf,
-	}
+	apimServiceBroker := &broker.APIM{}
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 
 	host := conf.HTTP.Server.Host

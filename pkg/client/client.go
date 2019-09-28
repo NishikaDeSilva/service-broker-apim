@@ -103,8 +103,8 @@ func Configure(c *config.Client) {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: c.InsecureCon},
 			},
 		},
-		minBackOff: time.Duration(c.MinBackOff) * time.Second,
-		maxBackOff: time.Duration(c.MaxBackOff) * time.Second,
+		minBackOff:    time.Duration(c.MinBackOff) * time.Second,
+		maxBackOff:    time.Duration(c.MaxBackOff) * time.Second,
 		maxRetry:      c.MaxRetries,
 		backOff:       calculateBackOff,
 		checkForReTry: isErrorResponse,
@@ -303,4 +303,3 @@ func calculateBackOff(min, max time.Duration, attempt int) time.Duration {
 	}
 	return sleep
 }
-

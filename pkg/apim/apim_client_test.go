@@ -27,16 +27,16 @@ import (
 )
 
 const (
-	publisherTestEndpoint     = "http://localhost/publisher"
-	storeTestEndpoint         = "http://localhost/store"
+	publisherTestEndpoint              = "http://localhost/publisher"
+	storeTestEndpoint                  = "http://localhost/store"
 	StoreApplicationContext            = "/api/am/store/v0.14/applications"
 	StoreSubscriptionContext           = "/api/am/store/v0.14/subscriptions"
 	GenerateApplicationKeyContext      = StoreApplicationContext + "/generate-keys"
 	PublisherContext                   = "/api/am/publisher/v0.14/apis"
 	PublisherChangeAPILifeCycleContext = PublisherContext + "/change-lifecycle"
-	successTestCase           = "success test case"
-	failureTestCase           = "failure test case"
-	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
+	successTestCase                    = "success test case"
+	failureTestCase                    = "failure test case"
+	ErrMsgTestIncorrectResult          = "expected value: %v but then returned value: %v"
 )
 
 type MockTokenManager struct {
@@ -52,17 +52,16 @@ func (m *MockTokenManager) Init(scopes []string) {
 
 func init() {
 	Init(&MockTokenManager{}, config.APIM{
-		PublisherEndpoint: publisherTestEndpoint,
-		PublisherAPIContext:PublisherContext,
-		StoreEndpoint: storeTestEndpoint,
-		StoreSubscriptionContext:StoreSubscriptionContext,
-		StoreApplicationContext:StoreApplicationContext,
-		GenerateApplicationKeyContext:GenerateApplicationKeyContext,
-		PublisherChangeAPILifeCycleContext:PublisherChangeAPILifeCycleContext,
+		PublisherEndpoint:                  publisherTestEndpoint,
+		PublisherAPIContext:                PublisherContext,
+		StoreEndpoint:                      storeTestEndpoint,
+		StoreSubscriptionContext:           StoreSubscriptionContext,
+		StoreApplicationContext:            StoreApplicationContext,
+		GenerateApplicationKeyContext:      GenerateApplicationKeyContext,
+		PublisherChangeAPILifeCycleContext: PublisherChangeAPILifeCycleContext,
 	})
-	
-}
 
+}
 
 func TestCreateAPI(t *testing.T) {
 	t.Run("success test case", testCreateAPISuccessFunc())

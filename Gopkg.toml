@@ -26,7 +26,7 @@
 
 [[constraint]]
   name = "github.com/pivotal-cf/brokerapi"
-  version = "6.1.2"
+  version = "6.4.1"
 
 [[constraint]]
   name = "github.com/go-sql-driver/mysql"
@@ -43,3 +43,7 @@
 [[constraint]]
   name = "github.com/google/uuid"
   version = "1.1.1"
+
+[[constraint]]
+  name = "github.com/mitchellh/hashstructure"
+  version = "1.0.0"

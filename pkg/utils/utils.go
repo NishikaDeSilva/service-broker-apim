@@ -21,10 +21,12 @@ package utils
 
 import (
 	"encoding/json"
+	"github.com/mitchellh/hashstructure"
 	"github.com/pkg/errors"
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 )
 
 var (
@@ -81,4 +83,21 @@ func ConstructURL(paths ...string) (string, error) {
 		u.Path = path.Join(u.Path, paths[i])
 	}
 	return u.String(), nil
+}
+
+func JSONSchema(content string) (map[string]interface{}, error) {
+	var schema map[string]interface{}
+	err := json.Unmarshal([]byte(content), &schema)
+	if err != nil {
+		return nil, err
+	}
+	return schema, nil
+}
+
+func GenerateHash(e interface{}) (string,error){
+	hash, err := hashstructure.Hash(e, nil)
+	if err != nil {
+		return "",err
+	}
+	return strconv.FormatUint(hash, 10), nil
 }

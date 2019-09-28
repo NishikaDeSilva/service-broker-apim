@@ -291,7 +291,7 @@ func (m *PasswordRefreshTokenGrantManager) registerDynamicClient(reqBody *Dynami
 	}
 	req.HTTPRequest().SetBasicAuth(m.UserName, m.Password)
 	req.SetHeader(client.HTTPContentType, client.ContentTypeApplicationJSON)
-	// TODO check
+
 	var resBody DynamicClientRegResBody
 	if err := client.Invoke(DynamicClientRegMsg, req, &resBody, http.StatusOK); err != nil {
 		return err

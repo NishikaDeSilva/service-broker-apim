@@ -58,6 +58,9 @@ type Instance struct {
 	ServiceID      string `gorm:"type:varchar(100);not null"`
 	PlanID         string `gorm:"type:varchar(100);not null"`
 	APIMResourceID string `gorm:"type:varchar(100);not null;unique;column:apim_resource_id"`
+	ParameterHash  string `gorm:"type:varchar(100);not null"`
+	SpaceID        string `gorm:"type:varchar(100);not null"`
+	OrgID          string `gorm:"type:varchar(100);not null"`
 }
 
 // Application represents the Application model in the database.
@@ -72,7 +75,7 @@ type Application struct {
 type Bind struct {
 	ID                 string `gorm:"primary_key;type:varchar(100)"`
 	InstanceID         string `gorm:"type:varchar(100);not null"`
-	CFAppID            string `gorm:"type:varchar(100);not null"`
+	PlatformAppID      string `gorm:"type:varchar(100);not null"`
 	ServiceID          string `gorm:"type:varchar(100);not null"`
 	PlanID             string `gorm:"type:varchar(100);not null"`
 	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
