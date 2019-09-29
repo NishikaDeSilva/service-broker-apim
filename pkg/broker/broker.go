@@ -149,15 +149,14 @@ func getBindFromDB(bindingID string) (bool, *db.Bind, error) {
 }
 
 // isBindWithAttributes returns true of the Bind is already exists and attached with the given instance ID,attributes.
-func isBindWithAttributes(bind *db.Bind, instanceID string, bindResource *domain.BindResource) (bool) {
+func isBindWithAttributes(bind *db.Bind, instanceID string, bindResource *domain.BindResource) bool {
 	var isSameAttributes = instanceID == bind.InstanceID
 	if !isCreateServiceKey(bindResource) {
 		isSameAttributes = isSameAttributes && (bindResource.AppGuid == bind.PlatformAppID)
+		fmt.Println("d")
 	}
-	if isSameAttributes {
-		return true
-	}
-	return false
+	fmt.Println("d")
+	return isSameAttributes
 }
 
 // Bind method creates a Bind between given Service instance and the App.
