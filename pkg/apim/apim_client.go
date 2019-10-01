@@ -16,63 +16,63 @@
  * under the License.
  */
 
-// Package apim handles the interactions with APIM
+// Package apim handles the interactions with APIM.
 package apim
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"sync"
+
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"github.com/wso2/service-broker-apim/pkg/token"
 	"github.com/wso2/service-broker-apim/pkg/utils"
-	"io"
-	"net/http"
-	"net/url"
-	"sync"
 )
 
 const (
-	CreateAPIContext          = "create API"
-	UpdateAPIContext          = "update API"
-	CreateApplicationContext  = "create application"
-	CreateSubscriptionContext = "create subscription"
-	UpdateApplicationContext  = "update application"
-	GenerateKeyContext        = "Generate application keys"
-	PublishAPIContext         = "publish api"
-	SubscribeContext          = "subscribe api"
-	UnSubscribeContext        = "unsubscribe api"
-	ApplicationDeleteContext  = "delete application"
-	APIDeleteContext          = "delete API"
-	APISearchContext          = "search API"
-	ApplicationSearchContext  = "search Application"
-	ErrMsgAPIIDEmpty          = "API ID is empty"
-	ErrMsgAPPIDEmpty          = "application id is empty"
+	CreateAPIContext                  = "create API"
+	CreateApplicationContext          = "create application"
+	CreateMultipleSubscriptionContext = "create multiple subscriptions"
+	UpdateApplicationContext          = "update application"
+	GenerateKeyContext                = "Generate application keys"
+	UnSubscribeContext                = "unsubscribe api"
+	ApplicationDeleteContext          = "delete application"
+	APIDeleteContext                  = "delete API"
+	APISearchContext                  = "search API"
+	ApplicationSearchContext          = "search Application"
+	ErrMsgAPPIDEmpty                  = "application id is empty"
 )
 
 var (
-	publisherChangeAPILifeCycleEndpoint string
-	publisherAPIEndpoint                string
-	storeApplicationEndpoint            string
-	storeSubscriptionEndpoint           string
-	generateApplicationKeyEndpoint      string
-	tokenManager                        token.Manager
-	once                                sync.Once
+	publisherAPIEndpoint              string
+	storeApplicationEndpoint          string
+	storeSubscriptionEndpoint         string
+	storeMultipleSubscriptionEndpoint string
+	generateApplicationKeyEndpoint    string
+	applicationDashBoardURLBase       string
+	tokenManager                      token.Manager
+	once                              sync.Once
 )
 
-// Init function initialize the API-M client. If there is an error, process exists with panic.
+// Init function initialize the API-M client. If there is an error, process exists with a panic.
 func Init(manager token.Manager, conf config.APIM) {
 	once.Do(func() {
 		tokenManager = manager
-		publisherChangeAPILifeCycleEndpoint = createEndpoint(conf.PublisherEndpoint, conf.PublisherChangeAPILifeCycleContext)
 		publisherAPIEndpoint = createEndpoint(conf.PublisherEndpoint, conf.PublisherAPIContext)
 		storeApplicationEndpoint = createEndpoint(conf.StoreEndpoint, conf.StoreApplicationContext)
 		storeSubscriptionEndpoint = createEndpoint(conf.StoreEndpoint, conf.StoreSubscriptionContext)
+		storeMultipleSubscriptionEndpoint = createEndpoint(conf.StoreEndpoint, conf.StoreMultipleSubscriptionContext)
 		generateApplicationKeyEndpoint = createEndpoint(conf.StoreEndpoint, conf.GenerateApplicationKeyContext)
+		applicationDashBoardURLBase = createEndpoint(conf.StoreEndpoint, "/store/site/pages/application.jag")
 	})
 }
 
+// createEndpoint returns a endpoint from the given paths.
 func createEndpoint(paths ...string) string {
 	endpoint, err := utils.ConstructURL(paths...)
 	if err != nil {
@@ -93,46 +93,20 @@ func CreateAPI(reqBody *APIReqBody) (string, error) {
 	return resBody.ID, nil
 }
 
-// UpdateAPI function updates an existing API under the given ID with the provided API spec.
-// Returns any error encountered.
-func UpdateAPI(id string, reqBody *APIReqBody) error {
-	endpoint, err := utils.ConstructURL(publisherAPIEndpoint, id)
-	if err != nil {
-		return err
-	}
-	req, err := creatHTTPPUTAPIRequest(endpoint, reqBody)
-	if err != nil {
-		return err
-	}
-	err = send(UpdateAPIContext, req, nil, http.StatusOK)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// PublishAPI publishes an API in state "Created".
-// Returns any error encountered.
-func PublishAPI(apiID string) error {
-	if apiID == "" {
-		return errors.New(ErrMsgAPIIDEmpty)
-	}
-	req, err := creatHTTPPOSTAPIRequest(publisherChangeAPILifeCycleEndpoint, nil)
-	if err != nil {
-		return err
-	}
+// GetAppDashboardURL returns DashBoard URL for the given Application.
+func GetAppDashboardURL(appName string) string {
 	q := url.Values{}
-	q.Add("apiId", apiID)
-	q.Add("action", "Publish")
-	req.HTTPRequest().URL.RawQuery = q.Encode()
-	err = send(PublishAPIContext, req, nil, http.StatusOK)
-	return err
+	q.Add("name", appName)
+	return applicationDashBoardURLBase + "?" + q.Encode()
 }
 
 // CreateApplication creates an application with provided Application spec.
 // Returns the Application ID and any error encountered.
 func CreateApplication(reqBody *ApplicationCreateReq) (string, error) {
 	req, err := creatHTTPPOSTAPIRequest(storeApplicationEndpoint, reqBody)
+	if err != nil {
+		return "", err
+	}
 	var resBody AppCreateRes
 	err = send(CreateApplicationContext, req, &resBody, http.StatusCreated)
 	if err != nil {
@@ -182,24 +156,19 @@ func GenerateKeys(appID string) (*ApplicationKeyResp, error) {
 	return &resBody, nil
 }
 
-// Subscribe subscribes the given application to the given API with given tier.
-// Returns Subscription ID and any error encountered.
-func Subscribe(appID, apiID, tier string) (string, error) {
-	reqBody := &SubscriptionReq{
-		ApplicationID: appID,
-		APIIdentifier: apiID,
-		Tier:          tier,
-	}
-	req, err := creatHTTPPOSTAPIRequest(storeSubscriptionEndpoint, reqBody)
+// CreateMultipleSubscriptions creates the given subscriptions.
+// Returns list of SubscriptionResp and any error encountered.
+func CreateMultipleSubscriptions(subs []SubscriptionReq) ([]SubscriptionResp, error) {
+	req, err := creatHTTPPOSTAPIRequest(storeMultipleSubscriptionEndpoint, subs)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	var resBody SubscriptionResp
-	err = send(SubscribeContext, req, &resBody, http.StatusCreated)
+	resBody := make([]SubscriptionResp, 0)
+	err = send(CreateMultipleSubscriptionContext, req, &resBody, http.StatusOK)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return resBody.SubscriptionID, nil
+	return resBody, nil
 }
 
 // UnSubscribe method removes the given subscription.
@@ -256,6 +225,8 @@ func DeleteAPI(apiID string) error {
 	return nil
 }
 
+// send sends the given HTTP request, initialize the given response body if it is expected response code.
+// Returns any error encountered.
 func send(context string, req *client.HTTPRequest, resBody interface{}, expectedRespCode int) error {
 	err := client.Invoke(context, req, resBody, expectedRespCode)
 	if err != nil {
@@ -264,6 +235,7 @@ func send(context string, req *client.HTTPRequest, resBody interface{}, expected
 	return nil
 }
 
+// getBodyReaderAndToken returns a token, a Reader for the given HTTP request body and any error encountered.
 func getBodyReaderAndToken(reqBody interface{}) (string, io.ReadSeeker, error) {
 	aT, err := tokenManager.Token()
 	if err != nil {
@@ -303,7 +275,8 @@ func creatHTTPDELETEAPIRequest(endpoint string) (*client.HTTPRequest, error) {
 	return req, err
 }
 
-func creatSearchHTTPRequest(endpoint, queryVal string) (*client.HTTPRequest, error) {
+// creatAPIMSearchHTTPRequest returns a API-M resource search request and any error encountered.
+func creatAPIMSearchHTTPRequest(endpoint, query string) (*client.HTTPRequest, error) {
 	aT, err := tokenManager.Token()
 	if err != nil {
 		return nil, err
@@ -313,7 +286,7 @@ func creatSearchHTTPRequest(endpoint, queryVal string) (*client.HTTPRequest, err
 		return nil, err
 	}
 	q := url.Values{}
-	q.Add("query", queryVal)
+	q.Add("query", query)
 	req.HTTPRequest().URL.RawQuery = q.Encode()
 	return req, err
 }
@@ -330,11 +303,12 @@ func creatHTTPPUTAPIRequest(endpoint string, reqBody interface{}) (*client.HTTPR
 	return req, err
 }
 
-// SearchAPI method returns API ID of the Given API.
+// SearchAPIByNameVersion method returns API ID of the Given API.
 // An error is returned if the number of result for the search is not equal to 1.
 // Returns API ID and any error encountered.
-func SearchAPI(apiName string) (string, error) {
-	req, err := creatSearchHTTPRequest(publisherAPIEndpoint, apiName)
+func SearchAPIByNameVersion(apiName, version string) (string, error) {
+	query := "name:" + apiName + " version:" + version
+	req, err := creatAPIMSearchHTTPRequest(publisherAPIEndpoint, query)
 	if err != nil {
 		return "", err
 	}
@@ -356,7 +330,7 @@ func SearchAPI(apiName string) (string, error) {
 // An error is returned if the number of result for the search is not equal to 1.
 // Returns Application ID and any error encountered.
 func SearchApplication(appName string) (string, error) {
-	req, err := creatSearchHTTPRequest(storeApplicationEndpoint, appName)
+	req, err := creatAPIMSearchHTTPRequest(storeApplicationEndpoint, appName)
 	if err != nil {
 		return "", err
 	}

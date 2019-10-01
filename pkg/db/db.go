@@ -24,62 +24,25 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/wso2/service-broker-apim/pkg/model"
+
 	// mysql driver is blank import for grom
+	logPkg "log"
+	"math"
+	"strconv"
+	"time"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/log"
-	logPkg "log"
-	"math"
-	"strconv"
-	"time"
 )
 
 const (
-	MySQL                        = "mysql"
-	ErrMsgUnableToOpenDBCon      = "unable to open a DB connect"
-	TableInstance                = "instances"
-	TableBind                    = "binds"
-	TableApplication             = "applications"
-	TableInstanceAPIMIDFieldName = "apim_resource_id"
-	ForeignKeyDestAPIMID         = TableInstance + "(" + TableInstanceAPIMIDFieldName + ")"
-	ForeignKeyDestInstanceID     = TableInstance + "(id)"
+	MySQL                   = "mysql"
+	ErrMsgUnableToOpenDBCon = "unable to open a DB connect"
 )
-
-// Entity represents a table in the database.
-type Entity interface {
-	TableName() string
-}
-
-// Instance represents the Instance model in the Database.
-type Instance struct {
-	ID             string `gorm:"primary_key;type:varchar(100)"`
-	ServiceID      string `gorm:"type:varchar(100);not null"`
-	PlanID         string `gorm:"type:varchar(100);not null"`
-	APIMResourceID string `gorm:"type:varchar(100);not null;unique;column:apim_resource_id"`
-	ParameterHash  string `gorm:"type:varchar(100);not null"`
-	SpaceID        string `gorm:"type:varchar(100);not null"`
-	OrgID          string `gorm:"type:varchar(100);not null"`
-}
-
-// Application represents the Application model in the database.
-type Application struct {
-	ID             string `gorm:"primary_key;type:varchar(100);not null;unique"`
-	Token          string `gorm:"type:varchar(100)"`
-	ConsumerKey    string `gorm:"type:varchar(100)"`
-	ConsumerSecret string `gorm:"type:varchar(100)"`
-}
-
-// Bind represents the Bind model in the Database
-type Bind struct {
-	ID                 string `gorm:"primary_key;type:varchar(100)"`
-	InstanceID         string `gorm:"type:varchar(100);not null"`
-	PlatformAppID      string `gorm:"type:varchar(100);not null"`
-	ServiceID          string `gorm:"type:varchar(100);not null"`
-	PlanID             string `gorm:"type:varchar(100);not null"`
-	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
-}
 
 var (
 	url        string
@@ -88,18 +51,6 @@ var (
 	db         *gorm.DB
 	once       sync.Once
 )
-
-func (Instance) TableName() string {
-	return TableInstance
-}
-
-func (Bind) TableName() string {
-	return TableBind
-}
-
-func (Application) TableName() string {
-	return TableApplication
-}
 
 func backOff(min, max time.Duration, attempt int) time.Duration {
 	du := math.Pow(2, float64(attempt))
@@ -129,7 +80,7 @@ func Init(conf *config.DB) {
 
 // CreateTable creates a table for the given model only if table already not exists.
 // Program will be closed if any error encountered.
-func CreateTable(e Entity) {
+func CreateTable(e model.Entity) {
 	var ld = &log.Data{}
 	ld.Add("table", e.TableName())
 
@@ -179,27 +130,27 @@ func CloseDBCon() {
 	}
 }
 
-// Store saves the given Instance in the Database.
+// Store saves the given ServiceInstance in the Database.
 // Returns any error encountered.
-func Store(e Entity) error {
+func Store(e model.Entity) error {
 	return db.Table(e.TableName()).Create(e).Error
 }
 
-// Update updates the given Instance in the Database.
+// Update updates the given ServiceInstance in the Database.
 // Returns any error encountered.
-func Update(e Entity) error {
+func Update(e model.Entity) error {
 	return db.Table(e.TableName()).Save(e).Error
 }
 
-// Delete deletes the given Instance from the Database.
+// Delete deletes the given ServiceInstance from the Database.
 // Returns any error encountered.
-func Delete(e Entity) error {
+func Delete(e model.Entity) error {
 	return db.Table(e.TableName()).Delete(e).Error
 }
 
-// Retrieve function initialize the given Instance from the database if exists.
+// Retrieve function initialize the given ServiceInstance from the database if exists.
 // Returns true if the instance exists and any error encountered.
-func Retrieve(e Entity) (bool, error) {
+func Retrieve(e model.Entity) (bool, error) {
 	result := db.Table(e.TableName()).Where(e).Find(e)
 	if result.RecordNotFound() {
 		return false, nil
@@ -210,8 +161,51 @@ func Retrieve(e Entity) (bool, error) {
 	return true, nil
 }
 
+func RetrieveList(e model.Entity, r interface{}) (bool, error) { //TODO: check error first before recordNotFound all retrieve methods||
+	result := db.Table(e.TableName()).Where(e).Find(r) // can't do since an error throws saying record not found
+	if result.RecordNotFound() {
+		return false, nil
+	}
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return true, nil
+}
+
+func RetrieveListByQuery(e model.Entity, query string, r interface{}) (bool, error) {
+	result := db.Table(e.TableName()).Where(query).Find(r)
+	if result.RecordNotFound() {
+		return false, nil
+	}
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return true, nil
+}
+
 // AddForeignKey adds a Foreign Key and returns any error encountered.
-// Ex: db.AddForeignKey(&User{}).AddForeignKey("city_id", "cities(id)", "RESTRICT", "RESTRICT")
-func AddForeignKey(e Entity, field string, dest string, onDelete string, onUpdate string) error {
+// Ex: db.AddForeignKey(&User{}).AddForeignKey("city_id", "cities(id)", "RESTRICT", "RESTRICT").
+func AddForeignKey(e model.Entity, field string, dest string, onDelete string, onUpdate string) error {
 	return db.Model(e).AddForeignKey(field, dest, onDelete, onUpdate).Error
+}
+
+// BulkInsert function does a bulk insert of a set of entities and returns any error encountered.
+func BulkInsert(entities []model.Entity) error {
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		return err
+	}
+	for _, e := range entities {
+		if err := tx.Create(e).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	return tx.Commit().Error
 }

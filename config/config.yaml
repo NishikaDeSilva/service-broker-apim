@@ -64,35 +64,37 @@ apim:
   username: "admin"
   password: "admin"
   # token endpoint
-  tokenEndpoint: "https://localhost:8243"
-  # dynamic client registration endpoint
-  dynamicClientEndpoint: "https://localhost:9443/client-registration/v0.14/register"
+  tokenEndpoint: "https://<gateway-endpoint>"
+  # dynamic client endpoint
+  dynamicClientEndpoint: "https://<keymanager-endpoint>"
+  #dynamic client registration context
+  dynamicClientRegistrationContext: "/client-registration/v0.14/register"
   # publisher endpoint
-  publisherEndpoint: "https://localhost:9443"
+  publisherEndpoint: "https://<wso2apim-endpoint>"
   # publisher API context
   publisherAPIContext: "/api/am/publisher/v0.14/apis"
-  # publisher Change API life cycle change context
-  publisherChangeAPILifeCycleContext: "/api/am/publisher/v0.14/apis/change-lifecycle"
   # store endpoint
-  storeEndpoint: "https://localhost:9443"
+  storeEndpoint: "https://<wso2apim-endpoint>"
   # store Application API context
   storeApplicationContext: "/api/am/store/v0.14/applications"
   # store Subscription API Context
   storeSubscriptionContext: "/api/am/store/v0.14/subscriptions"
+  # multiple Subscriptions context
+  storeMultipleSubscriptionsContext: "/api/am/store/v0.14/subscriptions/multiple"
   # generate application context
   generateApplicationKeyContext: "/api/am/store/v0.14/applications/generate-keys"
 
 # Database configuration
 db:
   # database host
-  host:     "localhost"
+  host:     <broker-db-hostname>
   # database port
-  port:     3306
+  port:     <broker-db-port>
   # database username
-  username: "root"
+  username: <broker-db-username>
   # database password
-  password: "root123"
+  password: <broker-db-password>
   # database name
-  database: "broker"
+  database: <broker-db-name>
   # enable debug logs
   logMode:  false

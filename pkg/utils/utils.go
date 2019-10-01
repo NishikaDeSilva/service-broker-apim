@@ -21,12 +21,9 @@ package utils
 
 import (
 	"encoding/json"
-	"github.com/mitchellh/hashstructure"
 	"github.com/pkg/errors"
 	"net/url"
-	"os"
 	"path"
-	"strconv"
 )
 
 var (
@@ -34,22 +31,12 @@ var (
 	ErrNoPaths        = errors.New("no paths found")
 )
 
-// GetEnv returns the value (which may be empty) If the Key is present in the environment
-// Otherwise the default value is returned
-func GetEnv(key, defaultVal string) string {
-	val, exists := os.LookupEnv(key)
-	if exists {
-		return val
-	}
-	return defaultVal
-}
-
 // IsValidParams returns false if one of the arguments are empty or argument array is nil
-func IsValidParams(vals ...string) bool {
-	if vals == nil {
+func IsValidParams(params ...string) bool {
+	if params == nil {
 		return false
 	}
-	for _, val := range vals {
+	for _, val := range params {
 		if val == "" {
 			return false
 		}
@@ -85,19 +72,12 @@ func ConstructURL(paths ...string) (string, error) {
 	return u.String(), nil
 }
 
-func JSONSchema(content string) (map[string]interface{}, error) {
+// GetJSONSchema returns the schema struct representation of the given JSON string and any error encountered.
+func GetJSONSchema(rawSchema string) (map[string]interface{}, error) {
 	var schema map[string]interface{}
-	err := json.Unmarshal([]byte(content), &schema)
+	err := json.Unmarshal([]byte(rawSchema), &schema)
 	if err != nil {
 		return nil, err
 	}
 	return schema, nil
-}
-
-func GenerateHash(e interface{}) (string,error){
-	hash, err := hashstructure.Hash(e, nil)
-	if err != nil {
-		return "",err
-	}
-	return strconv.FormatUint(hash, 10), nil
 }

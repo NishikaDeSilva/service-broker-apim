@@ -56,10 +56,10 @@ type APIBusinessInformation struct {
 // APICorsConfiguration represents the CORS configuration for the API.
 type APICorsConfiguration struct {
 	CorsConfigurationEnabled      bool     `json:"corsConfigurationEnabled,omitempty"`
-	AccessControlAllowOrigins     []string `json:"accessControlAllowOrigins,omitempty"`
+	AccessControlAllowOrigins     []string `json:"accessControlAllowOrigins,omitempty" hash:"set"`
 	AccessControlAllowCredentials bool     `json:"accessControlAllowCredentials,omitempty"`
-	AccessControlAllowHeaders     []string `json:"accessControlAllowHeaders,omitempty"`
-	AccessControlAllowMethods     []string `json:"accessControlAllowMethods,omitempty"`
+	AccessControlAllowHeaders     []string `json:"accessControlAllowHeaders,omitempty" hash:"set"`
+	AccessControlAllowMethods     []string `json:"accessControlAllowMethods,omitempty" hash:"set"`
 }
 
 // APIReqBody represents the request of create "API" API call.
@@ -89,11 +89,11 @@ type APIReqBody struct {
 	// The transport to be set. Accepted values are HTTP, WS
 	Type string `json:"type"`
 	// Supported transports for the API (http and/or https).
-	Transport []string `json:"transport"`
+	Transport []string `json:"transport" hash:"set"`
 	// Search keywords related to the API
-	Tags []string `json:"tags,omitempty"`
+	Tags []string `json:"tags,omitempty" hash:"set"`
 	// The subscription tiers selected for the particular API
-	Tiers []string `json:"tiers"`
+	Tiers []string `json:"tiers" hash:"set"`
 	// The policy selected for the particular API
 	APILevelPolicy string `json:"apiLevelPolicy,omitempty"`
 	// Name of the Authorization header used for invoking the API. If it is not set, Authorization header name specified in tenant or system level will be used.
@@ -102,20 +102,20 @@ type APIReqBody struct {
 	// The visibility level of the API. Accepts one of the following. PUBLIC, PRIVATE, RESTRICTED OR CONTROLLED.
 	Visibility string `json:"visibility"`
 	// The user roles that are able to access the API
-	VisibleRoles     []string             `json:"visibleRoles,omitempty"`
-	VisibleTenants   []string             `json:"visibleTenants,omitempty"`
+	VisibleRoles     []string             `json:"visibleRoles,omitempty" hash:"set"`
+	VisibleTenants   []string             `json:"visibleTenants,omitempty" hash:"set"`
 	EndpointConfig   string               `json:"endpointConfig"`
 	EndpointSecurity *APIEndpointSecurity `json:"endpointSecurity,omitempty"`
 	// Comma separated list of gateway environments.
 	GatewayEnvironments string `json:"gatewayEnvironments,omitempty"`
 	// Labels of micro-gateway environments attached to the API.
-	Labels    []Label    `json:"labels,omitempty"`
-	Sequences []Sequence `json:"sequences,omitempty"`
+	Labels    []Label    `json:"labels,omitempty" hash:"set"`
+	Sequences []Sequence `json:"sequences,omitempty" hash:"set"`
 	// The subscription availability. Accepts one of the following. current_tenant, all_tenants or specific_tenants.
 	SubscriptionAvailability     string   `json:"subscriptionAvailability,omitempty"`
 	SubscriptionAvailableTenants []string `json:"subscriptionAvailableTenants,omitempty"`
 	// Map of custom properties of API
-	AdditionalProperties map[string]string `json:"additionalProperties,omitempty"`
+	AdditionalProperties map[string]string `json:"additionalProperties,omitempty" hash:"set"`
 	// Is the API is restricted to certain set of publishers or creators or is it visible to all the publishers and creators. If the accessControl restriction is none, this API can be modified by all the publishers and creators, if not it can only be viewable/modifiable by certain set of publishers and creators,  based on the restriction.
 	AccessControl string `json:"accessControl,omitempty"`
 	// The user roles that are able to view/modify as API publisher or creator.
@@ -128,6 +128,14 @@ type APIReqBody struct {
 type APICreateResp struct {
 	// UUID of the api registry artifact
 	ID string `json:"id,omitempty"`
+}
+
+// ApplicationMetadata represents name, id and key of the generated application
+type ApplicationMetadata struct {
+	Name         string
+	ID           string
+	Keys         *ApplicationKeyResp
+	DashboardURL string
 }
 
 // ApplicationCreateReq represents the response of create Application API call.
@@ -277,36 +285,36 @@ type ApplicationSearchResp struct {
 	Next     string                  `json:"next"`
 }
 
-var ApplicationInputSchemaRaw = `{
+var AppPlanBindInputParameterSchemaRaw = `{
+  "$schema": "http://json-schema.org/draft-04/schema#"
+}`
+
+var AppPlanInputParameterSchemaRaw = `{
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
-    "app": {
-      "type": "object",
-      "properties": {
-        "throttlingTier": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "callbackUrl": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
+    "apis": {
+      "type": "array",
+      "items": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ]
         }
-      },
-      "required": [
-        "throttlingTier",
-        "description",
-        "callbackUrl",
-        "name"
       ]
     }
   },
   "required": [
-    "app"
+    "apis"
   ]
-}
-`
+}`

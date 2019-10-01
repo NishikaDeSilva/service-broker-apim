@@ -19,24 +19,25 @@
 package apim
 
 import (
-	"github.com/jarcoal/httpmock"
-	"github.com/wso2/service-broker-apim/pkg/config"
 	"net/http"
 	"strconv"
 	"testing"
+
+	"github.com/jarcoal/httpmock"
+	"github.com/wso2/service-broker-apim/pkg/config"
 )
 
 const (
-	publisherTestEndpoint              = "http://localhost/publisher"
-	storeTestEndpoint                  = "http://localhost/store"
-	StoreApplicationContext            = "/api/am/store/v0.14/applications"
-	StoreSubscriptionContext           = "/api/am/store/v0.14/subscriptions"
-	GenerateApplicationKeyContext      = StoreApplicationContext + "/generate-keys"
-	PublisherContext                   = "/api/am/publisher/v0.14/apis"
-	PublisherChangeAPILifeCycleContext = PublisherContext + "/change-lifecycle"
-	successTestCase                    = "success test case"
-	failureTestCase                    = "failure test case"
-	ErrMsgTestIncorrectResult          = "expected value: %v but then returned value: %v"
+	publisherTestEndpoint         = "https://localhost:9443"
+	StoreTestEndpoint             = "https://localhost:9443"
+	StoreApplicationContext       = "/api/am/store/v0.14/applications"
+	StoreSubscriptionContext      = "/api/am/store/v0.14/subscriptions"
+	MultipleSubscriptionContext   = StoreSubscriptionContext + "/multiple"
+	GenerateApplicationKeyContext = StoreApplicationContext + "/generate-keys"
+	PublisherAPIContext           = "/api/am/publisher/v0.14/apis"
+	successTestCase               = "success test case"
+	failureTestCase               = "failure test case"
+	ErrMsgTestIncorrectResult     = "expected value: %v but then returned value: %v"
 )
 
 type MockTokenManager struct {
@@ -52,150 +53,15 @@ func (m *MockTokenManager) Init(scopes []string) {
 
 func init() {
 	Init(&MockTokenManager{}, config.APIM{
-		PublisherEndpoint:                  publisherTestEndpoint,
-		PublisherAPIContext:                PublisherContext,
-		StoreEndpoint:                      storeTestEndpoint,
-		StoreSubscriptionContext:           StoreSubscriptionContext,
-		StoreApplicationContext:            StoreApplicationContext,
-		GenerateApplicationKeyContext:      GenerateApplicationKeyContext,
-		PublisherChangeAPILifeCycleContext: PublisherChangeAPILifeCycleContext,
+		StoreEndpoint:                    StoreTestEndpoint,
+		StoreApplicationContext:          StoreApplicationContext,
+		StoreSubscriptionContext:         StoreSubscriptionContext,
+		StoreMultipleSubscriptionContext: MultipleSubscriptionContext,
+		PublisherAPIContext:              PublisherAPIContext,
+		PublisherEndpoint:                publisherTestEndpoint,
+		GenerateApplicationKeyContext:    GenerateApplicationKeyContext,
 	})
 
-}
-
-func TestCreateAPI(t *testing.T) {
-	t.Run("success test case", testCreateAPISuccessFunc())
-	t.Run("failure test case", testCreateAPIFailFunc())
-}
-
-func testCreateAPISuccessFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		var id = "id"
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusCreated, APICreateResp{
-			ID: id,
-		})
-		if err != nil {
-			t.Error(err)
-		}
-		httpmock.RegisterResponder(http.MethodPost, publisherTestEndpoint+PublisherContext, responder)
-
-		apiID, err := CreateAPI(&APIReqBody{
-			Name: "test API",
-		})
-		if err != nil {
-			t.Error(err)
-		}
-		if apiID != id {
-			t.Errorf(ErrMsgTestIncorrectResult, id, apiID)
-		}
-	}
-}
-
-func testCreateAPIFailFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusConflict, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		httpmock.RegisterResponder(http.MethodPost, publisherTestEndpoint+PublisherContext, responder)
-
-		_, err = CreateAPI(&APIReqBody{
-			Name: "test API",
-		})
-		if err == nil {
-			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusConflict))
-		}
-	}
-}
-
-func TestUpdateAPI(t *testing.T) {
-	t.Run("success test case", testUpdateAPISuccessFunc())
-	t.Run("failure test case", testUpdateAPIFailFunc())
-}
-
-func testUpdateAPISuccessFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		httpmock.RegisterResponder(http.MethodPut, publisherTestEndpoint+PublisherContext+"/id", responder)
-
-		err = UpdateAPI("id", &APIReqBody{
-			Name: "test API",
-		})
-		if err != nil {
-			t.Error(err)
-		}
-	}
-}
-
-func testUpdateAPIFailFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusNotFound, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		httpmock.RegisterResponder(http.MethodPut, publisherTestEndpoint+PublisherContext+"/id", responder)
-
-		err = UpdateAPI("id", &APIReqBody{
-			Name: "test API",
-		})
-		if err == nil {
-			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusNotFound))
-		}
-	}
-}
-
-func TestPublishAPI(t *testing.T) {
-	t.Run(successTestCase, testPublishAPISuccessFunc())
-	t.Run(failureTestCase, testPublishAPIFailFunc())
-}
-
-func testPublishAPIFailFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusNotFound, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		httpmock.RegisterResponder(http.MethodPost, publisherTestEndpoint+PublisherChangeAPILifeCycleContext, responder)
-
-		err = PublishAPI("")
-		if err.Error() != ErrMsgAPIIDEmpty {
-			t.Error("Expecting an error : " + ErrMsgAPIIDEmpty + " got: " + err.Error())
-		}
-		err = PublishAPI("123")
-		if err == nil {
-			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusNotFound))
-		}
-	}
-}
-
-func testPublishAPISuccessFunc() func(t *testing.T) {
-	return func(t *testing.T) {
-		httpmock.Activate()
-		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusOK, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		httpmock.RegisterResponder(http.MethodPost, publisherTestEndpoint+PublisherChangeAPILifeCycleContext, responder)
-
-		err = PublishAPI("123")
-		if err != nil {
-			t.Error(err)
-		}
-	}
 }
 
 func TestCreateApplication(t *testing.T) {
@@ -211,7 +77,7 @@ func testCreateApplicationFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreApplicationContext, responder)
+		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+StoreApplicationContext, responder)
 
 		_, err = CreateApplication(&ApplicationCreateReq{})
 		if err == nil {
@@ -228,7 +94,7 @@ func testCreateApplicationSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreApplicationContext, responder)
+		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+StoreApplicationContext, responder)
 
 		id, err := CreateApplication(&ApplicationCreateReq{
 			Name: "test",
@@ -252,7 +118,7 @@ func testUpdateApplicationFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPut, storeTestEndpoint+StoreApplicationContext+"/id", responder)
+		httpmock.RegisterResponder(http.MethodPut, StoreTestEndpoint+StoreApplicationContext+"/id", responder)
 
 		err = UpdateApplication("id", &ApplicationCreateReq{
 			Name: "test",
@@ -271,7 +137,7 @@ func testUpdateApplicationSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPut, storeTestEndpoint+StoreApplicationContext+"/id", responder)
+		httpmock.RegisterResponder(http.MethodPut, StoreTestEndpoint+StoreApplicationContext+"/id", responder)
 
 		err = UpdateApplication("id", &ApplicationCreateReq{
 			Name: "test",
@@ -295,7 +161,7 @@ func testGenerateKeysFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+GenerateApplicationKeyContext, responder)
+		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+GenerateApplicationKeyContext, responder)
 
 		_, err = GenerateKeys("")
 		if err.Error() != ErrMsgAPPIDEmpty {
@@ -318,7 +184,7 @@ func testGenerateKeysSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+GenerateApplicationKeyContext, responder)
+		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+GenerateApplicationKeyContext, responder)
 
 		got, err := GenerateKeys("123")
 		if err != nil {
@@ -330,12 +196,12 @@ func testGenerateKeysSuccessFunc() func(t *testing.T) {
 	}
 }
 
-func TestSubscribe(t *testing.T) {
-	t.Run(successTestCase, testSubscribeSuccessFunc())
-	t.Run(failureTestCase, testSubscribeFailFunc())
+func TestCreateMultipleSubscription(t *testing.T) {
+	t.Run(successTestCase, testCreateMultipleSubscriptionSuccessFunc())
+	t.Run(failureTestCase, testCreateMultipleSubscriptionFailFunc())
 }
 
-func testSubscribeFailFunc() func(t *testing.T) {
+func testCreateMultipleSubscriptionFailFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -343,32 +209,56 @@ func testSubscribeFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreSubscriptionContext, responder)
+		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+MultipleSubscriptionContext, responder)
 
-		_, err = Subscribe("123", "123", "gold")
+		_, err = CreateMultipleSubscriptions([]SubscriptionReq{
+			{
+				APIIdentifier: "a",
+				ApplicationID: "b",
+				Tier:          "c",
+			},
+		})
 		if err == nil {
 			t.Error("Expecting an error with code: " + strconv.Itoa(http.StatusInternalServerError))
 		}
 	}
 }
 
-func testSubscribeSuccessFunc() func(t *testing.T) {
+func testCreateMultipleSubscriptionSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
-		responder, err := httpmock.NewJsonResponder(http.StatusCreated, &SubscriptionResp{
-			SubscriptionID: "abc",
+		responder, err := httpmock.NewJsonResponder(http.StatusOK, []SubscriptionResp{
+			{
+				SubscriptionID: "abc",
+			},
+			{
+				SubscriptionID: "abc1",
+			},
 		})
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodPost, storeTestEndpoint+StoreSubscriptionContext, responder)
-
-		got, err := Subscribe("123", "123", "gold")
+		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+MultipleSubscriptionContext, responder)
+		got, err := CreateMultipleSubscriptions([]SubscriptionReq{
+			{
+				APIIdentifier: "a",
+				ApplicationID: "b",
+				Tier:          "c",
+			},
+			{
+				APIIdentifier: "a1",
+				ApplicationID: "b1",
+				Tier:          "c1",
+			},
+		})
 		if err != nil {
 			t.Error(err)
 		}
-		if got != "abc" {
+		if got[0].SubscriptionID != "abc" {
+			t.Errorf(ErrMsgTestIncorrectResult, "abc", got)
+		}
+		if got[1].SubscriptionID != "abc1" {
 			t.Errorf(ErrMsgTestIncorrectResult, "abc", got)
 		}
 	}
@@ -387,7 +277,7 @@ func testUnSubscribeFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreSubscriptionContext+"/abc", responder)
+		httpmock.RegisterResponder(http.MethodDelete, StoreTestEndpoint+StoreSubscriptionContext+"/abc", responder)
 
 		err = UnSubscribe("abc")
 		if err == nil {
@@ -404,7 +294,7 @@ func testUnSubscribeSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreSubscriptionContext+"/abc", responder)
+		httpmock.RegisterResponder(http.MethodDelete, StoreTestEndpoint+StoreSubscriptionContext+"/abc", responder)
 
 		err = UnSubscribe("abc")
 		if err != nil {
@@ -426,7 +316,7 @@ func testDeleteApplicationFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreApplicationContext+"/abc", responder)
+		httpmock.RegisterResponder(http.MethodDelete, StoreTestEndpoint+StoreApplicationContext+"/abc", responder)
 
 		err = DeleteApplication("abc")
 		if err == nil {
@@ -443,7 +333,7 @@ func testDeleteApplicationSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodDelete, storeTestEndpoint+StoreApplicationContext+"/abc", responder)
+		httpmock.RegisterResponder(http.MethodDelete, StoreTestEndpoint+StoreApplicationContext+"/abc", responder)
 
 		err = DeleteApplication("abc")
 		if err != nil {
@@ -465,7 +355,7 @@ func testDeleteAPIFailFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodDelete, publisherTestEndpoint+PublisherContext+"/abc", responder)
+		httpmock.RegisterResponder(http.MethodDelete, publisherTestEndpoint+PublisherAPIContext+"/abc", responder)
 
 		err = DeleteAPI("abc")
 		if err == nil {
@@ -482,7 +372,7 @@ func testDeleteAPISuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodDelete, publisherTestEndpoint+PublisherContext+"/abc", responder)
+		httpmock.RegisterResponder(http.MethodDelete, publisherTestEndpoint+PublisherAPIContext+"/abc", responder)
 
 		err = DeleteAPI("abc")
 		if err != nil {
@@ -491,13 +381,13 @@ func testDeleteAPISuccessFunc() func(t *testing.T) {
 	}
 }
 
-func TestSearchAPI(t *testing.T) {
-	t.Run(successTestCase, testSearchAPInSuccessFunc())
-	t.Run("failure test case 1", testSearchAPIFail1Func())
-	t.Run("failure test case 2", testSearchAPIFail2Func())
+func TestSearchAPIByNameVersion(t *testing.T) {
+	t.Run(successTestCase, testSearchAPIByNameVersionSuccessFunc())
+	t.Run("failure test case 1", testSearchAPIByNameVersionFail1Func())
+	t.Run("failure test case 2", testSearchAPIByNameVersionFail2Func())
 }
 
-func testSearchAPInSuccessFunc() func(t *testing.T) {
+func testSearchAPIByNameVersionSuccessFunc() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -510,18 +400,18 @@ func testSearchAPInSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		apiID, err := SearchAPI("Test")
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=name%3ATest+version%3Av1", responder)
+		apiID, err := SearchAPIByNameVersion("Test", "v1")
 		if err != nil {
 			t.Error(err)
 		}
 		if apiID != "111-111" {
-			t.Errorf(ErrMsgTestIncorrectResult, "Test", apiID)
+			t.Errorf(ErrMsgTestIncorrectResult, "111-111", apiID)
 		}
 	}
 }
 
-func testSearchAPIFail1Func() func(t *testing.T) {
+func testSearchAPIByNameVersionFail1Func() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -531,8 +421,8 @@ func testSearchAPIFail1Func() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		_, err = SearchAPI("Test")
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=name%3ATest+version%3Av1", responder)
+		_, err = SearchAPIByNameVersion("Test", "v1")
 		if err == nil {
 			t.Error("Expecting an error")
 		}
@@ -541,7 +431,7 @@ func testSearchAPIFail1Func() func(t *testing.T) {
 		}
 	}
 }
-func testSearchAPIFail2Func() func(t *testing.T) {
+func testSearchAPIByNameVersionFail2Func() func(t *testing.T) {
 	return func(t *testing.T) {
 		httpmock.Activate()
 		defer httpmock.DeactivateAndReset()
@@ -551,8 +441,8 @@ func testSearchAPIFail2Func() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherContext+"?query=Test", responder)
-		_, err = SearchAPI("Test")
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=name%3ATest+version%3Av1", responder)
+		_, err = SearchAPIByNameVersion("Test", "v1")
 		if err == nil {
 			t.Error("Expecting an error")
 		}
@@ -581,7 +471,7 @@ func testSearchApplicationSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
+		httpmock.RegisterResponder(http.MethodGet, StoreTestEndpoint+StoreApplicationContext+"?query=Test", responder)
 		apiID, err := SearchApplication("Test")
 		if err != nil {
 			t.Error(err)
@@ -602,7 +492,7 @@ func testSearchApplicationFail1Func() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
+		httpmock.RegisterResponder(http.MethodGet, StoreTestEndpoint+StoreApplicationContext+"?query=Test", responder)
 		_, err = SearchApplication("Test")
 		if err == nil {
 			t.Error("Expecting an error")
@@ -623,7 +513,7 @@ func testSearchApplicationFail2Func() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, storeTestEndpoint+StoreApplicationContext+"?query=Test", responder)
+		httpmock.RegisterResponder(http.MethodGet, StoreTestEndpoint+StoreApplicationContext+"?query=Test", responder)
 		_, err = SearchApplication("Test")
 		if err == nil {
 			t.Error("Expecting an error")

@@ -21,10 +21,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -53,17 +54,18 @@ type DB struct {
 
 // APIM represents the information required to interact with the APIM.
 type APIM struct {
-	Username                           string `mapstructure:"username"`
-	Password                           string `mapstructure:"password"`
-	TokenEndpoint                      string `mapstructure:"tokenEndpoint"`
-	DynamicClientEndpoint              string `mapstructure:"dynamicClientEndpoint"`
-	PublisherEndpoint                  string `mapstructure:"publisherEndpoint"`
-	PublisherAPIContext                string `mapstructure:"publisherAPIContext"`
-	PublisherChangeAPILifeCycleContext string `mapstructure:"publisherChangeAPILifeCycleContext"`
-	StoreApplicationContext            string `mapstructure:"storeApplicationContext"`
-	StoreSubscriptionContext           string `mapstructure:"storeSubscriptionContext"`
-	StoreEndpoint                      string `mapstructure:"storeEndpoint"`
-	GenerateApplicationKeyContext      string `mapstructure:"generateApplicationKeyContext"`
+	Username                         string `mapstructure:"username"`
+	Password                         string `mapstructure:"password"`
+	TokenEndpoint                    string `mapstructure:"tokenEndpoint"`
+	DynamicClientEndpoint            string `mapstructure:"dynamicClientEndpoint"`
+	DynamicClientRegistrationContext string `mapstructure:"dynamicClientRegistrationContext"`
+	PublisherEndpoint                string `mapstructure:"publisherEndpoint"`
+	PublisherAPIContext              string `mapstructure:"publisherAPIContext"`
+	StoreApplicationContext          string `mapstructure:"storeApplicationContext"`
+	StoreSubscriptionContext         string `mapstructure:"storeSubscriptionContext"`
+	StoreMultipleSubscriptionContext string `mapstructure:"storeMultipleSubscriptionContext"`
+	StoreEndpoint                    string `mapstructure:"storeEndpoint"`
+	GenerateApplicationKeyContext    string `mapstructure:"generateApplicationKeyContext"`
 }
 
 // Auth represents the username and the password for basic auth.
@@ -110,7 +112,7 @@ type HTTP struct {
 
 // Broker main struct which holds  sub configurations.
 type Broker struct {
-	Log  Log  `mapstructure:log"`
+	Log  Log  `mapstructure:"log"`
 	HTTP HTTP `mapstructure:"http"`
 	APIM APIM `mapstructure:"apim"`
 	DB   DB   `mapstructure:"db"`
@@ -136,7 +138,7 @@ func Load() (*Broker, error) {
 	return &brokerConfig, nil
 }
 
-// loadConfigFile loads the configuration into the Viper file only if the configuration file is pointed with "BROKER_APIM_CONF_FILE" environment variable.
+// loadConfigFile loads the configuration into the Viper file only if the configuration file is pointed with "APIM_BROKER_CONF_FILE" environment variable.
 // Returns an error if it is unable to read the config into Viper.
 func loadConfigFile() error {
 	confFile, exists := os.LookupEnv(FilePathEnv)
@@ -172,14 +174,15 @@ func setDefaultConf() {
 	viper.SetDefault("apim.username", "admin")
 	viper.SetDefault("apim.password", "admin")
 	viper.SetDefault("apim.tokenEndpoint", "https://localhost:8243")
-	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443/client-registration/v0.14/register")
+	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.dynamicClientRegistrationContext", "/client-registration/v0.14/register")
 	viper.SetDefault("apim.publisherEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.publisherAPIContext", "/api/am/publisher/v0.14/apis")
-	viper.SetDefault("apim.publisherContext", "/api/am/publisher/v0.14/apis")
-	viper.SetDefault("apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")
 	viper.SetDefault("apim.storeEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.storeApplicationContext", "/api/am/store/v0.14/applications")
 	viper.SetDefault("apim.storeSubscriptionContext", "/api/am/store/v0.14/subscriptions")
+	viper.SetDefault("apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")
+	viper.SetDefault("apim.storeMultipleSubscriptionContext", "/api/am/store/v0.14/subscriptions/multiple")
 	viper.SetDefault("apim.generateApplicationKeyContext", "/api/am/store/v0.14/applications/generate-keys")
 
 	viper.SetDefault("db.host", "localhost")
