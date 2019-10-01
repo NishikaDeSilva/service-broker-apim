@@ -211,7 +211,7 @@ func Retrieve(e Entity) (bool, error) {
 }
 
 // AddForeignKey adds a Foreign Key and returns any error encountered.
-// Ex: db.AddForeignKey(&User{}).AddForeignKey("city_id", "cities(id)", "RESTRICT", "RESTRICT")
+// Ex: db.AddForeignKey(&User{}).AddForeignKey("city_id", "cities(id)", "RESTRICT", "RESTRICT").
 func AddForeignKey(e Entity, field string, dest string, onDelete string, onUpdate string) error {
 	return db.Model(e).AddForeignKey(field, dest, onDelete, onUpdate).Error
 }

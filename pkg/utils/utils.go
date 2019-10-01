@@ -85,6 +85,7 @@ func ConstructURL(paths ...string) (string, error) {
 	return u.String(), nil
 }
 
+// JSONSchema returns the schema struct representation of the given JSON string and any error encountered.
 func JSONSchema(content string) (map[string]interface{}, error) {
 	var schema map[string]interface{}
 	err := json.Unmarshal([]byte(content), &schema)
@@ -94,10 +95,11 @@ func JSONSchema(content string) (map[string]interface{}, error) {
 	return schema, nil
 }
 
-func GenerateHash(e interface{}) (string,error){
+// GenerateHash returns the hash value of the given struct and any error encountered.
+func GenerateHash(e interface{}) (string, error) {
 	hash, err := hashstructure.Hash(e, nil)
 	if err != nil {
-		return "",err
+		return "", err
 	}
 	return strconv.FormatUint(hash, 10), nil
 }
