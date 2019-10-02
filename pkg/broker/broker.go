@@ -61,6 +61,7 @@ const (
 	ErrMsgUnableToGetBindFromDB     = "unable to retrieve Bind from the database"
 	ErrMsgFailedToCleanUp           = "failed to cleanup, unable to delete the %s"
 	ErrMsgUnableToGenInputSchema    = "unable to generate %s plan input Schema"
+	ErrMsgInvalidPlanID             = "invalid plan id"
 	ServiceID                       = "460F28F9-4D05-4889-970A-6BF5FB7D3CF8"
 	ServiceName                     = "wso2apim-service"
 	ServiceDescription              = "WSO2 API Manager Services"
@@ -77,18 +78,40 @@ const (
 )
 
 var (
-	ErrNotSupported        = errors.New("not supported")
-	ErrInvalidSVCPlan      = errors.New("invalid service or services")
-	ErrInvalidRawParameter = errors.New("invalid raw parameter")
+	ErrNotSupported              = errors.New("not supported")
+	ErrInvalidSVCPlan            = errors.New("invalid service or getServices")
+	ErrInvalidRawParameter       = errors.New("invalid raw parameter")
+	apiPlanBindable              = false
+	applicationPlanBindable      = true
+	subscriptionPlanBindable     = false
+	apiPlanInputParameterSchema  map[string]interface{}
+	appPlanInputParameterSchema  map[string]interface{}
+	subsPlanInputParameterSchema map[string]interface{}
 )
 
 // APIM struct implements the interface brokerapi.ServiceBroker.
-type APIM struct {
+type APIM struct{}
+
+// Init method initialize the API-M broker. If there is an error it will cause a panic.
+func (apimBroker *APIM) Init() {
+	var err error
+	apiPlanInputParameterSchema, err = utils.GetJSONSchema(apim.APIPlanInputParameterSchemaRaw)
+	if err != nil {
+		log.HandleErrorAndExit(fmt.Sprintf(ErrMsgUnableToGenInputSchema, "API"), err)
+	}
+	appPlanInputParameterSchema, err = utils.GetJSONSchema(apim.AppPlanInputParameterSchemaRaw)
+	if err != nil {
+		log.HandleErrorAndExit(fmt.Sprintf(ErrMsgUnableToGenInputSchema, "App"), err)
+	}
+	subsPlanInputParameterSchema, err = utils.GetJSONSchema(apim.SubsPlanInputParameterSchemaRaw)
+	if err != nil {
+		log.HandleErrorAndExit(fmt.Sprintf(ErrMsgUnableToGenInputSchema, "Subs"), err)
+	}
 }
 
-// Services returns the services offered by this broker.
+// Services returns the getServices offered(catalog) by this broker.
 func (apimBroker *APIM) Services(ctx context.Context) ([]domain.Service, error) {
-	return services()
+	return getServices()
 }
 
 func createCommonLogData(instanceID, serviceID, planID string) *log.Data {
@@ -100,20 +123,20 @@ func createCommonLogData(instanceID, serviceID, planID string) *log.Data {
 
 func (apimBroker *APIM) Provision(ctx context.Context, instanceID string,
 	serviceDetails domain.ProvisionDetails, asyncAllowed bool) (domain.ProvisionedServiceSpec, error) {
-
 	if !hasValidSpaceOrgID(serviceDetails.SpaceGUID, serviceDetails.OrganizationGUID) {
 		return domain.ProvisionedServiceSpec{}, invalidParamFailureResponse("check space ID and org ID")
 	}
-	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	switch serviceDetails.PlanID {
+	case APIPlanID:
 		return createAPIServiceInstance(instanceID, serviceDetails)
-	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	case ApplicationPlanID:
 		return createAppServiceInstance(instanceID, serviceDetails)
-	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	case SubscriptionPlanID:
 		return createSubscriptionServiceInstance(instanceID, serviceDetails)
-	} else {
+	default:
 		logData := createCommonLogData(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
-		log.Error("invalid instance id or plan id", ErrInvalidSVCPlan, logData)
-		return domain.ProvisionedServiceSpec{}, invalidServiceOrPlanFailureResponse("provisioning")
+		log.Error(ErrMsgInvalidPlanID, ErrInvalidSVCPlan, logData)
+		return domain.ProvisionedServiceSpec{}, invalidPlanFailureResponse("provisioning")
 	}
 }
 
@@ -123,17 +146,17 @@ func hasValidSpaceOrgID(spaceID string, orgID string) bool {
 
 func (apimBroker *APIM) Deprovision(ctx context.Context, instanceID string,
 	serviceDetails domain.DeprovisionDetails, asyncAllowed bool) (domain.DeprovisionServiceSpec, error) {
-
-	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	switch serviceDetails.PlanID {
+	case APIPlanID:
 		return deleteAPIService(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
-	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	case ApplicationPlanID:
 		return deleteAppService(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
-	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	case SubscriptionPlanID:
 		return deleteSubscriptionService(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
-	} else {
+	default:
 		logData := createCommonLogData(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
-		log.Error("invalid instance id or plan id", ErrInvalidSVCPlan, logData)
-		return domain.DeprovisionServiceSpec{}, invalidServiceOrPlanFailureResponse("provisioning")
+		log.Error(ErrMsgInvalidPlanID, ErrInvalidSVCPlan, logData)
+		return domain.DeprovisionServiceSpec{}, invalidPlanFailureResponse("de-provisioning")
 	}
 }
 
@@ -169,9 +192,9 @@ func (apimBroker *APIM) Bind(ctx context.Context, instanceID, bindingID string,
 	logData := createCommonLogData(instanceID, details.ServiceID, details.PlanID)
 	logData.Add(LogKeyBindID, bindingID)
 
-	if !isApplicationPlan(details.ServiceID, details.PlanID) {
-		log.Error("invalid instance id or plan id", ErrInvalidSVCPlan, logData)
-		return domain.Binding{}, invalidServiceOrPlanFailureResponse("binding")
+	if !isApplicationPlan(details.PlanID) {
+		log.Error(ErrMsgInvalidPlanID, ErrInvalidSVCPlan, logData)
+		return domain.Binding{}, invalidPlanFailureResponse("binding")
 	}
 
 	exists, bind, err := getBindFromDB(bindingID)
@@ -244,6 +267,10 @@ func (apimBroker *APIM) Bind(ctx context.Context, instanceID, bindingID string,
 	return domain.Binding{
 		Credentials: credentialsMap,
 	}, nil
+}
+
+func isApplicationPlan(planID string) bool {
+	return planID == ApplicationPlanID
 }
 
 // getPlatformAppID returns platform app ID from the given domain.BindResource and any error encountered.
@@ -347,9 +374,9 @@ func (apimBroker *APIM) Unbind(ctx context.Context, instanceID, bindingID string
 	logData := createCommonLogData(instanceID, details.ServiceID, details.PlanID)
 
 	domainUnbindSpec := domain.UnbindSpec{}
-	if !isApplicationPlan(details.ServiceID, details.PlanID) {
-		log.Error("invalid instance id or plan id", ErrInvalidSVCPlan, logData)
-		return domainUnbindSpec, invalidServiceOrPlanFailureResponse("unbinding")
+	if !isApplicationPlan(details.PlanID) {
+		log.Error(ErrMsgInvalidPlanID, ErrInvalidSVCPlan, logData)
+		return domainUnbindSpec, invalidPlanFailureResponse("unbinding")
 	}
 	bind, err := validateBindIDForDel(bindingID)
 	if err != nil {
@@ -388,17 +415,18 @@ func (apimBroker *APIM) LastOperation(ctx context.Context, instanceID string,
 
 func (apimBroker *APIM) Update(cxt context.Context, instanceID string,
 	serviceDetails domain.UpdateDetails, asyncAllowed bool) (domain.UpdateServiceSpec, error) {
-	logData := createCommonLogData(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
-	if isAPIPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+
+	switch serviceDetails.PlanID {
+	case APIPlanID:
 		return updateAPIService(instanceID, serviceDetails)
-	} else if isApplicationPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
+	case ApplicationPlanID:
 		return updateAppService(instanceID, serviceDetails)
-	} else if isSubscriptionPlan(serviceDetails.ServiceID, serviceDetails.PlanID) {
-		// It is not possible to update a subscription
+	case SubscriptionPlanID:
 		return domain.UpdateServiceSpec{}, ErrNotSupported
-	} else {
-		log.Error("invalid instance id or plan id", ErrInvalidSVCPlan, logData)
-		return domain.UpdateServiceSpec{}, invalidServiceOrPlanFailureResponse("updating")
+	default:
+		logData := createCommonLogData(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
+		log.Error(ErrMsgInvalidPlanID, ErrInvalidSVCPlan, logData)
+		return domain.UpdateServiceSpec{}, invalidPlanFailureResponse("updating")
 	}
 }
 
@@ -417,28 +445,10 @@ bindingID string, details domain.PollDetails) (domain.LastOperation, error) {
 	return domain.LastOperation{}, ErrNotSupported
 }
 
-// services returns an array of services offered by this service broker and any error encountered.
-func services() ([]domain.Service, error) {
-	apiPlanBindable := false
-	applicationPlanBindable := true
-	subscriptionPlanBindable := false
-	appPlanInputParameterSchema, err := utils.JSONSchema(apim.AppPlanInputParameterSchemaRaw)
-	if err != nil {
-		log.Error(fmt.Sprintf(ErrMsgUnableToGenInputSchema, "App"), err, nil)
-		return nil, err
-	}
-	subsPlanInputParameterSchema, err := utils.JSONSchema(apim.SubsPlanInputParameterSchemaRaw)
-	if err != nil {
-		log.Error(fmt.Sprintf(ErrMsgUnableToGenInputSchema, "Subs"), err, nil)
-		return nil, err
-	}
-	apiPlanInputParameterSchema, err := utils.JSONSchema(apim.APIPlanInputParameterSchemaRaw)
-	if err != nil {
-		log.Error(fmt.Sprintf(ErrMsgUnableToGenInputSchema, "API"), err, nil)
-		return nil, err
-	}
+// getServices returns an array of getServices offered by this service broker and any error encountered.
+func getServices() ([]domain.Service, error) {
 	return []domain.Service{
-		{
+		{ // TODO handling upgrade
 			ID:                   ServiceID,
 			Name:                 ServiceName,
 			Description:          ServiceDescription,
@@ -447,8 +457,9 @@ func services() ([]domain.Service, error) {
 			PlanUpdatable:        true,
 			Plans: []domain.ServicePlan{
 				{
-					ID:          APIPlanID,
-					Name:        APIPlanName,
+					ID:   APIPlanID,
+					Name: APIPlanName,
+					// TODO check with doc team
 					Description: APIPlanDescription,
 					Bindable:    &apiPlanBindable,
 					Schemas: &domain.ServiceSchemas{
@@ -525,15 +536,20 @@ func createAPIServiceInstance(instanceID string, serviceDetails domain.Provision
 	}
 	logData.Add(LogKeyAPIName, apiParam.APISpec.Name)
 
-	paramHash, err := generateHashForParameter(apiParam)
+	paramHash, err := apim.GetAPIParamHash(apiParam)
 	if err != nil {
-		return domain.ProvisionedServiceSpec{}, err
+		log.Error("unable to generate API parameter Hash", err, logData)
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to generate API parameter Hash",
+			"generate API parameter Hash")
 	}
 
-	exists, provisionedServiceSpec, err := checkInstanceWithAttributes(instanceID, paramHash,
+	provisionedServiceSpec, err := checkInstanceWithAttributes(instanceID, paramHash,
 		serviceDetails.SpaceGUID, serviceDetails.OrganizationGUID)
-	if err != nil || exists {
+	if err != nil {
 		return provisionedServiceSpec, err
+	}
+	if provisionedServiceSpec.AlreadyExists {
+		return provisionedServiceSpec, nil
 	}
 
 	apiID, dashboardURL, err := createAPI(&apiParam.APISpec)
@@ -622,15 +638,21 @@ func createAppServiceInstance(instanceID string, serviceDetails domain.Provision
 	if err != nil {
 		return domain.ProvisionedServiceSpec{}, err
 	}
-	paramHash, err := generateHashForParameter(appParam)
+
+	paramHash, err := apim.GetAppParamHash(appParam)
 	if err != nil {
-		return domain.ProvisionedServiceSpec{}, err
+		log.Error("unable to generate Application parameter Hash", err, logData)
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to generate Application parameter Hash",
+			"generate Application parameter Hash")
 	}
 
-	exists, provisionedServiceSpec, err := checkInstanceWithAttributes(instanceID, paramHash,
+	provisionedServiceSpec, err := checkInstanceWithAttributes(instanceID, paramHash,
 		serviceDetails.SpaceGUID, serviceDetails.OrganizationGUID)
-	if err != nil || exists {
+	if err != nil {
 		return provisionedServiceSpec, err
+	}
+	if provisionedServiceSpec.AlreadyExists {
+		return provisionedServiceSpec, nil
 	}
 
 	logData.
@@ -706,17 +728,6 @@ func handleAPIMResourceCreateError(e error, resourceName string) error {
 	return internalServerFailureResponse("unable to create the API-M resource", ErrActionCreateAPIMResource)
 }
 
-// generateHashForParameter returns the hash value for given parameter and type apiresponses.FailureResponse error
-// if any error encountered.
-func generateHashForParameter(p interface{}) (string, error) {
-	paramHash, err := utils.GenerateHash(p)
-	if err != nil {
-		return "", internalServerFailureResponse("unable generate hash value for parameters",
-			"generate parameter hash value")
-	}
-	return paramHash, nil
-}
-
 func createSubscriptionServiceInstance(instanceID string, serviceDetails domain.ProvisionDetails) (domain.ProvisionedServiceSpec, error) {
 	logData := createCommonLogData(instanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
 
@@ -725,15 +736,20 @@ func createSubscriptionServiceInstance(instanceID string, serviceDetails domain.
 		return domain.ProvisionedServiceSpec{}, err
 	}
 
-	paramHash, err := generateHashForParameter(subParam)
+	paramHash, err := apim.GetSubsParamHash(subParam)
 	if err != nil {
-		return domain.ProvisionedServiceSpec{}, err
+		log.Error("unable to generate subscription parameter Hash", err, logData)
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to generate subscription parameter Hash",
+			"generate subscription parameter Hash")
 	}
 
-	exists, provisionedServiceSpec, err := checkInstanceWithAttributes(instanceID, paramHash,
+	provisionedServiceSpec, err := checkInstanceWithAttributes(instanceID, paramHash,
 		serviceDetails.SpaceGUID, serviceDetails.OrganizationGUID)
-	if err != nil || exists {
+	if err != nil {
 		return provisionedServiceSpec, err
+	}
+	if provisionedServiceSpec.AlreadyExists {
+		return provisionedServiceSpec, nil
 	}
 
 	logData.Add(LogKeyAPIName, subParam.SubsSpec.APIName)
@@ -1022,8 +1038,8 @@ func internalServerFailureResponse(m, a string) error {
 	return apiresponses.NewFailureResponse(errors.New(m), http.StatusInternalServerError, a)
 }
 
-func invalidServiceOrPlanFailureResponse(a string) error {
-	return badRequestFailureResponse(a, "invalid services or Service")
+func invalidPlanFailureResponse(a string) error {
+	return badRequestFailureResponse(a, "invalid getServices or Service")
 }
 
 func badRequestFailureResponse(action, msg string) error {
@@ -1033,18 +1049,6 @@ func badRequestFailureResponse(action, msg string) error {
 
 func invalidParamFailureResponse(a string) error {
 	return badRequestFailureResponse(a, "invalid parameters")
-}
-
-func isAPIPlan(serviceID, planID string) bool {
-	return (serviceID == ServiceID) && (planID == APIPlanID)
-}
-
-func isApplicationPlan(serviceID, planID string) bool {
-	return (serviceID == ServiceID) && (planID == ApplicationPlanID)
-}
-
-func isSubscriptionPlan(serviceID, planID string) bool {
-	return (serviceID == ServiceID) && (planID == SubscriptionPlanID)
 }
 
 // toApplicationParam parses application parameters.
@@ -1068,6 +1072,7 @@ func toSubscriptionParam(params json.RawMessage) (apim.SubscriptionParam, error)
 }
 
 // toAPIParam parses API spec parameter.
+// Returns parsed APIParam and any error encountered. If there is an error the returned APIParam is not valid.
 func toAPIParam(params json.RawMessage) (apim.APIParam, error) {
 	var a apim.APIParam
 	err := json.Unmarshal(params, &a)
@@ -1077,9 +1082,10 @@ func toAPIParam(params json.RawMessage) (apim.APIParam, error) {
 	return a, nil
 }
 
-// checkInstanceWithAttributes function returns whether the given instanceID already exist in the database with the given attributes
-// , domain.ProvisionedServiceSpec struct and error type apiresponses.FailureResponse.
-func checkInstanceWithAttributes(instanceID, paramHash, spaceID, orgID string) (bool, domain.ProvisionedServiceSpec, error) {
+// checkInstanceWithAttributes function returns domain.ProvisionedServiceSpec and error type apiresponses.FailureResponse.
+// If there is a instance with the same attributes the domain.ProvisionedServiceSpec.AlreadyExists will be set to "true".
+// and if the instance exist with different attributes apiresponses.ErrInstanceAlreadyExists is returned.
+func checkInstanceWithAttributes(instanceID, paramHash, spaceID, orgID string) (domain.ProvisionedServiceSpec, error) {
 	ld := log.NewData().Add(LogKeyInstanceID, instanceID)
 	i := &db.Instance{
 		ID: instanceID,
@@ -1087,18 +1093,18 @@ func checkInstanceWithAttributes(instanceID, paramHash, spaceID, orgID string) (
 	exists, err := db.Retrieve(i)
 	if err != nil {
 		log.Error("unable to get instance from DB", err, ld)
-		return false, domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to query database",
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to query database",
 			"get the instance from DB")
 	}
 	if exists {
 		if (paramHash == i.ParameterHash) && (spaceID == i.SpaceID) && (orgID == i.OrgID) {
-			return exists, domain.ProvisionedServiceSpec{
+			return domain.ProvisionedServiceSpec{
 				AlreadyExists: true,
 			}, nil
 		}
-		return exists, domain.ProvisionedServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
+		return domain.ProvisionedServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
 	}
-	return false, domain.ProvisionedServiceSpec{}, nil
+	return domain.ProvisionedServiceSpec{}, nil
 }
 
 // getValidApplicationParam returns a valid apim.ApplicationParam struct and an error type apiresponses.FailureResponse if any

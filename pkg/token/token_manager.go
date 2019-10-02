@@ -149,6 +149,7 @@ func (m *PasswordRefreshTokenGrantManager) Init(scopes []string) {
 		if err != nil {
 			log.HandleErrorAndExit(ErrMSGUnableToGetClientCreds, err)
 		}
+
 		data := m.createAccessTokenReq(scopes)
 		aT, rT, validPeriod, err := m.generateToken(data, GenerateAccessToken)
 		if err != nil {
@@ -181,9 +182,12 @@ func (m *PasswordRefreshTokenGrantManager) createAccessTokenReq(scopes []string)
 	data.Set(UserName, m.UserName)
 	data.Add(Password, m.Password)
 	data.Add(GrantType, GrantPassword)
-	var scopeVal = scopes[0]
-	for i := 1; i < len(scopes); i++ {
-		scopeVal = scopeVal + " " + scopes[i]
+	var scopeVal = ""
+	if scopes != nil && len(scopes) != 0 {
+		scopeVal = scopes[0]
+		for i := 1; i < len(scopes); i++ {
+			scopeVal = scopeVal + " " + scopes[i]
+		}
 	}
 	data.Add(Scope, scopeVal)
 	return data

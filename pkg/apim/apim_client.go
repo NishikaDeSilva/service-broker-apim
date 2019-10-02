@@ -20,10 +20,12 @@
 package apim
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
+	"github.com/wso2/service-broker-apim/pkg/hash"
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"github.com/wso2/service-broker-apim/pkg/token"
 	"github.com/wso2/service-broker-apim/pkg/utils"
@@ -60,6 +62,7 @@ var (
 	applicationDashBoardURLBase         string
 	tokenManager                        token.Manager
 	once                                sync.Once
+	hashManager                         *hash.Manager
 )
 
 // Init function initialize the API-M client. If there is an error, process exists with a panic.
@@ -73,6 +76,9 @@ func Init(manager token.Manager, conf config.APIM) {
 		generateApplicationKeyEndpoint = createEndpoint(conf.StoreEndpoint, conf.GenerateApplicationKeyContext)
 		apiDashBoardURLBase = createEndpoint(conf.PublisherEndpoint, "publisher/info")
 		applicationDashBoardURLBase = createEndpoint(conf.StoreEndpoint, "/store/site/pages/application.jag")
+		hashManager = &hash.Manager{
+			Hash: sha256.New(),
+		}
 	})
 }
 
@@ -107,7 +113,7 @@ func GetAPIDashboardURL(apiName, version, provider string) string {
 }
 
 // GetAPIDashboardURL returns DashBoard URL for the given Application.
-func GetAPPDashboardURL(appName string)string{
+func GetAPPDashboardURL(appName string) string {
 	q := url.Values{}
 	q.Add("name", appName)
 	return applicationDashBoardURLBase + "?" + q.Encode()
@@ -407,4 +413,127 @@ func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {
 		SupportedGrantTypes: []string{"urn:ietf:params:oauth:grant-type:saml2-bearer", "iwa:ntlm", "refresh_token",
 			"client_credentials", "password"},
 	}
+}
+
+// GetAPIParamHash returns the hash value for given APIParam and any error encountered.
+func GetAPIParamHash(param APIParam) (string, error) {
+	hashManager.ResetHash()
+	// handle strings.
+	strVal := []string{
+		param.APISpec.Name,
+		param.APISpec.Description,
+		param.APISpec.Context,
+		param.APISpec.Provider,
+		param.APISpec.Status,
+		param.APISpec.ThumbnailURI,
+		param.APISpec.APIDefinition,
+		param.APISpec.WsdlURI,
+		param.APISpec.ResponseCaching,
+		param.APISpec.Type,
+		param.APISpec.APILevelPolicy,
+		param.APISpec.AuthorizationHeader,
+		param.APISpec.EndpointConfig,
+		param.APISpec.GatewayEnvironments,
+		param.APISpec.SubscriptionAvailability,
+		param.APISpec.AccessControl,
+		param.APISpec.EndpointSecurity.Type,
+		param.APISpec.EndpointSecurity.Password,
+		param.APISpec.EndpointSecurity.Username,
+		param.APISpec.BusinessInformation.BusinessOwner,
+		param.APISpec.BusinessInformation.BusinessOwnerEmail,
+		param.APISpec.BusinessInformation.TechnicalOwner,
+		param.APISpec.BusinessInformation.TechnicalOwnerEmail,
+	}
+	err := hashManager.AddArray(strVal)
+	if err != nil {
+		return "", err
+	}
+
+	// handle int32.
+	err = hashManager.AddInt32(param.APISpec.CacheTimeout)
+	if err != nil {
+		return "", err
+	}
+
+	if param.APISpec.MaxTps != nil {
+		//  handle int64.
+		err = hashManager.AddInt64(param.APISpec.MaxTps.Production)
+		if err != nil {
+			return "", err
+		}
+		err = hashManager.AddInt64(param.APISpec.MaxTps.Sandbox)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// handle string arrays.
+	var strArray = []string{""}
+	strArray = append(strArray, param.APISpec.Transport...)
+	strArray = append(strArray, param.APISpec.Tags...)
+	strArray = append(strArray, param.APISpec.Tiers...)
+	strArray = append(strArray, param.APISpec.VisibleRoles...)
+	strArray = append(strArray, param.APISpec.VisibleTenants...)
+	strArray = append(strArray, param.APISpec.SubscriptionAvailableTenants...)
+	strArray = append(strArray, param.APISpec.AccessControlRoles...)
+
+	if param.APISpec.CorsConfiguration != nil {
+		strArray = append(strArray, param.APISpec.CorsConfiguration.AccessControlAllowHeaders...)
+		strArray = append(strArray, param.APISpec.CorsConfiguration.AccessControlAllowMethods...)
+		strArray = append(strArray, param.APISpec.CorsConfiguration.AccessControlAllowOrigins...)
+	}
+
+	err = hashManager.AddArray(strArray)
+	if err != nil {
+		return "", err
+	}
+	// handle boolean values.
+	err = hashManager.AddBool(param.APISpec.DestinationStatsEnabled)
+	if err != nil {
+		return "", err
+	}
+	err = hashManager.AddBool(param.APISpec.IsDefaultVersion)
+	if err != nil {
+		return "", err
+	}
+	if param.APISpec.CorsConfiguration != nil {
+		err = hashManager.AddBool(param.APISpec.CorsConfiguration.AccessControlAllowCredentials)
+		if err != nil {
+			return "", err
+		}
+		err = hashManager.AddBool(param.APISpec.CorsConfiguration.CorsConfigurationEnabled)
+		if err != nil {
+			return "", err
+		}
+	}
+	return hashManager.Generate()
+}
+
+// GetAppParamHash returns the hash value for given App parameter and any error encountered.
+func GetAppParamHash(param ApplicationParam) (string, error) {
+	hashManager.ResetHash()
+	err := hashManager.AddArray([]string{
+		param.AppSpec.Name,
+		param.AppSpec.Description,
+		param.AppSpec.ThrottlingTier,
+		param.AppSpec.CallbackURL,
+	})
+	if err != nil {
+		return "", err
+	}
+	return hashManager.Generate()
+}
+
+// GetSubsParamHash returns the hash value for given Subscription parameter and any error encountered.
+func GetSubsParamHash(param SubscriptionParam) (string, error) {
+	hashManager.ResetHash()
+	err := hashManager.AddArray([]string{
+		param.SubsSpec.APIName,
+		param.SubsSpec.AppName,
+		param.SubsSpec.SubscriptionTier,
+	})
+	if err != nil {
+		return "", err
+	}
+	return hashManager.Generate()
 }

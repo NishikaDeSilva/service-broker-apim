@@ -80,6 +80,7 @@ func main() {
 		Password: conf.HTTP.Server.Auth.Password,
 	}
 	apimServiceBroker := &broker.APIM{}
+	apimServiceBroker.Init()
 	brokerAPI := brokerapi.New(apimServiceBroker, logger, brokerCreds)
 
 	host := conf.HTTP.Server.Host
