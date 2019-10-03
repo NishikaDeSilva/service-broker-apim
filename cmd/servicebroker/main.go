@@ -29,6 +29,7 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/db"
 	"github.com/wso2/service-broker-apim/pkg/log"
+	"github.com/wso2/service-broker-apim/pkg/model"
 	"github.com/wso2/service-broker-apim/pkg/token"
 	"net/http"
 	"os"
@@ -70,7 +71,7 @@ func main() {
 		UserName:              conf.APIM.Username,
 		Password:              conf.APIM.Password,
 	}
-	tManager.Init([]string{token.ScopeAPICreate, token.ScopeSubscribe, token.ScopeAPIPublish, token.ScopeAPIView})
+	tManager.Init([]string{token.ScopeSubscribe, token.ScopeAPIView})
 
 	// Initialize API-M client.
 	apim.Init(tManager, conf.APIM)
@@ -118,14 +119,16 @@ func main() {
 	<-idleConsClosed
 }
 
-// addForeignKeys configures foreign keys for Application table.
+// addForeignKeys configures foreign keys for Subscription table.
 func addForeignKeys() {
-	err := db.AddForeignKey(&db.Application{}, "id", db.ForeignKeyDestAPIMID, "CASCADE",
+	// With this foreign key mapping all the subscriptions are deleted respective once the service instance is deleted.
+	err := db.AddForeignKey(&model.Subscription{}, model.ServiceInstanceIDFieldName, model.ForeignKeyDestSVCInstanceID, "CASCADE",
 		"CASCADE")
 	if err != nil {
 		log.HandleErrorAndExit(ErrMsgUnableToAddForeignKeys, err)
 	}
-	err = db.AddForeignKey(&db.Bind{}, "instance_id", db.ForeignKeyDestInstanceID, "RESTRICT",
+	// With this foreign key mapping  it is restricted to delete a bind of a existing service instance.
+	err = db.AddForeignKey(&model.Bind{}, model.ServiceInstanceIDFieldName, model.ForeignKeyDestSVCInstanceID, "RESTRICT",
 		"RESTRICT")
 	if err != nil {
 		log.HandleErrorAndExit(ErrMsgUnableToAddForeignKeys, err)
@@ -134,9 +137,9 @@ func addForeignKeys() {
 
 // SetupTables creates the tables and add foreign keys.
 func setupTables() {
-	db.CreateTable(&db.Instance{})
-	db.CreateTable(&db.Application{})
-	db.CreateTable(&db.Bind{})
+	db.CreateTable(&model.ServiceInstance{})
+	db.CreateTable(&model.Subscription{})
+	db.CreateTable(&model.Bind{})
 	addForeignKeys()
 }
 

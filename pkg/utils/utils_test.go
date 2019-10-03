@@ -20,7 +20,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 )
 
@@ -28,23 +27,6 @@ const (
 	ErrMsgTestCouldNotSetEnv  = "couldn't set the ENV: %v"
 	ErrMsgTestIncorrectResult = "expected value: %v but then returned value: %v"
 )
-
-func TestGetEnv(t *testing.T) {
-	envKey := "TEST_KEY"
-	envVal := "testValue"
-	envDefault := "default"
-	if err := os.Setenv(envKey, envVal); err != nil {
-		t.Errorf(ErrMsgTestCouldNotSetEnv, envKey)
-	}
-	re1 := GetEnv(envKey, envDefault)
-	if re1 != envVal {
-		t.Errorf(ErrMsgTestIncorrectResult, envVal, re1)
-	}
-	re2 := GetEnv("", envDefault)
-	if re2 != envDefault {
-		t.Errorf(ErrMsgTestIncorrectResult, envDefault, re2)
-	}
-}
 
 func TestValidateParam(t *testing.T) {
 	valid := IsValidParams()

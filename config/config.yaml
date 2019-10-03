@@ -71,14 +71,14 @@ apim:
   publisherEndpoint: "https://localhost:9443"
   # publisher API context
   publisherAPIContext: "/api/am/publisher/v0.14/apis"
-  # publisher Change API life cycle change context
-  publisherChangeAPILifeCycleContext: "/api/am/publisher/v0.14/apis/change-lifecycle"
   # store endpoint
   storeEndpoint: "https://localhost:9443"
   # store Application API context
   storeApplicationContext: "/api/am/store/v0.14/applications"
   # store Subscription API Context
   storeSubscriptionContext: "/api/am/store/v0.14/subscriptions"
+  # multiple Subscriptions context
+  storeMultipleSubscriptionsContext: "/api/am/store/v0.14/subscriptions/multiple"
   # generate application context
   generateApplicationKeyContext: "/api/am/store/v0.14/applications/generate-keys"
 

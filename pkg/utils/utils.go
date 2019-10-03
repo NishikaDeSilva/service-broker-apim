@@ -21,28 +21,15 @@ package utils
 
 import (
 	"encoding/json"
-	"github.com/mitchellh/hashstructure"
 	"github.com/pkg/errors"
 	"net/url"
-	"os"
 	"path"
-	"strconv"
 )
 
 var (
 	ErrCannotParseURL = errors.New("unable to parse URL")
 	ErrNoPaths        = errors.New("no paths found")
 )
-
-// GetEnv returns the value (which may be empty) If the Key is present in the environment
-// Otherwise the default value is returned
-func GetEnv(key, defaultVal string) string {
-	val, exists := os.LookupEnv(key)
-	if exists {
-		return val
-	}
-	return defaultVal
-}
 
 // IsValidParams returns false if one of the arguments are empty or argument array is nil
 func IsValidParams(params ...string) bool {
@@ -93,14 +80,4 @@ func GetJSONSchema(rawSchema string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return schema, nil
-}
-
-// GenerateHash returns the hash value of the given struct and any error encountered.
-func GenerateHash(e interface{}) (string, error) {
-	// TODO more secure Hash functions
-	hash, err := hashstructure.Hash(e, nil)
-	if err != nil {
-		return "", err
-	}
-	return strconv.FormatUint(hash, 10), nil
 }

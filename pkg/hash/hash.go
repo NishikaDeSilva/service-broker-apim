@@ -58,7 +58,6 @@ func (m *Manager) AddMap(mVal map[string]string) error {
 		}
 		m.addSortedArray(keys)
 		m.addSortedArray(values)
-		// No need to sort values array since keys are sorted.
 		return nil
 	}
 	return nil

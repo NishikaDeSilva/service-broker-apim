@@ -20,12 +20,10 @@
 package apim
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
-	"github.com/wso2/service-broker-apim/pkg/hash"
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"github.com/wso2/service-broker-apim/pkg/token"
 	"github.com/wso2/service-broker-apim/pkg/utils"
@@ -36,49 +34,40 @@ import (
 )
 
 const (
-	CreateAPIContext          = "create API"
-	UpdateAPIContext          = "update API"
-	CreateApplicationContext  = "create application"
-	CreateSubscriptionContext = "create subscription"
-	UpdateApplicationContext  = "update application"
-	GenerateKeyContext        = "Generate application keys"
-	PublishAPIContext         = "publish api"
-	UnSubscribeContext        = "unsubscribe api"
-	ApplicationDeleteContext  = "delete application"
-	APIDeleteContext          = "delete API"
-	APISearchContext          = "search API"
-	ApplicationSearchContext  = "search Application"
-	ErrMsgAPIIDEmpty          = "API ID is empty"
-	ErrMsgAPPIDEmpty          = "application id is empty"
+	CreateAPIContext                  = "create API"
+	CreateApplicationContext          = "create application"
+	CreateMultipleSubscriptionContext = "create multiple subscriptions"
+	UpdateApplicationContext          = "update application"
+	GenerateKeyContext                = "Generate application keys"
+	UnSubscribeContext                = "unsubscribe api"
+	ApplicationDeleteContext          = "delete application"
+	APIDeleteContext                  = "delete API"
+	APISearchContext                  = "search API"
+	ApplicationSearchContext          = "search Application"
+	ErrMsgAPPIDEmpty                  = "application id is empty"
 )
 
 var (
-	publisherChangeAPILifeCycleEndpoint string
-	publisherAPIEndpoint                string
-	storeApplicationEndpoint            string
-	storeSubscriptionEndpoint           string
-	generateApplicationKeyEndpoint      string
-	apiDashBoardURLBase                 string
-	applicationDashBoardURLBase         string
-	tokenManager                        token.Manager
-	once                                sync.Once
-	hashManager                         *hash.Manager
+	publisherAPIEndpoint              string
+	storeApplicationEndpoint          string
+	storeSubscriptionEndpoint         string
+	storeMultipleSubscriptionEndpoint string
+	generateApplicationKeyEndpoint    string
+	applicationDashBoardURLBase       string
+	tokenManager                      token.Manager
+	once                              sync.Once
 )
 
 // Init function initialize the API-M client. If there is an error, process exists with a panic.
 func Init(manager token.Manager, conf config.APIM) {
 	once.Do(func() {
 		tokenManager = manager
-		publisherChangeAPILifeCycleEndpoint = createEndpoint(conf.PublisherEndpoint, conf.PublisherChangeAPILifeCycleContext)
 		publisherAPIEndpoint = createEndpoint(conf.PublisherEndpoint, conf.PublisherAPIContext)
 		storeApplicationEndpoint = createEndpoint(conf.StoreEndpoint, conf.StoreApplicationContext)
 		storeSubscriptionEndpoint = createEndpoint(conf.StoreEndpoint, conf.StoreSubscriptionContext)
+		storeMultipleSubscriptionEndpoint = createEndpoint(conf.StoreEndpoint, conf.StoreMultipleSubscriptionContext)
 		generateApplicationKeyEndpoint = createEndpoint(conf.StoreEndpoint, conf.GenerateApplicationKeyContext)
-		apiDashBoardURLBase = createEndpoint(conf.PublisherEndpoint, "publisher/info")
 		applicationDashBoardURLBase = createEndpoint(conf.StoreEndpoint, "/store/site/pages/application.jag")
-		hashManager = &hash.Manager{
-			Hash: sha256.New(),
-		}
 	})
 }
 
@@ -103,56 +92,11 @@ func CreateAPI(reqBody *APIReqBody) (string, error) {
 	return resBody.ID, nil
 }
 
-// GetAPIDashboardURL returns DashBoard URL for the given API.
-func GetAPIDashboardURL(apiName, version, provider string) string {
-	q := url.Values{}
-	q.Add("name", apiName)
-	q.Add("version", version)
-	q.Add("provider", provider)
-	return apiDashBoardURLBase + "?" + q.Encode()
-}
-
-// GetAPIDashboardURL returns DashBoard URL for the given Application.
+// GetAppDashboardURL returns DashBoard URL for the given Application.
 func GetAPPDashboardURL(appName string) string {
 	q := url.Values{}
 	q.Add("name", appName)
 	return applicationDashBoardURLBase + "?" + q.Encode()
-}
-
-// UpdateAPI function updates an existing API under the given ID with the provided API spec.
-// Returns any error encountered.
-func UpdateAPI(id string, reqBody *APIReqBody) error {
-	endpoint, err := utils.ConstructURL(publisherAPIEndpoint, id)
-	if err != nil {
-		return err
-	}
-	req, err := creatHTTPPUTAPIRequest(endpoint, reqBody)
-	if err != nil {
-		return err
-	}
-	err = send(UpdateAPIContext, req, nil, http.StatusOK)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// PublishAPI publishes an API in state "Created".
-// Returns any error encountered.
-func PublishAPI(apiID string) error {
-	if apiID == "" {
-		return errors.New(ErrMsgAPIIDEmpty)
-	}
-	req, err := creatHTTPPOSTAPIRequest(publisherChangeAPILifeCycleEndpoint, nil)
-	if err != nil {
-		return err
-	}
-	q := url.Values{}
-	q.Add("apiId", apiID)
-	q.Add("action", "Publish")
-	req.HTTPRequest().URL.RawQuery = q.Encode()
-	err = send(PublishAPIContext, req, nil, http.StatusOK)
-	return err
 }
 
 // CreateApplication creates an application with provided Application spec.
@@ -208,24 +152,19 @@ func GenerateKeys(appID string) (*ApplicationKeyResp, error) {
 	return &resBody, nil
 }
 
-// Subscribe subscribes the given application to the given API with given tier.
-// Returns Subscription ID and any error encountered.
-func Subscribe(appID, apiID, tier string) (string, error) {
-	reqBody := &SubscriptionReq{
-		ApplicationID: appID,
-		APIIdentifier: apiID,
-		Tier:          tier,
-	}
-	req, err := creatHTTPPOSTAPIRequest(storeSubscriptionEndpoint, reqBody)
+// CreateMultipleSubscription creates the given subscriptions.
+// Returns list of SubscriptionResp and any error encountered.
+func CreateMultipleSubscription(subs []SubscriptionReq) ([]SubscriptionResp, error) {
+	req, err := creatHTTPPOSTAPIRequest(storeMultipleSubscriptionEndpoint, subs)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	var resBody SubscriptionResp
-	err = send(CreateSubscriptionContext, req, &resBody, http.StatusCreated)
+	resBody := make([]SubscriptionResp, 0)
+	err = send(CreateMultipleSubscriptionContext, req, &resBody, http.StatusOK)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return resBody.SubscriptionID, nil
+	return resBody, nil
 }
 
 // UnSubscribe method removes the given subscription.
@@ -333,7 +272,7 @@ func creatHTTPDELETEAPIRequest(endpoint string) (*client.HTTPRequest, error) {
 }
 
 // creatAPIMSearchHTTPRequest returns a API-M resource search request and any error encountered.
-func creatAPIMSearchHTTPRequest(endpoint, resourceName string) (*client.HTTPRequest, error) {
+func creatAPIMSearchHTTPRequest(endpoint, query string) (*client.HTTPRequest, error) {
 	aT, err := tokenManager.Token()
 	if err != nil {
 		return nil, err
@@ -343,7 +282,7 @@ func creatAPIMSearchHTTPRequest(endpoint, resourceName string) (*client.HTTPRequ
 		return nil, err
 	}
 	q := url.Values{}
-	q.Add("query", resourceName)
+	q.Add("query", query)
 	req.HTTPRequest().URL.RawQuery = q.Encode()
 	return req, err
 }
@@ -360,11 +299,12 @@ func creatHTTPPUTAPIRequest(endpoint string, reqBody interface{}) (*client.HTTPR
 	return req, err
 }
 
-// SearchAPI method returns API ID of the Given API.
+// SearchAPIByNameVersion method returns API ID of the Given API.
 // An error is returned if the number of result for the search is not equal to 1.
 // Returns API ID and any error encountered.
-func SearchAPI(apiName string) (string, error) {
-	req, err := creatAPIMSearchHTTPRequest(publisherAPIEndpoint, apiName)
+func SearchAPIByNameVersion(apiName, version string) (string, error) {
+	query := "name:" + apiName + " version:" + version
+	req, err := creatAPIMSearchHTTPRequest(publisherAPIEndpoint, query)
 	if err != nil {
 		return "", err
 	}
@@ -413,133 +353,4 @@ func defaultApplicationKeyGenerateReq() *ApplicationKeyGenerateRequest {
 		SupportedGrantTypes: []string{"urn:ietf:params:oauth:grant-type:saml2-bearer", "iwa:ntlm", "refresh_token",
 			"client_credentials", "password"},
 	}
-}
-
-// GetAPIParamHash returns the hash value for given APIParam and any error encountered.
-func GetAPIParamHash(param APIParam) (string, error) {
-	hashManager.ResetHash()
-	// handle strings.
-	strVal := []string{
-		param.APISpec.Name,
-		param.APISpec.Description,
-		param.APISpec.Context,
-		param.APISpec.Provider,
-		param.APISpec.Status,
-		param.APISpec.ThumbnailURI,
-		param.APISpec.APIDefinition,
-		param.APISpec.WsdlURI,
-		param.APISpec.ResponseCaching,
-		param.APISpec.Type,
-		param.APISpec.APILevelPolicy,
-		param.APISpec.AuthorizationHeader,
-		param.APISpec.EndpointConfig,
-		param.APISpec.GatewayEnvironments,
-		param.APISpec.SubscriptionAvailability,
-		param.APISpec.AccessControl,
-	}
-	if param.APISpec.EndpointSecurity != nil {
-		strVal = append(strVal,
-			param.APISpec.EndpointSecurity.Type,
-			param.APISpec.EndpointSecurity.Password,
-			param.APISpec.EndpointSecurity.Username)
-	}
-	if param.APISpec.BusinessInformation != nil {
-		strVal = append(strVal,
-			param.APISpec.BusinessInformation.BusinessOwner,
-			param.APISpec.BusinessInformation.BusinessOwnerEmail,
-			param.APISpec.BusinessInformation.TechnicalOwner,
-			param.APISpec.BusinessInformation.TechnicalOwnerEmail)
-	}
-	err := hashManager.AddArray(strVal)
-	if err != nil {
-		return "", err
-	}
-
-	// handle int32.
-	err = hashManager.AddInt32(param.APISpec.CacheTimeout)
-	if err != nil {
-		return "", err
-	}
-
-	if param.APISpec.MaxTps != nil {
-		//  handle int64.
-		err = hashManager.AddInt64(param.APISpec.MaxTps.Production)
-		if err != nil {
-			return "", err
-		}
-		err = hashManager.AddInt64(param.APISpec.MaxTps.Sandbox)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	// handle string arrays.
-	var strArray = []string{""}
-	strArray = append(strArray, param.APISpec.Transport...)
-	strArray = append(strArray, param.APISpec.Tags...)
-	strArray = append(strArray, param.APISpec.Tiers...)
-	strArray = append(strArray, param.APISpec.VisibleRoles...)
-	strArray = append(strArray, param.APISpec.VisibleTenants...)
-	strArray = append(strArray, param.APISpec.SubscriptionAvailableTenants...)
-	strArray = append(strArray, param.APISpec.AccessControlRoles...)
-
-	if param.APISpec.CorsConfiguration != nil {
-		strArray = append(strArray, param.APISpec.CorsConfiguration.AccessControlAllowHeaders...)
-		strArray = append(strArray, param.APISpec.CorsConfiguration.AccessControlAllowMethods...)
-		strArray = append(strArray, param.APISpec.CorsConfiguration.AccessControlAllowOrigins...)
-	}
-
-	err = hashManager.AddArray(strArray)
-	if err != nil {
-		return "", err
-	}
-	// handle boolean values.
-	err = hashManager.AddBool(param.APISpec.DestinationStatsEnabled)
-	if err != nil {
-		return "", err
-	}
-	err = hashManager.AddBool(param.APISpec.IsDefaultVersion)
-	if err != nil {
-		return "", err
-	}
-	if param.APISpec.CorsConfiguration != nil {
-		err = hashManager.AddBool(param.APISpec.CorsConfiguration.AccessControlAllowCredentials)
-		if err != nil {
-			return "", err
-		}
-		err = hashManager.AddBool(param.APISpec.CorsConfiguration.CorsConfigurationEnabled)
-		if err != nil {
-			return "", err
-		}
-	}
-	return hashManager.Generate()
-}
-
-// GetAppParamHash returns the hash value for given App parameter and any error encountered.
-func GetAppParamHash(param ApplicationParam) (string, error) {
-	hashManager.ResetHash()
-	err := hashManager.AddArray([]string{
-		param.AppSpec.Name,
-		param.AppSpec.Description,
-		param.AppSpec.ThrottlingTier,
-		param.AppSpec.CallbackURL,
-	})
-	if err != nil {
-		return "", err
-	}
-	return hashManager.Generate()
-}
-
-// GetSubsParamHash returns the hash value for given Subscription parameter and any error encountered.
-func GetSubsParamHash(param SubscriptionParam) (string, error) {
-	hashManager.ResetHash()
-	err := hashManager.AddArray([]string{
-		param.SubsSpec.APIName,
-		param.SubsSpec.AppName,
-		param.SubsSpec.SubscriptionTier,
-	})
-	if err != nil {
-		return "", err
-	}
-	return hashManager.Generate()
 }

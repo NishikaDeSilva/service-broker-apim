@@ -53,17 +53,17 @@ type DB struct {
 
 // APIM represents the information required to interact with the APIM.
 type APIM struct {
-	Username                           string `mapstructure:"username"`
-	Password                           string `mapstructure:"password"`
-	TokenEndpoint                      string `mapstructure:"tokenEndpoint"`
-	DynamicClientEndpoint              string `mapstructure:"dynamicClientEndpoint"`
-	PublisherEndpoint                  string `mapstructure:"publisherEndpoint"`
-	PublisherAPIContext                string `mapstructure:"publisherAPIContext"`
-	PublisherChangeAPILifeCycleContext string `mapstructure:"publisherChangeAPILifeCycleContext"`
-	StoreApplicationContext            string `mapstructure:"storeApplicationContext"`
-	StoreSubscriptionContext           string `mapstructure:"storeSubscriptionContext"`
-	StoreEndpoint                      string `mapstructure:"storeEndpoint"`
-	GenerateApplicationKeyContext      string `mapstructure:"generateApplicationKeyContext"`
+	Username                         string `mapstructure:"username"`
+	Password                         string `mapstructure:"password"`
+	TokenEndpoint                    string `mapstructure:"tokenEndpoint"`
+	DynamicClientEndpoint            string `mapstructure:"dynamicClientEndpoint"`
+	PublisherEndpoint                string `mapstructure:"publisherEndpoint"`
+	PublisherAPIContext              string `mapstructure:"publisherAPIContext"`
+	StoreApplicationContext          string `mapstructure:"storeApplicationContext"`
+	StoreSubscriptionContext         string `mapstructure:"storeSubscriptionContext"`
+	StoreMultipleSubscriptionContext string `mapstructure:"storeMultipleSubscriptionContext"`
+	StoreEndpoint                    string `mapstructure:"storeEndpoint"`
+	GenerateApplicationKeyContext    string `mapstructure:"generateApplicationKeyContext"`
 }
 
 // Auth represents the username and the password for basic auth.
@@ -175,11 +175,10 @@ func setDefaultConf() {
 	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443/client-registration/v0.14/register")
 	viper.SetDefault("apim.publisherEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.publisherAPIContext", "/api/am/publisher/v0.14/apis")
-	viper.SetDefault("apim.publisherContext", "/api/am/publisher/v0.14/apis")
-	viper.SetDefault("apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")
 	viper.SetDefault("apim.storeEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.storeApplicationContext", "/api/am/store/v0.14/applications")
 	viper.SetDefault("apim.storeSubscriptionContext", "/api/am/store/v0.14/subscriptions")
+	viper.SetDefault("apim.storeMultipleSubscriptionContext", "/api/am/store/v0.14/subscriptions/multiple")
 	viper.SetDefault("apim.generateApplicationKeyContext", "/api/am/store/v0.14/applications/generate-keys")
 
 	viper.SetDefault("db.host", "localhost")
