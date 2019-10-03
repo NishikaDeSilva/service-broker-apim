@@ -16,9 +16,10 @@
  * under the License.
  */
 
-// Package Hash is used to construct Hash value for a struct.
+// Package Hash can be used to construct Hash values for data types.
 package hash
 
+// TODO use previous lib
 import (
 	"encoding/binary"
 	"encoding/hex"
@@ -29,6 +30,7 @@ import (
 
 var errHashNil = errors.New("hash cannot be nil")
 
+// Manager struct represents the Hash Manager.
 type Manager struct {
 	Hash hash.Hash
 }
@@ -61,6 +63,7 @@ func (m *Manager) AddMap(mVal map[string]string) error {
 	}
 	return nil
 }
+
 // addSortedArray method adds the given sorted array content for hashing. Must do a nil check for m.Hash before calling.
 func (m *Manager) addSortedArray(sortedArr []string) {
 	if sortedArr != nil {
@@ -144,7 +147,7 @@ func (m *Manager) AddBool(b bool) error {
 	return binary.Write(m.Hash, binary.LittleEndian, b)
 }
 
-// Generate method returns  Hash value for added content.
+// Generate method returns a hash value for added content.
 func (m *Manager) Generate() (string, error) {
 	if m.Hash == nil {
 		return "", errHashNil
@@ -152,7 +155,7 @@ func (m *Manager) Generate() (string, error) {
 	return hex.EncodeToString(m.Hash.Sum(nil)), nil
 }
 
-// ResetHash resets the underneath Hash object.
+// ResetHash resets the underneath Hash Manager.
 // This method should be called before generating Hash if the Manager is used for more than once.
 func (m *Manager) ResetHash() {
 	m.Hash.Reset()

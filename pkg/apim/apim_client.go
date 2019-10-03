@@ -436,13 +436,19 @@ func GetAPIParamHash(param APIParam) (string, error) {
 		param.APISpec.GatewayEnvironments,
 		param.APISpec.SubscriptionAvailability,
 		param.APISpec.AccessControl,
-		param.APISpec.EndpointSecurity.Type,
-		param.APISpec.EndpointSecurity.Password,
-		param.APISpec.EndpointSecurity.Username,
-		param.APISpec.BusinessInformation.BusinessOwner,
-		param.APISpec.BusinessInformation.BusinessOwnerEmail,
-		param.APISpec.BusinessInformation.TechnicalOwner,
-		param.APISpec.BusinessInformation.TechnicalOwnerEmail,
+	}
+	if param.APISpec.EndpointSecurity != nil {
+		strVal = append(strVal,
+			param.APISpec.EndpointSecurity.Type,
+			param.APISpec.EndpointSecurity.Password,
+			param.APISpec.EndpointSecurity.Username)
+	}
+	if param.APISpec.BusinessInformation != nil {
+		strVal = append(strVal,
+			param.APISpec.BusinessInformation.BusinessOwner,
+			param.APISpec.BusinessInformation.BusinessOwnerEmail,
+			param.APISpec.BusinessInformation.TechnicalOwner,
+			param.APISpec.BusinessInformation.TechnicalOwnerEmail)
 	}
 	err := hashManager.AddArray(strVal)
 	if err != nil {

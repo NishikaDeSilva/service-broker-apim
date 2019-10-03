@@ -19,6 +19,7 @@
 package apim
 
 import (
+	"fmt"
 	"github.com/jarcoal/httpmock"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"net/http"
@@ -631,5 +632,80 @@ func testSearchApplicationFail2Func() func(t *testing.T) {
 		if err.Error() != "returned more than one Application for Test" {
 			t.Error("Expecting the error 'returned more than one Application for Test' but got " + err.Error())
 		}
+	}
+}
+
+func TestGetAPIParamHash(t *testing.T) {
+	apiParam1 := APIParam{
+		APISpec: APIReqBody{
+			Name:  "test app",
+			Tiers: []string{"a", "b"},
+			CorsConfiguration: &APICorsConfiguration{
+				AccessControlAllowOrigins: []string{"a", "b"},
+			},
+		},
+	}
+	apiParam2 := APIParam{
+		APISpec: APIReqBody{
+			Name:  "test app",
+			Tiers: []string{"b", "a"},
+			CorsConfiguration: &APICorsConfiguration{
+				AccessControlAllowOrigins: []string{"b", "a"},
+			},
+		},
+	}
+
+	hash1, err := GetAPIParamHash(apiParam1)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := "2683cc0a521392c56992db1f78d5835f8af7b367ae6261b529826512147200ba"
+	if expected != hash1 {
+		t.Error(fmt.Sprintf(ErrMsgTestIncorrectResult, expected, hash1))
+	}
+
+	hash2, err := GetAPIParamHash(apiParam2)
+	if err != nil {
+		t.Error(err)
+	}
+	if expected != hash2 {
+		t.Error(fmt.Sprintf(ErrMsgTestIncorrectResult, expected, hash2))
+	}
+}
+
+func TestGetAppParamHash(t *testing.T) {
+	appParam := ApplicationParam{
+		AppSpec: ApplicationCreateReq{
+			Name:           "test app",
+			Description:    "description",
+			ThrottlingTier: "unlimited",
+			CallbackURL:    "dummy",
+		},
+	}
+	hash, err := GetAppParamHash(appParam)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := "480afa8f3755c39327360c8f1989c5afda8e84b95b1be941d465777d477c24d7"
+	if expected != hash {
+		t.Error(fmt.Sprintf(ErrMsgTestIncorrectResult, expected, hash))
+	}
+}
+
+func TestGetSubsParamHash(t *testing.T) {
+	subsParam := SubscriptionParam{
+		SubsSpec: SubscriptionSpec{
+			SubscriptionTier: "tier",
+			AppName:          "test app",
+			APIName:          "test API",
+		},
+	}
+	hash, err := GetSubsParamHash(subsParam)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := "8fd67e25d83849761f44a91d4c5757b51688e04650c44d8b2130952ce2359d67"
+	if expected != hash {
+		t.Error(fmt.Sprintf(ErrMsgTestIncorrectResult, expected, hash))
 	}
 }

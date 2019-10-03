@@ -52,6 +52,7 @@ type Entity interface {
 	TableName() string
 }
 
+// TODO change name and pkg
 // Instance represents the Instance model in the Database.
 type Instance struct {
 	ID             string `gorm:"primary_key;type:varchar(100)"`

@@ -62,6 +62,7 @@ const (
 	ErrMsgFailedToCleanUp           = "failed to cleanup, unable to delete the %s"
 	ErrMsgUnableToGenInputSchema    = "unable to generate %s plan input Schema"
 	ErrMsgInvalidPlanID             = "invalid plan id"
+	ErrMsgUnableToGenHash           = "unable parameter Hash"
 	ServiceID                       = "460F28F9-4D05-4889-970A-6BF5FB7D3CF8"
 	ServiceName                     = "wso2apim-service"
 	ServiceDescription              = "WSO2 API Manager Services"
@@ -431,7 +432,7 @@ func (apimBroker *APIM) Update(cxt context.Context, instanceID string,
 }
 
 func (apimBroker *APIM) GetBinding(ctx context.Context, instanceID,
-bindingID string) (domain.GetBindingSpec, error) {
+	bindingID string) (domain.GetBindingSpec, error) {
 	return domain.GetBindingSpec{}, ErrNotSupported
 }
 
@@ -441,7 +442,7 @@ func (apimBroker *APIM) GetInstance(ctx context.Context,
 }
 
 func (apimBroker *APIM) LastBindingOperation(ctx context.Context, instanceID,
-bindingID string, details domain.PollDetails) (domain.LastOperation, error) {
+	bindingID string, details domain.PollDetails) (domain.LastOperation, error) {
 	return domain.LastOperation{}, ErrNotSupported
 }
 
@@ -539,7 +540,7 @@ func createAPIServiceInstance(instanceID string, serviceDetails domain.Provision
 	paramHash, err := apim.GetAPIParamHash(apiParam)
 	if err != nil {
 		log.Error("unable to generate API parameter Hash", err, logData)
-		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to generate API parameter Hash",
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse(ErrMsgUnableToGenHash,
 			"generate API parameter Hash")
 	}
 
@@ -642,7 +643,7 @@ func createAppServiceInstance(instanceID string, serviceDetails domain.Provision
 	paramHash, err := apim.GetAppParamHash(appParam)
 	if err != nil {
 		log.Error("unable to generate Application parameter Hash", err, logData)
-		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to generate Application parameter Hash",
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse(ErrMsgUnableToGenHash,
 			"generate Application parameter Hash")
 	}
 
@@ -739,7 +740,7 @@ func createSubscriptionServiceInstance(instanceID string, serviceDetails domain.
 	paramHash, err := apim.GetSubsParamHash(subParam)
 	if err != nil {
 		log.Error("unable to generate subscription parameter Hash", err, logData)
-		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to generate subscription parameter Hash",
+		return domain.ProvisionedServiceSpec{}, internalServerFailureResponse(ErrMsgUnableToGenHash,
 			"generate subscription parameter Hash")
 	}
 
