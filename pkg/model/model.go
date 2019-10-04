@@ -32,8 +32,9 @@ type ServiceInstance struct {
 	ApplicationName string `gorm:"type:varchar(100);not null"`
 	SpaceID         string `gorm:"type:varchar(100);not null"`
 	OrgID           string `gorm:"type:varchar(100);not null"`
-	ConsumerKey     string `gorm:"type:varchar(100)"`
-	ConsumerSecret  string `gorm:"type:varchar(100)"`
+	ConsumerKey     string `gorm:"type:varchar(100);not null"`
+	ConsumerSecret  string `gorm:"type:varchar(100);not null"`
+	ParameterHash   string `gorm:"type:varchar(100);not null"`
 }
 
 // Subscription represents the Subscription model in the database.

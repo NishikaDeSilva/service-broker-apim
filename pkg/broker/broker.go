@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/mitchellh/hashstructure"
 	"github.com/pivotal-cf/brokerapi/domain"
 	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
 	"github.com/pkg/errors"
@@ -34,6 +35,7 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/model"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -85,7 +87,7 @@ type API struct {
 
 // ServiceParams represents the SVC create and update parameter.
 type ServiceParams struct {
-	APIs []API `json:"apis"`
+	APIs []API `json:"apis" hash:"set"`
 }
 
 // Init method initialize the API-M broker. If there is an error it will cause a panic.
@@ -122,7 +124,7 @@ func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 		return domain.ProvisionedServiceSpec{}, err
 	}
 
-	provisionedServiceSpec, err := checkInstanceWithAttributes(svcInstanceID, svcParam.APIs, serviceDetails.SpaceGUID, serviceDetails.OrganizationGUID)
+	provisionedServiceSpec, err := checkInstanceWithAttributes(svcInstanceID, svcParam, serviceDetails.SpaceGUID, serviceDetails.OrganizationGUID)
 	if err != nil {
 		return domain.ProvisionedServiceSpec{}, err
 	}
@@ -153,6 +155,11 @@ func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 		return domain.ProvisionedServiceSpec{}, err
 	}
 
+	parameterHash, err := generateHashAPIs(svcParam)
+	if err != nil {
+		return domain.ProvisionedServiceSpec{}, err
+	}
+
 	svcInstance := &model.ServiceInstance{
 		ID:              svcInstanceID,
 		ApplicationID:   appID,
@@ -161,6 +168,7 @@ func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 		OrgID:           serviceDetails.OrganizationGUID,
 		ConsumerKey:     keys.ConsumerKey,
 		ConsumerSecret:  keys.ConsumerSecret,
+		ParameterHash:   parameterHash,
 	}
 	err = storeServiceInstance(svcInstance)
 	if err != nil {
@@ -198,6 +206,14 @@ func deleteServiceInstanceAndLogError(svcInstanceID string) {
 	if err != nil {
 		log.Error(ErrMsgUnableDelInstance, err, logData)
 	}
+}
+
+func generateHashAPIs(svcParam ServiceParams) (string, error) {
+	generatedHash, err := hashstructure.Hash(svcParam, nil)
+	if err != nil {
+		return "", internalServerFailureResponse("unable to generate hash value for service parameters", "generate hash for service parameter")
+	}
+	return strconv.FormatUint(generatedHash, 10), nil
 }
 
 func storeSubscriptions(subscriptions []model.Subscription) error {
@@ -320,7 +336,7 @@ func getValidServiceParams(rawParam json.RawMessage) (ServiceParams, error) {
 	s, err := toServiceParams(rawParam)
 	if err != nil {
 		log.Error("unable to parse parameters", err, nil)
-		return s, invalidParamFailureResponse( "parse ServiceParams")
+		return s, invalidParamFailureResponse("parse ServiceParams")
 	}
 
 	if len(s.APIs) == 0 {
@@ -692,7 +708,7 @@ func invalidParamFailureResponse(a string) error {
 // checkInstanceWithAttributes function returns domain.ProvisionedServiceSpec and error type apiresponses.FailureResponse.
 // If there is a instance with the same attributes the domain.ProvisionedServiceSpec.AlreadyExists will be set to "true".
 // and if the instance exist with different attributes apiresponses.ErrInstanceAlreadyExists is returned.
-func checkInstanceWithAttributes(svcInstanceID string, apis []API, spaceID, orgID string) (domain.ProvisionedServiceSpec, error) {
+func checkInstanceWithAttributes(svcInstanceID string, svcParam ServiceParams, spaceID, orgID string) (domain.ProvisionedServiceSpec, error) {
 	ld := createCommonLogData(svcInstanceID, spaceID, orgID)
 	i := &model.ServiceInstance{
 		ID: svcInstanceID,
@@ -704,38 +720,53 @@ func checkInstanceWithAttributes(svcInstanceID string, apis []API, spaceID, orgI
 			"get the instance from DB")
 	}
 	if svcInstanceExists {
-		subscription := &model.Subscription{
-			ApplicationID: i.ApplicationID,
-		}
-		var subscriptionsList []model.Subscription
-		hasSubscriptions, err := db.RetrieveList(subscription, &subscriptionsList)
+		parameterHash, err := generateHashAPIs(svcParam)
 		if err != nil {
-			log.Error("unable to get subscription from DB", err, ld)
-			return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("unable to query database",
-				"get the subscription from DB")
+			return domain.ProvisionedServiceSpec{}, err
 		}
-		if !hasSubscriptions {
-			log.Error("no subscriptions are available", err, ld)
-			return domain.ProvisionedServiceSpec{}, internalServerFailureResponse("no subscriptions are available",
-				"get the subscription from DB")
-		}
-
-		var existingAPIs []API
-		for _, sub := range subscriptionsList {
-			existingAPIs = append(existingAPIs, API{
-				Name:    sub.APIName,
-				Version: sub.APIVersion,
-			})
-		}
-
-		if (isSameAPIs(existingAPIs, apis)) && (spaceID == i.SpaceID) && (orgID == i.OrgID) {
-			return domain.ProvisionedServiceSpec{
-				AlreadyExists: true,
-			}, nil
+		if (i.ParameterHash == parameterHash) && (spaceID == i.SpaceID) && (orgID == i.OrgID) {
+			existingAPIs, err := getExistingAPIs(i.ApplicationID)
+			if err != nil {
+				return domain.ProvisionedServiceSpec{}, err
+			}
+			// If existing parameter hash and the new parameter has matches then check each field again to avoid hash collision.
+			if isSameAPIs(existingAPIs, svcParam.APIs) {
+				return domain.ProvisionedServiceSpec{
+					AlreadyExists: true,
+				}, nil
+			}
 		}
 		return domain.ProvisionedServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
 	}
 	return domain.ProvisionedServiceSpec{}, nil
+}
+
+func getExistingAPIs(applicationID string) ([]API, error) {
+	ld := log.NewData().Add(LogKeyAppID, applicationID)
+	subscription := &model.Subscription{
+		ApplicationID: applicationID,
+	}
+	var subscriptionsList []model.Subscription
+	hasSubscriptions, err := db.RetrieveList(subscription, &subscriptionsList)
+	if err != nil {
+		log.Error("unable to get subscription from DB", err, ld)
+		return nil, internalServerFailureResponse("unable to query database",
+			"get the subscription from DB")
+	}
+	if !hasSubscriptions {
+		log.Error("no subscriptions are available", err, ld)
+		return nil, internalServerFailureResponse("no subscriptions are available",
+			"get the subscription from DB")
+	}
+
+	var existingAPIs []API
+	for _, sub := range subscriptionsList {
+		existingAPIs = append(existingAPIs, API{
+			Name:    sub.APIName,
+			Version: sub.APIVersion,
+		})
+	}
+	return existingAPIs, nil
 }
 
 func isSameAPIs(existingAPIs, newAPIs []API) bool {
