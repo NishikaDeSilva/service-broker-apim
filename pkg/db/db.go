@@ -170,6 +170,17 @@ func RetrieveList(e model.Entity, r interface{}) (bool, error) {
 	return true, nil
 }
 
+func RetrieveListByQuery(e model.Entity, query string, r interface{}) (bool, error) {
+	result := db.Table(e.TableName()).Where(query).Find(r)
+	if result.RecordNotFound() {
+		return false, nil
+	}
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return true, nil
+}
+
 // AddForeignKey adds a Foreign Key and returns any error encountered.
 // Ex: db.AddForeignKey(&User{}).AddForeignKey("city_id", "cities(id)", "RESTRICT", "RESTRICT").
 func AddForeignKey(e model.Entity, field string, dest string, onDelete string, onUpdate string) error {

@@ -43,6 +43,7 @@ type Subscription struct {
 	ApplicationID string `gorm:"type:varchar(100);not null"`
 	APIName       string `gorm:"type:varchar(100);not null"`
 	APIVersion    string `gorm:"type:varchar(100);not null"`
+	User          string `gorm:"type:varchar(100);not null"`
 	SVCInstanceID string `gorm:"type:varchar(100);not null;column:svc_instance_id"`
 }
 

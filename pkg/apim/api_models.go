@@ -281,268 +281,28 @@ var AppPlanInputParameterSchemaRaw = `{
   "$schema": "http://json-schema.org/draft-04/schema#",
   "type": "object",
   "properties": {
-    "app": {
-      "type": "object",
-      "properties": {
-        "throttlingTier": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "callbackUrl": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "throttlingTier",
-        "description",
-        "callbackUrl",
-        "name"
-      ]
-    }
-  },
-  "required": [
-    "app"
-  ]
-}
-`
-
-var SubsPlanInputParameterSchemaRaw = `{
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
-  "properties": {
-    "subs": {
-      "type": "object",
-      "properties": {
-        "apiName": {
-          "type": "string"
-        },
-        "appName": {
-          "type": "string"
-        },
-        "tier": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "apiName",
-        "appName",
-        "tier"
-      ]
-    }
-  },
-  "required": [
-    "subs"
-  ]
-}`
-
-var APIPlanInputParameterSchemaRaw = `{
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
-  "properties": {
-    "api": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "context": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        },
-        "provider": {
-          "type": "string"
-        },
-        "apiDefinition": {
-          "type": "string"
-        },
-        "wsdlUri": {
-          "type": "null"
-        },
-        "status": {
-          "type": "string"
-        },
-        "responseCaching": {
-          "type": "string"
-        },
-        "cacheTimeout": {
-          "type": "integer"
-        },
-        "destinationStatsEnabled": {
-          "type": "boolean"
-        },
-        "isDefaultVersion": {
-          "type": "boolean"
-        },
-        "type": {
-          "type": "string"
-        },
-        "transport": {
-          "type": "array",
-          "items": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "string"
-            }
-          ]
-        },
-        "tags": {
-          "type": "array",
-          "items": [
-            {
-              "type": "string"
-            }
-          ]
-        },
-        "tiers": {
-          "type": "array",
-          "items": [
-            {
-              "type": "string"
-            }
-          ]
-        },
-        "maxTps": {
+    "apis": {
+      "type": "array",
+      "items": [
+        {
           "type": "object",
           "properties": {
-            "sandbox": {
-              "type": "integer"
-            },
-            "production": {
-              "type": "integer"
-            }
-          },
-          "required": [
-            "sandbox",
-            "production"
-          ]
-        },
-        "visibility": {
-          "type": "string"
-        },
-        "visibleRoles": {
-          "type": "array",
-          "items": {}
-        },
-        "endpointConfig": {
-          "type": "string"
-        },
-        "endpointSecurity": {
-          "type": "object",
-          "properties": {
-            "username": {
+            "name": {
               "type": "string"
             },
-            "type": {
-              "type": "string"
-            },
-            "password": {
+            "version": {
               "type": "string"
             }
           },
           "required": [
-            "username",
-            "type",
-            "password"
-          ]
-        },
-        "gatewayEnvironments": {
-          "type": "string"
-        },
-        "sequences": {
-          "type": "array",
-          "items": [
-            {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "type": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "name",
-                "type"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "type": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "name",
-                "type"
-              ]
-            }
-          ]
-        },
-        "subscriptionAvailability": {
-          "type": "string"
-        },
-        "subscriptionAvailableTenants": {
-          "type": "array",
-          "items": {}
-        },
-        "businessInformation": {
-          "type": "object",
-          "properties": {
-            "businessOwnerEmail": {
-              "type": "string"
-            },
-            "technicalOwnerEmail": {
-              "type": "string"
-            },
-            "technicalOwner": {
-              "type": "string"
-            },
-            "businessOwner": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "businessOwnerEmail",
-            "technicalOwnerEmail",
-            "technicalOwner",
-            "businessOwner"
+            "name",
+            "version"
           ]
         }
-      },
-      "required": [
-        "name",
-        "description",
-        "context",
-        "version",
-        "apiDefinition",
-        "status",
-        "isDefaultVersion",
-        "type",
-        "transport",
-        "tiers",
-        "visibility",
-        "endpointConfig"
       ]
     }
   },
   "required": [
-    "api"
+    "apis"
   ]
 }`
