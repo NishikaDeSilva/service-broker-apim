@@ -21,10 +21,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -110,7 +111,7 @@ type HTTP struct {
 
 // Broker main struct which holds  sub configurations.
 type Broker struct {
-	Log  Log  `mapstructure:log"`
+	Log  Log  `mapstructure:"log"`
 	HTTP HTTP `mapstructure:"http"`
 	APIM APIM `mapstructure:"apim"`
 	DB   DB   `mapstructure:"db"`
@@ -136,7 +137,7 @@ func Load() (*Broker, error) {
 	return &brokerConfig, nil
 }
 
-// loadConfigFile loads the configuration into the Viper file only if the configuration file is pointed with "BROKER_APIM_CONF_FILE" environment variable.
+// loadConfigFile loads the configuration into the Viper file only if the configuration file is pointed with "APIM_BROKER_CONF_FILE" environment variable.
 // Returns an error if it is unable to read the config into Viper.
 func loadConfigFile() error {
 	confFile, exists := os.LookupEnv(FilePathEnv)
@@ -178,6 +179,7 @@ func setDefaultConf() {
 	viper.SetDefault("apim.storeEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.storeApplicationContext", "/api/am/store/v0.14/applications")
 	viper.SetDefault("apim.storeSubscriptionContext", "/api/am/store/v0.14/subscriptions")
+	viper.SetDefault("apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")
 	viper.SetDefault("apim.storeMultipleSubscriptionContext", "/api/am/store/v0.14/subscriptions/multiple")
 	viper.SetDefault("apim.generateApplicationKeyContext", "/api/am/store/v0.14/applications/generate-keys")
 

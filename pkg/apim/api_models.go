@@ -130,6 +130,14 @@ type APICreateResp struct {
 	ID string `json:"id,omitempty"`
 }
 
+// ApplicationMetadata represents name, id and key of the generated application
+type ApplicationMetadata struct {
+	Name         string
+	ID           string
+	Keys         *ApplicationKeyResp
+	DashboardURL string
+}
+
 // ApplicationCreateReq represents the response of create Application API call.
 type ApplicationCreateReq struct {
 	ThrottlingTier string `json:"throttlingTier"`
@@ -276,6 +284,10 @@ type ApplicationSearchResp struct {
 	Count    int                     `json:"count"`
 	Next     string                  `json:"next"`
 }
+
+var AppPlanBindInputParameterSchemaRaw = `{
+  "$schema": "http://json-schema.org/draft-04/schema#"
+}`
 
 var AppPlanInputParameterSchemaRaw = `{
   "$schema": "http://json-schema.org/draft-04/schema#",

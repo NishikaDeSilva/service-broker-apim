@@ -21,16 +21,17 @@ package apim
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"sync"
+
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/config"
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"github.com/wso2/service-broker-apim/pkg/token"
 	"github.com/wso2/service-broker-apim/pkg/utils"
-	"io"
-	"net/http"
-	"net/url"
-	"sync"
 )
 
 const (
@@ -93,7 +94,7 @@ func CreateAPI(reqBody *APIReqBody) (string, error) {
 }
 
 // GetAppDashboardURL returns DashBoard URL for the given Application.
-func GetAPPDashboardURL(appName string) string {
+func GetAppDashboardURL(appName string) string {
 	q := url.Values{}
 	q.Add("name", appName)
 	return applicationDashBoardURLBase + "?" + q.Encode()
@@ -152,19 +153,22 @@ func GenerateKeys(appID string) (*ApplicationKeyResp, error) {
 	return &resBody, nil
 }
 
-// CreateMultipleSubscription creates the given subscriptions.
+// CreateMultipleSubscriptions creates the given subscriptions.
 // Returns list of SubscriptionResp and any error encountered.
-func CreateMultipleSubscription(subs []SubscriptionReq) ([]SubscriptionResp, error) {
-	req, err := creatHTTPPOSTAPIRequest(storeMultipleSubscriptionEndpoint, subs)
-	if err != nil {
-		return nil, err
+func CreateMultipleSubscriptions(subs []SubscriptionReq) ([]SubscriptionResp, error) {
+	if subs != nil {
+		req, err := creatHTTPPOSTAPIRequest(storeMultipleSubscriptionEndpoint, subs)
+		if err != nil {
+			return nil, err
+		}
+		resBody := make([]SubscriptionResp, 0)
+		err = send(CreateMultipleSubscriptionContext, req, &resBody, http.StatusOK)
+		if err != nil {
+			return nil, err
+		}
+		return resBody, nil
 	}
-	resBody := make([]SubscriptionResp, 0)
-	err = send(CreateMultipleSubscriptionContext, req, &resBody, http.StatusOK)
-	if err != nil {
-		return nil, err
-	}
-	return resBody, nil
+	return nil, nil
 }
 
 // UnSubscribe method removes the given subscription.

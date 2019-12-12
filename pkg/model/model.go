@@ -49,10 +49,9 @@ type Subscription struct {
 
 // Bind represents the Bind model in the Database
 type Bind struct {
-	ID                 string `gorm:"primary_key;type:varchar(100)"`
-	SVCInstanceID      string `gorm:"type:varchar(100);not null;column:svc_instance_id"`
-	PlatformAppID      string `gorm:"type:varchar(100)"`
-	IsCreateServiceKey bool   `gorm:"type:BOOLEAN;not null;default:false"`
+	ID            string `gorm:"primary_key;type:varchar(100)"`
+	SVCInstanceID string `gorm:"type:varchar(100);not null;column:svc_instance_id"`
+	PlatformAppID string `gorm:"type:varchar(100)"`
 }
 
 func (ServiceInstance) TableName() string {

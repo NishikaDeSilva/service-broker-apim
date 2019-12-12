@@ -19,16 +19,17 @@
 package apim
 
 import (
-	"github.com/jarcoal/httpmock"
-	"github.com/wso2/service-broker-apim/pkg/config"
 	"net/http"
 	"strconv"
 	"testing"
+
+	"github.com/jarcoal/httpmock"
+	"github.com/wso2/service-broker-apim/pkg/config"
 )
 
 const (
-	publisherTestEndpoint         = "http://localhost:9443"
-	StoreTestEndpoint             = "http://localhost:9443"
+	publisherTestEndpoint         = "https://localhost:9443"
+	StoreTestEndpoint             = "https://localhost:9443"
 	StoreApplicationContext       = "/api/am/store/v0.14/applications"
 	StoreSubscriptionContext      = "/api/am/store/v0.14/subscriptions"
 	MultipleSubscriptionContext   = StoreSubscriptionContext + "/multiple"
@@ -58,6 +59,7 @@ func init() {
 		StoreMultipleSubscriptionContext: MultipleSubscriptionContext,
 		PublisherAPIContext:              PublisherAPIContext,
 		PublisherEndpoint:                publisherTestEndpoint,
+		GenerateApplicationKeyContext:    GenerateApplicationKeyContext,
 	})
 
 }
@@ -209,7 +211,7 @@ func testCreateMultipleSubscriptionFailFunc() func(t *testing.T) {
 		}
 		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+MultipleSubscriptionContext, responder)
 
-		_, err = CreateMultipleSubscription([]SubscriptionReq{
+		_, err = CreateMultipleSubscriptions([]SubscriptionReq{
 			{
 				APIIdentifier: "a",
 				ApplicationID: "b",
@@ -238,7 +240,7 @@ func testCreateMultipleSubscriptionSuccessFunc() func(t *testing.T) {
 			t.Error(err)
 		}
 		httpmock.RegisterResponder(http.MethodPost, StoreTestEndpoint+MultipleSubscriptionContext, responder)
-		got, err := CreateMultipleSubscription([]SubscriptionReq{
+		got, err := CreateMultipleSubscriptions([]SubscriptionReq{
 			{
 				APIIdentifier: "a",
 				ApplicationID: "b",
@@ -398,7 +400,7 @@ func testSearchAPIByNameVersionSuccessFunc() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=Test", responder)
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=name%3ATest+version%3Av1", responder)
 		apiID, err := SearchAPIByNameVersion("Test", "v1")
 		if err != nil {
 			t.Error(err)
@@ -419,7 +421,7 @@ func testSearchAPIByNameVersionFail1Func() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=Test", responder)
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=name%3ATest+version%3Av1", responder)
 		_, err = SearchAPIByNameVersion("Test", "v1")
 		if err == nil {
 			t.Error("Expecting an error")
@@ -439,7 +441,7 @@ func testSearchAPIByNameVersionFail2Func() func(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=Test", responder)
+		httpmock.RegisterResponder(http.MethodGet, publisherTestEndpoint+PublisherAPIContext+"?query=name%3ATest+version%3Av1", responder)
 		_, err = SearchAPIByNameVersion("Test", "v1")
 		if err == nil {
 			t.Error("Expecting an error")
