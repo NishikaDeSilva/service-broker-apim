@@ -156,19 +156,16 @@ func GenerateKeys(appID string) (*ApplicationKeyResp, error) {
 // CreateMultipleSubscriptions creates the given subscriptions.
 // Returns list of SubscriptionResp and any error encountered.
 func CreateMultipleSubscriptions(subs []SubscriptionReq) ([]SubscriptionResp, error) {
-	if subs != nil {
-		req, err := creatHTTPPOSTAPIRequest(storeMultipleSubscriptionEndpoint, subs)
-		if err != nil {
-			return nil, err
-		}
-		resBody := make([]SubscriptionResp, 0)
-		err = send(CreateMultipleSubscriptionContext, req, &resBody, http.StatusOK)
-		if err != nil {
-			return nil, err
-		}
-		return resBody, nil
+	req, err := creatHTTPPOSTAPIRequest(storeMultipleSubscriptionEndpoint, subs)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	resBody := make([]SubscriptionResp, 0)
+	err = send(CreateMultipleSubscriptionContext, req, &resBody, http.StatusOK)
+	if err != nil {
+		return nil, err
+	}
+	return resBody, nil
 }
 
 // UnSubscribe method removes the given subscription.
