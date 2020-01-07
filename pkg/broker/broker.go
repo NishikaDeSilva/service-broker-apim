@@ -16,7 +16,7 @@
  * under the License.
  */
 
-// Package broker hologDatas the implementation of brokerapi.ServiceBroker interface.
+// Package broker holds the implementation of brokerapi.ServiceBroker interface.
 package broker
 
 import (
@@ -32,10 +32,10 @@ import (
 	"github.com/pivotal-cf/brokerapi/domain/apiresponses"
 	"github.com/pkg/errors"
 	"github.com/wso2/service-broker-apim/pkg/apim"
-	brokerErrors "github.com/wso2/service-broker-apim/pkg/brokererrors"
 	"github.com/wso2/service-broker-apim/pkg/client"
 	"github.com/wso2/service-broker-apim/pkg/db"
 	"github.com/wso2/service-broker-apim/pkg/log"
+	"github.com/wso2/service-broker-apim/pkg/mapBrokerError"
 	"github.com/wso2/service-broker-apim/pkg/model"
 	"github.com/wso2/service-broker-apim/pkg/utils"
 )
@@ -97,12 +97,7 @@ type ServiceParams struct {
 	APIs []API `json:"apis" hash:"set"`
 }
 
-type ServiceAtrributes struct {
-	serviceParams  ServiceParams
-	organizationID string
-	spaceID        string
-}
-
+// apimBrokerProvisionDetails represents the attributes retrieved from the provision request
 type apimBrokerProvisionDetails struct {
 	organizationalID  string
 	spaceID           string
@@ -148,7 +143,6 @@ func readProvisionDetails(serviceDetails *domain.ProvisionDetails, logData *log.
 }
 
 func getServiceParamsIfExists(rawParams json.RawMessage, logData *log.Data) (ServiceParams, error) { //check: name
-	var apiParams ServiceParams
 	apiParams, err := unmarshalServiceParams(rawParams)
 	if err != nil {
 		return apiParams, err
@@ -156,7 +150,7 @@ func getServiceParamsIfExists(rawParams json.RawMessage, logData *log.Data) (Ser
 
 	if len(apiParams.APIs) == 0 {
 		log.Error("no APIs defined", nil, logData)
-		return apiParams, err
+		return apiParams, &mapBrokerError.ErrorEmptyAPIParameterSet{}
 	}
 	return apiParams, nil
 }
@@ -173,7 +167,7 @@ func generateHashForserviceParameters(appID string, svcParams ServiceParams, log
 	generatedHash, err := hashstructure.Hash(svcParams, nil)
 	if err != nil {
 		log.Error("unable to generate hash value for service parameters", err, logData)
-		err := &brokerErrors.ErrorUnableToGenerateHash{}
+		err := &mapBrokerError.ErrorUnableToGenerateHash{}
 		return "", err
 	}
 	return strconv.FormatUint(generatedHash, 10), nil
@@ -182,10 +176,9 @@ func generateHashForserviceParameters(appID string, svcParams ServiceParams, log
 func isSameInstanceWithDifferentAttrubutes(svcInstance *model.ServiceInstance, apimProvDetails *apimBrokerProvisionDetails, logData *log.Data) (bool, error) {
 	parameterHash, err := generateHashForserviceParameters(svcInstance.ApplicationID, apimProvDetails.serviceParameters, logData)
 	if err != nil {
-		//	return domain.ProvisionedServiceSpec{}, err return check...error
 		return false, err
 	}
-	if ok := validateHashSpaceIDOrgID(svcInstance, parameterHash, apimProvDetails.spaceID, apimProvDetails.organizationalID); ok { //check: naming
+	if ok := validateHashSpaceIDOrgID(svcInstance, parameterHash, apimProvDetails.spaceID, apimProvDetails.organizationalID); ok {
 
 		existingAPIs, err := getExistingAPIsForAppID(svcInstance.ApplicationID, logData)
 		if err != nil {
@@ -193,47 +186,12 @@ func isSameInstanceWithDifferentAttrubutes(svcInstance *model.ServiceInstance, a
 		}
 		if !isSameAPIs(existingAPIs, apimProvDetails.serviceParameters.APIs) {
 			log.Debug("APIs does not match", logData)
-			return true, nil //check: define another error > response error 509
+			return true, nil
 		}
 		return false, nil
 	}
 	return true, nil
 }
-
-// checkServiceInstanceWithAttributes function returns domain.ProvisionedServiceSpec and error type apiresponses.FailureResponse.
-// If there is a instance with the same attributes the domain.ProvisionedServiceSpec.AlreadyExists will be set to "true".
-// and if the instance exist with different attributes apiresponses.ErrInstanceAlreadyExists is returned.
-// func checkServiceInstanceWithAttributes(svcInstanceID string, apimProvisionDetails *apimBrokerProvisionDetails, logData *log.Data) (string, error) { //TODO: checkServiceInstanceStatus
-// 	//TODO: break into two methods: get svcInstance/ compare
-// 	exists, svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
-// 	if err != nil {
-// 		switch errors.Cause(err).(type) {
-// 		case *InstanceDoesNotExistError:
-// 			return StatusInstanceDoesNotExist, nil
-// 		default:
-// 			return "", errors.Wrap(err, "Unable to retrieve instance from database")
-// 		}
-// 	}
-
-// 	parameterHash, err := generateHashForserviceParameters(svcInstance.ApplicationID, apimProvisionDetails.serviceParameters, logData)
-// 	if err != nil {
-// 		//	return domain.ProvisionedServiceSpec{}, err return check...error
-// 		return "", err
-// 	}
-// 	if ok := validateHashSpaceIDOrgID(svcInstance, parameterHash, apimProvisionDetails.spaceID, apimProvisionDetails.organizationalID); ok { //check: naming
-
-// 		existingAPIs, err := getExistingAPIsForAppID(svcInstance.ApplicationID, logData)
-// 		if err != nil {
-// 			return "", err
-// 		}
-// 		if !isSameAPIs(existingAPIs, apimProvisionDetails.serviceParameters.APIs) {
-// 			log.Debug("APIs does not match", logData)
-// 			return "", apiresponses.ErrInstanceAlreadyExists //check: define another error > response error 509
-// 		}
-// 		return StatusInstanceAlreadyExists, nil
-// 	}
-// 	return "", &InstanceConflictError{}
-// }
 
 func deleteSubscriptions(removedSubsIds []string, svcInstanceID string) error {
 
@@ -286,9 +244,9 @@ func getRemovedAPIs(existingAPIs, requestedAPIs []API) []API {
 	return removedAPIs
 }
 
-func getAddedAPIs(existingAPIs, requestedAPIs []API, logData *log.Data) []API {
+func getAddedAPIs(existingAPIs, updatedAPIs []API, logData *log.Data) []API {
 	var addedAPIs []API
-	for _, api := range requestedAPIs {
+	for _, api := range updatedAPIs {
 		if !isArrayContainAPI(existingAPIs, api) {
 			addedAPIs = append(addedAPIs, api)
 		}
@@ -348,8 +306,7 @@ func getServices() ([]domain.Service, error) {
 	}, nil
 }
 
-// createApplication creates Subscription in API-M and returns App ID, App dashboard URL and
-// an error type apiresponses.FailureResponse if encountered.
+// createApplication creates Subscription in API-M and returns App ID, App dashboard URL and an error if encountered.
 func createApplication(appName string, logData *log.Data) (string, string, error) {
 	req := &apim.ApplicationCreateReq{
 		Name:           appName,
@@ -365,69 +322,60 @@ func createApplication(appName string, logData *log.Data) (string, string, error
 	return appID, dashboardURL, nil
 }
 
-// handleAPIMResourceCreateError handles the API-M resource creation error. Returns an error type apiresponses.FailureResponse.
+// handleAPIMResourceCreateError handles the API-M resource creation error. Returns an error mapped to apiresponses.FailureResponse.
 func handleAPIMResourceCreateError(e error, resourceName string, logData *log.Data) error {
 	invokeErr, ok := e.(*client.InvokeError)
 	if ok && invokeErr.StatusCode == http.StatusConflict {
 		log.Debug("API-M resource already exists", logData)
-		return &brokerErrors.ErrorAPIMResourceAlreadyExists{}
+		return &mapBrokerError.ErrorAPIMResourceAlreadyExists{}
 	}
 
 	log.Debug("unable to create API-M resource", logData)
-	return &brokerErrors.ErrorUnableToCreateAPIMResource{}
+	return &mapBrokerError.ErrorUnableToCreateAPIMResource{}
 }
 
-// retriveServiceInstance function check whether the given instance already exists. If the given instance exists then an initialized instance and
-// if the given instance doesn't exist or unable to retrieve it from database, an error type apiresponses.FailureResponse is returned.
-func retriveServiceInstance(svcInstanceID string, logData *log.Data) (bool, *model.ServiceInstance, error) {
+// retriveServiceInstance function checks whether the given instance already exists.
+// If the given instance exists then an initialized instance and
+// If the given instance is unable to retrieve from database, an error is returned.
+func retriveServiceInstance(svcInstanceID string, logData *log.Data) (*model.ServiceInstance, error) {
 	instance := &model.ServiceInstance{
 		ID: svcInstanceID,
 	}
 	exists, err := db.Retrieve(instance)
 	if err != nil {
 		log.Error("unable to retrieve the service instance from database", err, logData)
-		return false, nil, &brokerErrors.ErrorUnableToRetrieveServiceInstance{}
+		return nil, &mapBrokerError.ErrorUnableToRetrieveServiceInstance{}
 	}
-	// if !exists {
-	// 	log.Debug("instance doesn't exists", logData)
-	// 	return nil, brokerErrors.ErrorInstanceDoesNotExist{}
-	// }
-	return exists, instance, nil
+	if !exists {
+		log.Debug("instance doesn't exists", logData)
+		return nil, nil
+	}
+	return instance, nil
 }
 
-// deleteInstance function deletes the given instance from database. A domain.DeprovisionServiceSpec{} and an error type apiresponses.FailureResponse is returned.
+// deleteInstance function deletes the given instance from database. An error type mapped to apiresponses.FailureResponse is returned.
 func deleteInstance(i *model.ServiceInstance, logData *log.Data) error {
 	err := db.Delete(i)
 	if err != nil {
 		log.Error("unable to delete the instance from the database", err, logData)
-		err := &brokerErrors.ErrorUnableToDeleteInstance{}
+		err := &mapBrokerError.ErrorUnableToDeleteInstance{}
 		return err
 	}
 	return nil
 }
 
-// handleAPIMResourceUpdateError handles the API-M resource update errors. Returns an error type apiresponses.FailureResponse.
+// handleAPIMResourceUpdateError handles the API-M resource update errors. Returns an error type mapped to apiresponses.FailureResponse.
 func handleAPIMResourceUpdateError(err error, resourceName string) error {
 	e, ok := err.(*client.InvokeError)
 	if ok && e.StatusCode == http.StatusNotFound {
-		return &brokerErrors.ErrorAPIMResourceDoesNotExist{
+		return &mapBrokerError.ErrorAPIMResourceDoesNotExist{
 			APIMResourceName: resourceName,
 		}
 	}
-	return &brokerErrors.ErrorUnableToUpdateAPIMResource{}
+	return &mapBrokerError.ErrorUnableToUpdateAPIMResource{}
 }
 
-// func compareParams(appID string, apis []API, logData *log.Data) (bool, error) {
-
-// 	// If existing parameter hash and the new parameter has matches then check each fielogData again to avoid hash collision.
-// 	if !isSameAPIs(existingAPIs, apis) {
-// 		log.Debug("APIs does not match", logData)
-// 		return false, apiresponses.ErrInstanceAlreadyExists
-// 	}
-// 	return true, nil
-// }
-
-func getSubscriptionsListForAppID(applicationID string, logData *log.Data) (bool, []model.Subscription, error) {
+func getSubscriptionsListForAppID(applicationID string, logData *log.Data) ([]model.Subscription, error) {
 	subscription := &model.Subscription{
 		ApplicationID: applicationID,
 	}
@@ -435,9 +383,12 @@ func getSubscriptionsListForAppID(applicationID string, logData *log.Data) (bool
 	hasSubscriptions, err := db.RetrieveList(subscription, &subscriptionsList)
 	if err != nil {
 		log.Error("unable to retrieve subscription", err, logData)
-		return false, subscriptionsList, &brokerErrors.ErrorUnableToRetrieveSubscriptionList{}
+		return subscriptionsList, &mapBrokerError.ErrorUnableToRetrieveSubscriptionList{}
 	}
-	return hasSubscriptions, subscriptionsList, nil
+	if !hasSubscriptions {
+		return nil, nil
+	}
+	return subscriptionsList, nil
 }
 
 func getSubscriptionForAppAndAPI(applicationID string, api API, logData *log.Data) (*model.Subscription, error) {
@@ -449,23 +400,23 @@ func getSubscriptionForAppAndAPI(applicationID string, api API, logData *log.Dat
 	hasSubscription, err := db.Retrieve(subscription)
 	if err != nil {
 		log.Error("unable to retrieve subscription", err, logData)
-		return nil, &brokerErrors.ErrorUnableToRetrieveSubscription{}
+		return nil, &mapBrokerError.ErrorUnableToRetrieveSubscription{}
 	}
 	if !hasSubscription {
 		log.Error("no subscription is available", err, logData)
-		return nil, &brokerErrors.ErrorNoSubscriptionAvailable{}
+		return nil, &mapBrokerError.ErrorNoSubscriptionAvailable{}
 	}
 	return subscription, nil
 }
 
 func getExistingAPIsForAppID(applicationID string, logData *log.Data) ([]API, error) {
-	exists, subscriptionsList, err := getSubscriptionsListForAppID(applicationID, logData)
+	subscriptionsList, err := getSubscriptionsListForAppID(applicationID, logData)
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
+	if subscriptionsList == nil {
 		log.Error("no subscriptions are available", err, logData)
-		return nil, &brokerErrors.ErrorSubscriptionListUnavailable{}
+		return nil, &mapBrokerError.ErrorSubscriptionListUnavailable{}
 	}
 	var existingAPIs []API
 	for _, sub := range subscriptionsList {
@@ -490,8 +441,8 @@ func isSameAPIs(existingAPIs, requestedAPIs []API) bool {
 	return true
 }
 
-func isArrayContainAPI(apisArr []API, api API) bool {
-	for _, a := range apisArr {
+func isArrayContainAPI(apis []API, api API) bool {
+	for _, a := range apis {
 		if a.Name == api.Name && a.Version == api.Version {
 			return true
 		}
@@ -499,19 +450,28 @@ func isArrayContainAPI(apisArr []API, api API) bool {
 	return false
 }
 
-func createAndStoreSubscriptions(instance *model.ServiceInstance, apis []API, logData *log.Data) (bool, error) {
-	subscriptions, revertApp, err := createSubscriptions(instance, apis, logData)
+func unsubscribeMultipleAPIs(subs []model.Subscription, logData *log.Data) {
+	for _, subscription := range subs {
+		err := apim.UnSubscribe(subscription.ID)
+		if err != nil {
+			log.Error("Unable to unsubscribe APIs", err, logData)
+		}
+	}
+}
+
+func createAndStoreSubscriptions(instance *model.ServiceInstance, apis []API, logData *log.Data) error {
+	subscriptions, err := createSubscriptions(instance, apis, logData)
 	if err != nil {
 		log.Error("unable to create subscriptions", err, logData)
-		return revertApp, err
+		return err
 	}
 	err = storeSubscriptions(subscriptions)
 	if err != nil {
+		unsubscribeMultipleAPIs(subscriptions, logData)
 		log.Error("unable to store subscriptions", err, logData)
-		return true, err
 	}
 
-	return false, nil
+	return nil
 }
 
 func createServiceInstanceObject(ID, paramHash string, apimProvDetails *apimBrokerProvisionDetails, appData *apim.ApplicationMetadata) *model.ServiceInstance {
@@ -536,22 +496,21 @@ func persistServiceInstance(svcInstance *model.ServiceInstance, logData *log.Dat
 	return nil
 }
 
-func createApplicationAndGenerateKeys(id string, logData *log.Data) (*apim.ApplicationMetadata, bool, error) {
-	revertApp := false
+func createApplicationAndGenerateKeys(id string, logData *log.Data) (*apim.ApplicationMetadata, error) {
 	appName := generateApplicationName(id)
 
 	logData.Add(LogKeyApplicationName, appName)
 	appID, appDashboardURL, err := createApplication(appName, logData)
 	if err != nil {
-		return nil, revertApp, err
+		return nil, err
 	}
 	logData.Add(LogKeyAppID, appID).
 		Add(ApplicationDashboardURL, appDashboardURL)
 
 	keys, err := generateKeysForApplication(appID, logData)
 	if err != nil {
-		revertApp = true
-		return nil, revertApp, err
+		revertApplication(appID, logData)
+		return nil, err
 	}
 
 	return &apim.ApplicationMetadata{
@@ -559,11 +518,11 @@ func createApplicationAndGenerateKeys(id string, logData *log.Data) (*apim.Appli
 		ID:           appID,
 		Keys:         keys,
 		DashboardURL: appDashboardURL,
-	}, revertApp, nil
+	}, nil
 
 }
 
-func deleteServiceInstanceAndLogError(svcInstanceID string, logData *log.Data) {
+func removeServiceInstanceAndLogError(svcInstanceID string, logData *log.Data) {
 	err := db.Delete(&model.ServiceInstance{
 		ID: svcInstanceID,
 	})
@@ -580,7 +539,7 @@ func storeSubscriptions(subscriptions []model.Subscription) error {
 	err := db.BulkInsert(entities)
 	if err != nil {
 		log.Error("unable to store subscriptions", err, nil)
-		return &brokerErrors.ErrorUnableToStoreSubscriptions{}
+		return &mapBrokerError.ErrorUnableToStoreSubscriptions{}
 	}
 	return nil
 }
@@ -602,38 +561,25 @@ func getSubscriptionList(svcInstanceID string, subsResponses []apim.Subscription
 	return subscriptions
 }
 
-// storeServiceInstance stores service instance in the database returns an error type apiresponses.FailureResponse.
+// storeServiceInstance stores service instance in the database returns an error type mapped to apiresponses.FailureResponse.
 func storeServiceInstance(i *model.ServiceInstance, logData *log.Data) error {
 	err := db.Store(i)
 	if err != nil {
 		log.Error(ErrMsgUnableToStoreInstance, err, logData)
-		//revertApplication(i.ApplicationID, logData)
-		return &brokerErrors.ErrorUnableToStoreServiceInstance{}
+		return &mapBrokerError.ErrorUnableToStoreServiceInstance{}
 	}
 	return nil
 }
 
-func getAPIIDs(apis []API) ([]string, error) {
-	var apiIDs []string
+func createSubscriptions(svcInstance *model.ServiceInstance, apis []API, logData *log.Data) ([]model.Subscription, error) {
+
+	var subscriptionRequests []apim.SubscriptionReq
+
 	for _, api := range apis {
 		apiID, err := apim.SearchAPIByNameVersion(api.Name, api.Version)
 		if err != nil {
-			return nil, err
+			return nil, &mapBrokerError.ErrorUnableToSearchAPIs{}
 		}
-		apiIDs = append(apiIDs, apiID)
-	}
-	return apiIDs, nil
-}
-
-func createSubscriptions(svcInstance *model.ServiceInstance, apis []API, logData *log.Data) ([]model.Subscription, bool, error) {
-	revertApp := false
-	apiIDs, err := getAPIIDs(apis)
-	if err != nil {
-		log.Error("unable to get API ids", err, logData)
-		return nil, revertApp, &brokerErrors.ErrorUnableToSearchAPIs{}
-	}
-	var subscriptionRequests []apim.SubscriptionReq
-	for _, apiID := range apiIDs {
 		subReq := apim.SubscriptionReq{
 			ApplicationID: svcInstance.ApplicationID,
 			APIIdentifier: apiID,
@@ -641,55 +587,18 @@ func createSubscriptions(svcInstance *model.ServiceInstance, apis []API, logData
 		}
 		subscriptionRequests = append(subscriptionRequests, subReq)
 	}
+
 	subscriptionCreateResp, err := apim.CreateMultipleSubscriptions(subscriptionRequests)
 	if err != nil {
-		revertApp = true
 		log.Error("unable to create subscriptions", err, logData)
-		//revertApplication(svcInstance.ApplicationID, logData)
-		return nil, revertApp, &brokerErrors.ErrorUnableToCreateSubscription{}
+		return nil, &mapBrokerError.ErrorUnableToCreateSubscription{}
 	}
-	return getSubscriptionList(svcInstance.ID, subscriptionCreateResp), revertApp, nil
+	return getSubscriptionList(svcInstance.ID, subscriptionCreateResp), nil
 }
 
 func generateApplicationName(svcInstanceID string) string {
 	return ApplicationPrefix + svcInstanceID
 }
-
-// func checkErrorResponse(err error) error { //methos consistance; convertTo... this should only have apiresponse. fremeworkErrors
-
-// 	baseError := errors.Cause(err) //TODO: remove this implemt... stop wrapping error
-// 	switch baseError.(type) {
-
-// 	case *InternalServerError:
-// 		errStruct := baseError.(*InternalServerError)
-// 		if errStruct.revertApplication != nil {
-// 			revertApplication(errStruct.revertApplication.applicationID, errStruct.revertApplication.logData) //TODO: remove revertApp
-// 		}
-// 		return apiresponses.NewFailureResponse(errors.New(errStruct.errorMessage), http.StatusInternalServerError, errStruct.loggerAction)
-
-// 	case *BadRequestFailureResponseError:
-// 		errStruct := baseError.(*BadRequestFailureResponseError)
-// 		return apiresponses.NewFailureResponse(errors.New(errStruct.errorMessage), http.StatusBadRequest, errStruct.loggerAction)
-
-// 	case *ConfigApplicationError:
-// 		errStruct := baseError.(*ConfigApplicationError)
-// 		revertApplication(errStruct.applicationID, errStruct.logData) // don't put in this method
-// 		return errStruct.err
-
-// 	case *BindingNotExistsError: //TODO: implementation in one place for different cases,
-// 		return apiresponses.ErrBindingDoesNotExist
-
-// 	case *InstanceDoesNotExistError:
-// 		return apiresponses.ErrInstanceDoesNotExist
-
-// 	case *InstanceConflictError:
-// 		return apiresponses.ErrInstanceAlreadyExists
-
-// 	default:
-// 		return err
-// 	}
-
-// }
 
 func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 	provisionDetails domain.ProvisionDetails, asyncAllowed bool) (domain.ProvisionedServiceSpec, error) { //pdfProvisionDetails
@@ -701,15 +610,18 @@ func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 
 	apimProvDetails, err := readProvisionDetails(&provisionDetails, logData)
 	if err != nil {
-		return domain.ProvisionedServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
-	exists, svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
+	svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
+	if err != nil {
+		return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
+	}
 
-	if exists {
+	if svcInstance != nil {
 		confirm, err := isSameInstanceWithDifferentAttrubutes(svcInstance, apimProvDetails, logData)
 		if err != nil {
-			return domain.ProvisionedServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+			return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 		}
 		if confirm {
 			return domain.ProvisionedServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
@@ -721,17 +633,14 @@ func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 
 	}
 
-	appMetadata, revertApp, err := createApplicationAndGenerateKeys(svcInstanceID, logData)
+	appMetadata, err := createApplicationAndGenerateKeys(svcInstanceID, logData)
 	if err != nil {
-		if revertApp {
-			revertApplication(appMetadata.ID, logData)
-		}
-		return domain.ProvisionedServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
 	parameterHash, err := generateHashForserviceParameters(appMetadata.ID, apimProvDetails.serviceParameters, logData)
 	if err != nil {
-		return domain.ProvisionedServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
 	svcInstance = createServiceInstanceObject(svcInstanceID, parameterHash, apimProvDetails, appMetadata)
@@ -739,16 +648,14 @@ func (apimBroker *APIM) Provision(ctx context.Context, svcInstanceID string,
 	err = persistServiceInstance(svcInstance, logData)
 	if err != nil {
 		revertApplication(appMetadata.ID, logData)
-		return domain.ProvisionedServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
-	revertApp, err = createAndStoreSubscriptions(svcInstance, apimProvDetails.serviceParameters.APIs, logData)
+	err = createAndStoreSubscriptions(svcInstance, apimProvDetails.serviceParameters.APIs, logData)
 	if err != nil {
-		if revertApp {
-			revertApplication(appMetadata.ID, logData)
-		}
-		deleteServiceInstanceAndLogError(svcInstanceID, logData)
-		return domain.ProvisionedServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		revertApplication(appMetadata.ID, logData)
+		removeServiceInstanceAndLogError(svcInstanceID, logData)
+		return domain.ProvisionedServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
 	return domain.ProvisionedServiceSpec{
@@ -760,17 +667,13 @@ func (apimBroker *APIM) Deprovision(ctx context.Context, svcInstanceID string,
 	serviceDetails domain.DeprovisionDetails, asyncAllowed bool) (domain.DeprovisionServiceSpec, error) {
 	logData := createCommonLogData(svcInstanceID, serviceDetails.ServiceID, serviceDetails.PlanID)
 
-	exists, svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
+	svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
 	if err != nil {
-		return domain.DeprovisionServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
-	}
-	if !exists {
-		log.Debug("instance doesn't exists", logData)
-		err = apiresponses.ErrInstanceDoesNotExist
-		return domain.DeprovisionServiceSpec{}, err
+		return domain.DeprovisionServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 	if svcInstance == nil {
-		return domain.DeprovisionServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
+		log.Debug("instance doesn't exists", logData)
+		return domain.DeprovisionServiceSpec{}, apiresponses.ErrInstanceDoesNotExist
 	}
 
 	logData.
@@ -781,40 +684,43 @@ func (apimBroker *APIM) Deprovision(ctx context.Context, svcInstanceID string,
 	err = apim.DeleteApplication(svcInstance.ApplicationID)
 	if err != nil {
 		log.Error("unable to delete the Application", err, logData)
-		return domain.DeprovisionServiceSpec{}, apiresponses.NewFailureResponse(errors.New(ErrMsgUnableDelInstance), http.StatusInternalServerError, ErrActionDelAPP)
+		return domain.DeprovisionServiceSpec{}, apiresponses.NewFailureResponse(errors.New(ErrMsgUnableDelInstance), http.StatusInternalServerError, ErrActionDelAPP) //TODO: consistancy ?
 	}
 
 	log.Debug(DebugMsgDelInstance, logData)
 
 	err = deleteInstance(&model.ServiceInstance{ID: svcInstanceID}, logData)
 	if err != nil {
-		return domain.DeprovisionServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.DeprovisionServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
 	return domain.DeprovisionServiceSpec{}, nil
 }
 
 func unmarshalServiceParams(rawParam json.RawMessage) (ServiceParams, error) {
-	var s ServiceParams
-	err := json.Unmarshal(rawParam, &s)
+	var serviceParams ServiceParams
+	err := json.Unmarshal(rawParam, &serviceParams)
 	if err != nil {
-		return s, err
+		return serviceParams, err
 	}
-	return s, nil
+	return serviceParams, nil
 }
 
-// retrieveServiceBind returns the whether Bind exists, initialized Bind struct and any error encountered.
-func retrieveServiceBind(bindingID string, logData *log.Data) (bool, *model.Bind, error) {
+// retrieveServiceBind returns the initialized Bind struct if successfull and
+// returns a nil object and an error for any error encountered.
+func retrieveServiceBind(bindingID string, logData *log.Data) (*model.Bind, error) {
 	bind := &model.Bind{
 		ID: bindingID,
 	}
 	exists, err := db.Retrieve(bind)
 	if err != nil {
 		log.Error(ErrMsgUnableToGetBind, err, logData)
-		err := &brokerErrors.ErrorUnableToRetrieveBind{}
-		return false, nil, err
+		return nil, &mapBrokerError.ErrorUnableToRetrieveBind{}
 	}
-	return exists, bind, nil
+	if !exists {
+		return nil, nil
+	}
+	return bind, nil
 }
 
 // isBindWithSameAttributes returns true of the Bind is already exists and attached with the given instance ID,attributes.
@@ -833,34 +739,29 @@ func (apimBroker *APIM) Bind(ctx context.Context, svcInstanceID, bindingID strin
 	logData := createCommonLogData(svcInstanceID, bindDetails.ServiceID, bindDetails.PlanID)
 	logData.Add(LogKeyBindID, bindingID)
 
-	exists, bind, err := retrieveServiceBind(bindingID, logData)
+	bind, err := retrieveServiceBind(bindingID, logData)
 	if err != nil {
-		return domain.Binding{}, brokerErrors.MapErrorsWithFrameworkError(err)
-	}
-	var isWithSameAttr = false
-	if exists {
-		isWithSameAttr = isBindWithSameAttributes(bind, svcInstanceID, bindDetails.BindResource) //TODO: does the bind contain different attr | properties
-		if !isWithSameAttr {
-			return domain.Binding{}, apiresponses.ErrBindingAlreadyExists
-		}
+		return domain.Binding{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
 	log.Debug("retrieve instance", logData)
-	exists, svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
+	svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
 	if err != nil {
-		return domain.Binding{}, brokerErrors.MapErrorsWithFrameworkError(err)
-	}
-	if !exists {
-		log.Debug("instance doesn't exists", logData)
-		return domain.Binding{}, apiresponses.ErrInstanceDoesNotExist
+		return domain.Binding{}, mapBrokerError.MapBrokerErrors(err)
 	}
 	if svcInstance == nil {
-		return domain.Binding{}, apiresponses.ErrInstanceAlreadyExists //check: conflict
+		log.Debug("instance doesn't exists", logData)
+		return domain.Binding{}, apiresponses.ErrInstanceDoesNotExist
 	}
 
 	credentialsMap := credentialsMap(svcInstance.ApplicationName, svcInstance.ConsumerKey, svcInstance.ConsumerSecret)
 
-	if isWithSameAttr {
+	var isWithSameAttr = false
+	if bind != nil {
+		isWithSameAttr = isBindWithSameAttributes(bind, svcInstanceID, bindDetails.BindResource)
+		if !isWithSameAttr {
+			return domain.Binding{}, apiresponses.ErrBindingAlreadyExists
+		}
 		return domain.Binding{
 			Credentials:   credentialsMap,
 			AlreadyExists: true,
@@ -877,7 +778,7 @@ func (apimBroker *APIM) Bind(ctx context.Context, svcInstanceID, bindingID strin
 	}
 	err = storeBind(bind, logData)
 	if err != nil {
-		return domain.Binding{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.Binding{}, mapBrokerError.MapBrokerErrors(err)
 	}
 	log.Debug("successfully stored the Bind", logData)
 	return domain.Binding{
@@ -889,24 +790,9 @@ func isApplicationPlan(planID string) bool {
 	return planID == ApplicationPlanID
 }
 
-// func generateUUID() (string, error) {
-// 	u, err := uuid.NewUUID()
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	return u.String(), nil
-// }
-
-// getPlatformAppID returns platform app ID from the given domain.BindResource and any error encountered.
-// An UUID is returned if the domain.BindResource is nil(create-service-key flow).
-// Error type is apiresponses.FailureResponse.
 func getPlatformAppID(b *domain.BindResource) string {
 	var cfAppID string
 	if isOriginatedFromCreateServiceKey(b) {
-		// u, err := generateUUID()
-		// if err != nil {
-		// 	return "", err
-		// }
 		cfAppID = ""
 	} else {
 		cfAppID = b.AppGuid
@@ -923,24 +809,23 @@ func revertApplication(appID string, logData *log.Data) {
 }
 
 // generateKeysForApplication function generates keys for the given Subscription.
-// Returns initialized *apim.ApplicationKeyResp and type apiresponses.FailureResponse error if encountered.
+// Returns generated keys and an error type mapped to apiresponses.FailureResponse if encountered.
 func generateKeysForApplication(appID string, logData *log.Data) (*apim.ApplicationKeyResp, error) {
 	appKeys, err := apim.GenerateKeys(appID)
 	if err != nil {
 		log.Error(ErrMsgUnableGenerateKeys, err, logData)
-		//revertApplication(appID, logData)
-		return appKeys, &brokerErrors.ErrorUnableToGenerateKeys{}
+		return appKeys, &mapBrokerError.ErrorUnableToGenerateKeys{}
 	}
 	return appKeys, nil
 }
 
 // storeBind function stores the given Bind in the database.
-// Returns type apiresponses.FailureResponse error if encountered.
+// Return an error type mapped to apiresponses.FailureResponse error if encountered.
 func storeBind(b *model.Bind, logData *log.Data) error {
 	err := db.Store(b)
 	if err != nil {
 		log.Error("unable to store bind", err, logData)
-		return &brokerErrors.ErrorUnableToStoreBind{}
+		return &mapBrokerError.ErrorUnableToStoreBind{}
 	}
 	return nil
 }
@@ -965,52 +850,36 @@ func (apimBroker *APIM) Unbind(ctx context.Context, svcInstanceID, bindingID str
 
 	logData := createCommonLogData(svcInstanceID, unbindDetails.ServiceID, unbindDetails.PlanID)
 
-	domainUnbindSpec := domain.UnbindSpec{}
 	if !isApplicationPlan(unbindDetails.PlanID) {
 		log.Error(ErrMsgInvalidPlanID, ErrInvalidSVCPlan, logData)
-		return domainUnbindSpec, apiresponses.NewFailureResponse(errors.New("unbinding"), http.StatusBadRequest, "invalid getServices or Services") //TODO: ask thilina
+		return domain.UnbindSpec{}, apiresponses.NewFailureResponse(errors.New("unbinding"), http.StatusBadRequest, "invalid planID") //TODO: consistant?
 	}
 
-	exists, bind, err := retrieveServiceBind(bindingID, logData)
+	bind, err := retrieveServiceBind(bindingID, logData)
 	if err != nil {
-		return domain.UnbindSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.UnbindSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
-	// Bind not exists
-	if !exists {
-		return domain.UnbindSpec{}, brokerErrors.MapErrorsWithFrameworkError(&brokerErrors.ErrorBindDoesNotExist{})
+	if bind == nil {
+		return domain.UnbindSpec{}, apiresponses.ErrBindingDoesNotExist // TODO: consist?
 	}
 
 	logData.Add("cf-app-id", bind.PlatformAppID)
 
 	err = deleteBind(bind, logData)
 	if err != nil {
-		return domainUnbindSpec, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.UnbindSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
-	return domainUnbindSpec, nil
+	return domain.UnbindSpec{}, nil
 }
 
 func deleteBind(bind *model.Bind, logData *log.Data) error {
 	err := db.Delete(bind)
 	if err != nil {
 		log.Error("unable to delete the bind from the database", err, logData)
-		return &brokerErrors.ErrorUnableToDeleteBind{}
+		return &mapBrokerError.ErrorUnableToDeleteBind{}
 	}
 	return nil
-}
-
-// getBindForDeletion checks whether the given BindID in the database. If not exists, an error type apiresponses.FailureResponse
-// is returned.
-func getBindForDeletion(bindingID string, logData *log.Data) (*model.Bind, error) {
-	exists, bind, err := retrieveServiceBind(bindingID, logData)
-	if err != nil {
-		return nil, err
-	}
-	// Bind not exists
-	if !exists {
-		return nil, apiresponses.ErrInstanceDoesNotExist
-	}
-	return bind, nil
 }
 
 // LastOperation ...
@@ -1021,39 +890,30 @@ func (apimBroker *APIM) LastOperation(ctx context.Context, svcInstanceID string,
 	return domain.LastOperation{}, errors.New("not supported")
 }
 
-func updateServiceForAddedAPIs(requestedAPIs []API, existingAPIs []API, svcInstance *model.ServiceInstance, logData *log.Data) ([]API, bool, error) {
+func updateServiceForAddedAPIs(existingAPIs, updatedAPIs []API, svcInstance *model.ServiceInstance, logData *log.Data) ([]API, error) {
 
-	// existingAPIs, err := getExistingAPIsForAppID(svcInstance.ApplicationID, logData)
-	// if err != nil {
-	// 	return nil, false, err
-	// }
-
-	addedAPIs := getAddedAPIs(existingAPIs, requestedAPIs, logData)
+	addedAPIs := getAddedAPIs(existingAPIs, updatedAPIs, logData)
 	if len(addedAPIs) == 0 {
 		log.Debug("No new APIs found", logData)
-		return addedAPIs, false, nil
+		return addedAPIs, nil
 	}
 
-	addedSubscriptions, revertApp, err := createSubscriptions(svcInstance, addedAPIs, logData)
+	err := createAndStoreSubscriptions(svcInstance, addedAPIs, logData)
 	if err != nil {
-		return nil, revertApp, err
+		return nil, err
 	}
 
-	err = storeSubscriptions(addedSubscriptions)
-	if err != nil {
-		return nil, false, err
-	}
-	return addedAPIs, false, nil
+	return addedAPIs, nil
 }
 
-func updateServiceForRemovedAPIs(svcInstance *model.ServiceInstance, instanceID string, existingAPIs []API, paramAPIs []API, logData *log.Data) error {
+func updateServiceForRemovedAPIs(existingAPIs []API, paramAPIs []API, svcInstance *model.ServiceInstance, logData *log.Data) error {
 
 	removeSubscriptionIDs, err := getRemovedSubscriptionsIDs(svcInstance.ApplicationID, existingAPIs, paramAPIs, logData) //updatesvcforremovedapis
 	if err != nil {
 		return err
 	}
 
-	err = deleteSubscriptions(removeSubscriptionIDs, instanceID)
+	err = deleteSubscriptions(removeSubscriptionIDs, svcInstance.ID)
 	if err != nil {
 		return err
 	}
@@ -1061,7 +921,7 @@ func updateServiceForRemovedAPIs(svcInstance *model.ServiceInstance, instanceID 
 	return nil
 }
 
-func removeAddedAPIs(appID, instanceID string, apis []API, logData *log.Data) {
+func revertAddedAPIs(appID, instanceID string, apis []API, logData *log.Data) {
 	log.Debug("remove previously added APIs", logData)
 	var removedSubsIDs []string
 	for _, rAPI := range apis {
@@ -1085,42 +945,35 @@ func (apimBroker *APIM) Update(cxt context.Context, svcInstanceID string,
 
 	svcParams, err := getServiceParamsIfExists(updateDetails.RawParameters, logData)
 	if err != nil {
-		return domain.UpdateServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.UpdateServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
-	// retriveServiceInstance returns 410 if the instance doesn't exists.
-	// In this case status code 410 is interpreted as a failure.
-	exists, svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
+
+	svcInstance, err := retriveServiceInstance(svcInstanceID, logData)
 	if err != nil {
-		return domain.UpdateServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
-	}
-	if !exists {
-		log.Debug("instance doesn't exists", logData)
-		return domain.UpdateServiceSpec{}, apiresponses.ErrInstanceDoesNotExist
+		return domain.UpdateServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 	if svcInstance == nil {
-		return domain.UpdateServiceSpec{}, apiresponses.ErrInstanceAlreadyExists
+		log.Debug("instance doesn't exists", logData)
+		return domain.UpdateServiceSpec{}, apiresponses.ErrInstanceDoesNotExist
 	}
 
 	existingAPIs, err := getExistingAPIsForAppID(svcInstance.ApplicationID, logData)
 	if err != nil {
-		return domain.UpdateServiceSpec{}, err
+		return domain.UpdateServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
-	addedAPIs, revertApp, err := updateServiceForAddedAPIs(svcParams.APIs, existingAPIs, svcInstance, logData)
+	addedAPIs, err := updateServiceForAddedAPIs(existingAPIs, svcParams.APIs, svcInstance, logData)
 	if err != nil {
-		if revertApp {
-			revertApplication(svcInstance.ApplicationID, logData)
-		}
-		return domain.UpdateServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		return domain.UpdateServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
-	err = updateServiceForRemovedAPIs(svcInstance, svcInstanceID, existingAPIs, svcParams.APIs, logData)
+	err = updateServiceForRemovedAPIs(existingAPIs, svcParams.APIs, svcInstance, logData)
 	if err != nil {
-		removeAddedAPIs(svcInstance.ApplicationID, svcInstanceID, addedAPIs, logData)
-		return domain.UpdateServiceSpec{}, brokerErrors.MapErrorsWithFrameworkError(err)
+		revertAddedAPIs(svcInstance.ApplicationID, svcInstanceID, addedAPIs, logData)
+		return domain.UpdateServiceSpec{}, mapBrokerError.MapBrokerErrors(err)
 	}
 
 	log.Debug("Instace successfully updated", logData)
 
-	return domain.UpdateServiceSpec{}, err
+	return domain.UpdateServiceSpec{}, nil
 }

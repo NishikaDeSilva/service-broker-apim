@@ -22,15 +22,16 @@ package token
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wso2/service-broker-apim/pkg/client"
-	"github.com/wso2/service-broker-apim/pkg/log"
-	"github.com/wso2/service-broker-apim/pkg/utils"
 	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/wso2/service-broker-apim/pkg/client"
+	"github.com/wso2/service-broker-apim/pkg/log"
+	"github.com/wso2/service-broker-apim/pkg/utils"
 )
 
 const (
@@ -116,14 +117,15 @@ type token struct {
 // PasswordRefreshTokenGrantManager is used to manage Access token using password and refresh_token grant type.
 // Holds access token for the given scopes and regenerate token using refresh token if the access token is expired.
 type PasswordRefreshTokenGrantManager struct {
-	once                  sync.Once
-	token                 *token
-	clientID              string
-	clientSec             string
-	TokenEndpoint         string
-	DynamicClientEndpoint string
-	UserName              string
-	Password              string
+	once                             sync.Once
+	token                            *token
+	clientID                         string
+	clientSec                        string
+	TokenEndpoint                    string
+	DynamicClientEndpoint            string
+	DynamicClientRegistrationContext string
+	UserName                         string
+	Password                         string
 }
 
 // Manager interface manages the token for a set of given scopes.
@@ -287,7 +289,11 @@ func (m *PasswordRefreshTokenGrantManager) registerDynamicClient(reqBody *Dynami
 	if err != nil {
 		return errors.Wrapf(err, ErrMsgUnableToParseRequestBody, DynamicClientRegMsg)
 	}
-	req, err := client.CreateHTTPRequest(http.MethodPost, m.DynamicClientEndpoint, bodyReader)
+	dynamicClientRegistrationEndpoint, err := utils.ConstructURL(m.DynamicClientEndpoint, m.DynamicClientRegistrationContext)
+	if err != nil {
+		return errors.Wrap(err, "cannot construct, token endpoint")
+	}
+	req, err := client.CreateHTTPRequest(http.MethodPost, dynamicClientRegistrationEndpoint, bodyReader)
 	if err != nil {
 		return errors.Wrapf(err, ErrMsgUnableToCreateRequestBody, DynamicClientRegMsg)
 	}

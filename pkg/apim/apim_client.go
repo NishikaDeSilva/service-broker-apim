@@ -104,6 +104,9 @@ func GetAppDashboardURL(appName string) string {
 // Returns the Application ID and any error encountered.
 func CreateApplication(reqBody *ApplicationCreateReq) (string, error) {
 	req, err := creatHTTPPOSTAPIRequest(storeApplicationEndpoint, reqBody)
+	if err != nil {
+		return "", err
+	}
 	var resBody AppCreateRes
 	err = send(CreateApplicationContext, req, &resBody, http.StatusCreated)
 	if err != nil {

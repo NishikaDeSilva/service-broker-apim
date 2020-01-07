@@ -58,6 +58,7 @@ type APIM struct {
 	Password                         string `mapstructure:"password"`
 	TokenEndpoint                    string `mapstructure:"tokenEndpoint"`
 	DynamicClientEndpoint            string `mapstructure:"dynamicClientEndpoint"`
+	DynamicClientRegistrationContext string `mapstructure:"dynamicClientRegistrationContext"`
 	PublisherEndpoint                string `mapstructure:"publisherEndpoint"`
 	PublisherAPIContext              string `mapstructure:"publisherAPIContext"`
 	StoreApplicationContext          string `mapstructure:"storeApplicationContext"`
@@ -173,7 +174,8 @@ func setDefaultConf() {
 	viper.SetDefault("apim.username", "admin")
 	viper.SetDefault("apim.password", "admin")
 	viper.SetDefault("apim.tokenEndpoint", "https://localhost:8243")
-	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443/client-registration/v0.14/register")
+	viper.SetDefault("apim.dynamicClientEndpoint", "https://localhost:9443")
+	viper.SetDefault("apim.dynamicClientRegistrationContext", "/client-registration/v0.14/register")
 	viper.SetDefault("apim.publisherEndpoint", "https://localhost:9443")
 	viper.SetDefault("apim.publisherAPIContext", "/api/am/publisher/v0.14/apis")
 	viper.SetDefault("apim.storeEndpoint", "https://localhost:9443")

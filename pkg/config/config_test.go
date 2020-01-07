@@ -18,9 +18,10 @@
 package config
 
 import (
-	"github.com/spf13/viper"
 	"os"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -74,7 +75,8 @@ func TestSetDefaultConf(t *testing.T) {
 	testStringConf(t, "apim.username", "admin")
 	testStringConf(t, "apim.password", "admin")
 	testStringConf(t, "apim.tokenEndpoint", "https://localhost:8243")
-	testStringConf(t, "apim.dynamicClientEndpoint", "https://localhost:9443/client-registration/v0.14/register")
+	testStringConf(t, "apim.dynamicClientEndpoint", "https://localhost:9443")
+	testStringConf(t, "apim.dynamicClientRegistrationContext", "/client-registration/v0.14/register")
 	testStringConf(t, "apim.publisherEndpoint", "https://localhost:9443")
 	testStringConf(t, "apim.publisherAPIContext", "/api/am/publisher/v0.14/apis")
 	testStringConf(t, "apim.publisherChangeAPILifeCycleContext", "/api/am/publisher/v0.14/apis/change-lifecycle")

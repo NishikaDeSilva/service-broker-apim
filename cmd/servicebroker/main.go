@@ -22,6 +22,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/wso2/service-broker-apim/pkg/apim"
 	"github.com/wso2/service-broker-apim/pkg/broker"
@@ -31,9 +35,6 @@ import (
 	"github.com/wso2/service-broker-apim/pkg/log"
 	"github.com/wso2/service-broker-apim/pkg/model"
 	"github.com/wso2/service-broker-apim/pkg/token"
-	"net/http"
-	"os"
-	"os/signal"
 )
 
 const (
@@ -66,10 +67,11 @@ func main() {
 
 	// Initialize Token manager.
 	tManager := &token.PasswordRefreshTokenGrantManager{
-		TokenEndpoint:         conf.APIM.TokenEndpoint,
-		DynamicClientEndpoint: conf.APIM.DynamicClientEndpoint,
-		UserName:              conf.APIM.Username,
-		Password:              conf.APIM.Password,
+		TokenEndpoint:                    conf.APIM.TokenEndpoint,
+		DynamicClientEndpoint:            conf.APIM.DynamicClientEndpoint,
+		DynamicClientRegistrationContext: conf.APIM.DynamicClientRegistrationContext,
+		UserName:                         conf.APIM.Username,
+		Password:                         conf.APIM.Password,
 	}
 	tManager.Init([]string{token.ScopeSubscribe, token.ScopeAPIView})
 
